@@ -25,7 +25,15 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://supabase.com/docs/docs.tar.gz",
   }),
 
-  // Supabase blog omitted — pages are RSC-rendered (no extractable HTML content)
+  // Blog — MDX source from the supabase/supabase repo
+  new DocSource({
+    name: "supabase-blog",
+    type: "git",
+    url: "https://github.com/supabase/supabase",
+    format: "mdx",
+    paths: ["apps/www/_blog"],
+    rootPath: "apps/www/_blog",
+  }),
 
   // ─── Cloudflare ────────────────────────────────────────────────────
 
