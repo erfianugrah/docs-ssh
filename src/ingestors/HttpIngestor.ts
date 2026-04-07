@@ -11,19 +11,27 @@ const CONCURRENCY = 15;
 const UA = "docs-ssh/0.2 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
 const MAX_RETRIES = 2;
 
-/** Fetch with User-Agent header and retry on transient errors. */
+/** Fetch with User-Agent header and retry on transient/network errors. */
 async function fetchWithRetry(url: string, retries = MAX_RETRIES): Promise<Response> {
+  let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const res = await fetch(url, { headers: { "User-Agent": UA } });
-    if (res.ok || attempt === retries) return res;
-    // Retry on 5xx and 413 (CDN rate-limit), not on 404 etc.
-    if (res.status < 500 && res.status !== 413 && res.status !== 429) return res;
-    const delay = 1000 * 2 ** attempt;
-    console.warn(`  [retry] ${url} → HTTP ${res.status}, waiting ${delay}ms…`);
-    await new Promise((r) => setTimeout(r, delay));
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": UA } });
+      if (res.ok || attempt === retries) return res;
+      // Retry on 5xx and 413/429 (CDN rate-limit), not on 404 etc.
+      if (res.status < 500 && res.status !== 413 && res.status !== 429) return res;
+      const delay = 1000 * 2 ** attempt;
+      console.warn(`  [retry] ${url} → HTTP ${res.status}, waiting ${delay}ms…`);
+      await new Promise((r) => setTimeout(r, delay));
+    } catch (err) {
+      lastError = err;
+      if (attempt === retries) break;
+      const delay = 1000 * 2 ** attempt;
+      console.warn(`  [retry] ${url} → ${err instanceof Error ? err.message : err}, waiting ${delay}ms…`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
   }
-  // unreachable, but satisfies TS
-  throw new Error("unreachable");
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 /**
