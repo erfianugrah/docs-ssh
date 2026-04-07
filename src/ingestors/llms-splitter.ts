@@ -1,0 +1,155 @@
+/**
+ * Splits an llms-full.txt file into per-page [path, content] entries.
+ *
+ * Supports two formats:
+ *
+ * Vercel style — long dash separators with metadata blocks:
+ *   ----------------
+ *   title: "Page Title"
+ *   source: "https://vercel.com/docs/functions"
+ *   ----------------
+ *   # Page Title
+ *   content...
+ *
+ * Cloudflare style — YAML frontmatter per page:
+ *   ---
+ *   title: Argo Smart Routing
+ *   description: ...
+ *   ---
+ *   [Skip to content]
+ *   # Argo Smart Routing
+ *   content...
+ */
+export function splitLlmsFull(content: string, baseUrl: string): Map<string, string> {
+  // Vercel format: long-dash separator immediately followed by metadata lines
+  // (title:, source:) within the next few lines — no content in between.
+  const hasVercelMeta = /^-{10,}\s*\n(?:(?!\n\n)[^\n]*\n){0,10}source:\s/m.test(content);
+  if (hasVercelMeta) {
+    return splitVercelStyle(content, baseUrl);
+  }
+  return splitFrontmatterStyle(content, baseUrl);
+}
+
+/**
+ * Vercel format: pages separated by long-dash lines (80 dashes),
+ * with title/source metadata between separators, then content after.
+ */
+export function splitVercelStyle(content: string, baseUrl: string): Map<string, string> {
+  const pages = new Map<string, string>();
+  const separator = /^-{10,}\s*$/m;
+  const blocks = content.split(separator);
+
+  let currentTitle = "";
+  let currentSource = "";
+
+  for (const block of blocks) {
+    const trimmed = block.trim();
+    if (!trimmed) continue;
+
+    const titleMatch = trimmed.match(/^title:\s*"?([^"\n]+)"?\s*$/m);
+    const sourceMatch = trimmed.match(/^source:\s*"?([^"\n]+)"?\s*$/m);
+
+    if (titleMatch && sourceMatch) {
+      currentTitle = titleMatch[1];
+      currentSource = sourceMatch[1];
+      continue;
+    }
+
+    if (currentSource) {
+      let filePath = currentSource;
+      if (filePath.startsWith(baseUrl)) filePath = filePath.slice(baseUrl.length);
+      filePath = filePath.replace(/^\/+/, "").replace(/\/$/, "");
+      if (!filePath) filePath = "index";
+      if (!filePath.endsWith(".md")) filePath += ".md";
+
+      pages.set(filePath, trimmed);
+      currentTitle = "";
+      currentSource = "";
+    }
+  }
+
+  return pages;
+}
+
+/**
+ * Cloudflare format: each page starts with a YAML frontmatter block
+ * (---\ntitle: ...\n---), followed by the page content.
+ *
+ * Key challenge: pages can contain bare --- lines (markdown <hr> rules).
+ * We distinguish frontmatter from HRs by requiring that a frontmatter
+ * block contains at least one "key: value" line (specifically "title:").
+ */
+export function splitFrontmatterStyle(content: string, _baseUrl: string): Map<string, string> {
+  const pages = new Map<string, string>();
+
+  // Find all frontmatter blocks: ---\n<yaml with title:>\n---
+  // The key insight: YAML frontmatter must contain a "title:" line.
+  // A bare ---\n\n--- or ---\n## Heading\n--- is NOT frontmatter.
+  const fmPositions: { start: number; end: number; title: string }[] = [];
+
+  // Scan line-by-line to find frontmatter blocks reliably
+  const lines = content.split("\n");
+  let i = 0;
+  let charPos = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^---\s*$/.test(line)) {
+      // Potential frontmatter opening. Scan ahead for key: value lines and closing ---
+      const fmStart = charPos;
+      let j = i + 1;
+      let yamlContent = "";
+      let foundClose = false;
+
+      while (j < lines.length) {
+        if (/^---\s*$/.test(lines[j])) {
+          foundClose = true;
+          break;
+        }
+        yamlContent += lines[j] + "\n";
+        j++;
+      }
+
+      if (foundClose && yamlContent.trim()) {
+        const titleMatch = yamlContent.match(/^title:\s*(.+)$/m);
+        if (titleMatch) {
+          const title = titleMatch[1].replace(/^["']|["']$/g, "").trim();
+          // charPos for line j+1 (after closing ---)
+          let endCharPos = fmStart;
+          for (let k = i; k <= j; k++) {
+            endCharPos += lines[k].length + 1; // +1 for \n
+          }
+          fmPositions.push({ start: fmStart, end: endCharPos, title });
+          i = j + 1;
+          charPos = endCharPos;
+          continue;
+        }
+      }
+    }
+
+    charPos += line.length + 1; // +1 for \n
+    i++;
+  }
+
+  // Extract page content between frontmatter blocks
+  for (let idx = 0; idx < fmPositions.length; idx++) {
+    const contentStart = fmPositions[idx].end;
+    const contentEnd = idx + 1 < fmPositions.length
+      ? fmPositions[idx + 1].start
+      : content.length;
+
+    const pageContent = content.slice(contentStart, contentEnd).trim();
+    const title = fmPositions[idx].title;
+
+    if (!pageContent || !title) continue;
+
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    const filePath = slug ? `${slug}.md` : `page-${idx}.md`;
+    pages.set(filePath, pageContent);
+  }
+
+  return pages;
+}

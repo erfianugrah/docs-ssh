@@ -1,0 +1,25 @@
+Port 2222
+ListenAddress 0.0.0.0
+
+# Host keys
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# Allow passwordless access — local/container use only
+PasswordAuthentication yes
+PermitEmptyPasswords yes
+PubkeyAuthentication no
+PermitRootLogin no
+
+# Restrict to docs user
+AllowUsers docs
+
+# Allow PTY for interactive shell
+PermitTTY yes
+
+# Performance
+UseDNS no
+PrintMotd no
+# PrintLastLog not supported on Alpine
+MaxStartups 50:30:100
+LoginGraceTime 30

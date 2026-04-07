@@ -1,0 +1,328 @@
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { execSync } from "node:child_process";
+import { DocFile } from "../domain/DocFile.js";
+import { DocSet } from "../domain/DocSet.js";
+import type { DocIngestor } from "../domain/DocIngestor.js";
+import type { DocSource, DiscoveryMethod } from "../domain/DocSource.js";
+import { splitLlmsFull } from "./llms-splitter.js";
+
+const CONCURRENCY = 15;
+
+/**
+ * Ingestor for HTTP doc sources.
+ * Supports multiple fetch/discovery methods — see DiscoveryMethod type.
+ */
+export class HttpIngestor implements DocIngestor {
+  readonly name = "HttpIngestor";
+
+  supports(source: DocSource): boolean {
+    return source.type === "http";
+  }
+
+  async ingest(source: DocSource, workDir: string): Promise<DocSet> {
+    // Tarball and llms-full are bulk fetches that return files directly
+    if (source.discovery === "tarball" && source.discoveryUrl) {
+      return this.ingestFromTarball(source, workDir);
+    }
+    if (source.discovery === "llms-full" && source.discoveryUrl) {
+      return this.ingestFromLlmsFull(source);
+    }
+
+    // Everything else is URL-based: discover URLs, filter, fetch each page
+    let urls: string[];
+
+    if (source.urls.length > 0) {
+      urls = [...source.urls];
+    } else if (source.discovery !== "none" && source.discoveryUrl) {
+      urls = await discover(source);
+      console.log(`  [${source.name}] raw discovery: ${urls.length} URLs`);
+    } else {
+      urls = [source.url];
+    }
+
+    // Apply include filter
+    if (source.urlPattern) {
+      const re = new RegExp(source.urlPattern);
+      urls = urls.filter((u) => re.test(u));
+    }
+
+    // Apply exclude filter
+    if (source.urlExclude) {
+      const re = new RegExp(source.urlExclude);
+      urls = urls.filter((u) => !re.test(u));
+    }
+
+    // Append suffix
+    if (source.urlSuffix) {
+      urls = urls.map((u) => u.replace(/\/$/, "") + source.urlSuffix!);
+    }
+
+    // Deduplicate
+    urls = [...new Set(urls)];
+
+    console.log(`  [${source.name}] fetching ${urls.length} pages…`);
+
+    const files = new Map<string, DocFile>();
+    const errors: string[] = [];
+
+    for (let i = 0; i < urls.length; i += CONCURRENCY) {
+      const batch = urls.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(async (url) => {
+          const res = await fetch(url);
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status} for ${url}`);
+          }
+          const content = await res.text();
+          const filePath = urlToPath(url, source.url);
+          return new DocFile(filePath, content);
+        }),
+      );
+
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          files.set(result.value.path, result.value);
+        } else {
+          errors.push(result.reason?.message ?? String(result.reason));
+        }
+      }
+    }
+
+    if (files.size === 0 && errors.length > 0) {
+      throw new Error(`HttpIngestor: all fetches failed. First error: ${errors[0]}`);
+    }
+
+    if (errors.length > 0) {
+      console.warn(`  [${source.name}] ${errors.length} pages failed (${files.size} succeeded)`);
+    }
+
+    return new DocSet(source, files, new Date());
+  }
+
+  // ─── Tarball ────────────────────────────────────────────────────────
+
+  private async ingestFromTarball(source: DocSource, workDir: string): Promise<DocSet> {
+    const extractDir = path.join(workDir, `${source.name}-tarball`);
+    await fs.mkdir(extractDir, { recursive: true });
+
+    console.log(`  [${source.name}] downloading tarball…`);
+    execSync(`curl -sL "${source.discoveryUrl}" | tar -xz -C "${extractDir}"`, {
+      stdio: "pipe",
+      timeout: 120_000,
+    });
+
+    const files = new Map<string, DocFile>();
+    await walkDir(extractDir, extractDir, files);
+
+    console.log(`  [${source.name}] extracted ${files.size} files from tarball`);
+    return new DocSet(source, files, new Date());
+  }
+
+  // ─── llms-full.txt ─────────────────────────────────────────────────
+
+  private async ingestFromLlmsFull(source: DocSource): Promise<DocSet> {
+    console.log(`  [${source.name}] downloading llms-full.txt…`);
+    const res = await fetch(source.discoveryUrl!);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch llms-full.txt: HTTP ${res.status}`);
+    }
+    const content = await res.text();
+    console.log(`  [${source.name}] llms-full.txt: ${(content.length / 1024 / 1024).toFixed(1)} MB`);
+
+    // Split into per-page files using the separator pattern
+    const files = new Map<string, DocFile>();
+    const pages = splitLlmsFull(content, source.url);
+
+    for (const [filePath, pageContent] of pages) {
+      // Apply include/exclude filters
+      if (source.urlPattern && !new RegExp(source.urlPattern).test(filePath)) continue;
+      if (source.urlExclude && new RegExp(source.urlExclude).test(filePath)) continue;
+      files.set(filePath, new DocFile(filePath, pageContent));
+    }
+
+    console.log(`  [${source.name}] split into ${files.size} pages`);
+    return new DocSet(source, files, new Date());
+  }
+}
+
+// ─── Discovery (URL-based methods) ──────────────────────────────────
+
+async function discover(source: DocSource): Promise<string[]> {
+  const { discovery, discoveryUrl, url: baseUrl } = source;
+  if (!discoveryUrl) return [];
+
+  switch (discovery) {
+    case "sitemap":
+      return discoverFromSitemap(discoveryUrl);
+    case "sitemap-index":
+      return discoverFromSitemapIndex(discoveryUrl, source.urlPattern);
+    case "toc":
+      return discoverFromToc(discoveryUrl, baseUrl);
+    case "llms-index":
+      return discoverFromLlmsIndex(discoveryUrl, source.urlPattern);
+    default:
+      return [];
+  }
+}
+
+async function discoverFromSitemap(sitemapUrl: string): Promise<string[]> {
+  const res = await fetch(sitemapUrl);
+  if (!res.ok) throw new Error(`Failed to fetch sitemap ${sitemapUrl}: HTTP ${res.status}`);
+  return extractLocs(await res.text());
+}
+
+async function discoverFromSitemapIndex(
+  indexUrl: string,
+  urlPattern?: string,
+): Promise<string[]> {
+  const res = await fetch(indexUrl);
+  if (!res.ok) throw new Error(`Failed to fetch sitemap index ${indexUrl}: HTTP ${res.status}`);
+  let childUrls = extractLocs(await res.text());
+
+  // Pre-filter child sitemaps using the alternation group from urlPattern
+  if (urlPattern) {
+    const altMatch = urlPattern.match(/\(([^)]+)\)/);
+    if (altMatch) {
+      const keywords = altMatch[1].split("|");
+      childUrls = childUrls.filter((u) =>
+        keywords.some((kw) => u.toLowerCase().includes(kw.toLowerCase())),
+      );
+    }
+  }
+
+  console.log(`  sitemap-index: ${childUrls.length} child sitemaps to fetch`);
+
+  const allUrls: string[] = [];
+  for (let i = 0; i < childUrls.length; i += CONCURRENCY) {
+    const batch = childUrls.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async (url) => {
+        const r = await fetch(url);
+        if (!r.ok) return [];
+        return extractLocs(await r.text());
+      }),
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled") allUrls.push(...result.value);
+    }
+  }
+
+  return allUrls;
+}
+
+async function discoverFromToc(tocUrl: string, baseUrl: string): Promise<string[]> {
+  const res = await fetch(tocUrl);
+  if (!res.ok) throw new Error(`Failed to fetch TOC ${tocUrl}: HTTP ${res.status}`);
+  const html = await res.text();
+
+  const hrefRegex = /href="([^"]*\.html)"/g;
+  const urls = new Set<string>();
+  let match;
+  while ((match = hrefRegex.exec(html)) !== null) {
+    let href = match[1];
+    if (!href.startsWith("http")) {
+      href = new URL(href, tocUrl).href;
+    }
+    if (href.startsWith(baseUrl)) {
+      urls.add(href);
+    }
+  }
+
+  return [...urls];
+}
+
+/**
+ * Parses a top-level llms.txt to find per-service llms.txt URLs,
+ * then fetches each service's llms.txt and extracts page URLs.
+ */
+async function discoverFromLlmsIndex(
+  indexUrl: string,
+  urlPattern?: string,
+): Promise<string[]> {
+  const res = await fetch(indexUrl);
+  if (!res.ok) throw new Error(`Failed to fetch llms index ${indexUrl}: HTTP ${res.status}`);
+  const text = await res.text();
+
+  // Extract all URLs from the index
+  const urlRegex = /https?:\/\/[^\s)>]+/g;
+  const allLinks = text.match(urlRegex) ?? [];
+
+  // Find child llms.txt URLs
+  let childLlmsUrls = allLinks.filter((u) => u.endsWith("/llms.txt") && u !== indexUrl);
+
+  // Pre-filter by urlPattern
+  if (urlPattern) {
+    const altMatch = urlPattern.match(/\(([^)]+)\)/);
+    if (altMatch) {
+      const keywords = altMatch[1].split("|");
+      childLlmsUrls = childLlmsUrls.filter((u) =>
+        keywords.some((kw) => u.toLowerCase().includes(kw.toLowerCase())),
+      );
+    }
+  }
+
+  console.log(`  llms-index: ${childLlmsUrls.length} child llms.txt files to fetch`);
+
+  // Fetch each child llms.txt and extract page URLs from them
+  const allUrls: string[] = [];
+  for (let i = 0; i < childLlmsUrls.length; i += CONCURRENCY) {
+    const batch = childLlmsUrls.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async (url) => {
+        const r = await fetch(url);
+        if (!r.ok) return [];
+        const childText = await r.text();
+        const childLinks = childText.match(urlRegex) ?? [];
+        // Return HTML page links (not llms.txt links)
+        return childLinks.filter((l) => l.endsWith(".html") && !l.endsWith("/llms.txt"));
+      }),
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled") allUrls.push(...result.value);
+    }
+  }
+
+  return allUrls;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────
+
+function extractLocs(xml: string): string[] {
+  const locRegex = /<loc>\s*(.*?)\s*<\/loc>/g;
+  const urls: string[] = [];
+  let match;
+  while ((match = locRegex.exec(xml)) !== null) {
+    urls.push(match[1]);
+  }
+  return urls;
+}
+
+function urlToPath(url: string, baseUrl: string): string {
+  let relative = url;
+  if (relative.startsWith(baseUrl)) {
+    relative = relative.slice(baseUrl.length);
+  }
+  relative = relative.replace(/^\/+/, "").split("?")[0];
+  if (!relative || relative.endsWith("/")) {
+    relative = relative + "index.html";
+  }
+  if (!relative.endsWith(".md") && !relative.endsWith(".html")) {
+    relative = relative + ".md";
+  }
+  return relative;
+}
+
+async function walkDir(dir: string, root: string, files: Map<string, DocFile>): Promise<void> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await walkDir(full, root, files);
+    } else if (entry.isFile() && (entry.name.endsWith(".md") || entry.name.endsWith(".mdx"))) {
+      const rel = path.relative(root, full);
+      const content = await fs.readFile(full, "utf-8");
+      files.set(rel, new DocFile(rel, content));
+    }
+  }
+}
