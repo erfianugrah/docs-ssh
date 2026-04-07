@@ -1,7 +1,7 @@
 # Production — behind Caddy L4 proxy
 services:
   docs-ssh:
-    image: ghcr.io/${GITHUB_USER:-your-user}/docs-ssh:latest
+    image: ghcr.io/${GITHUB_USER:-your-user}/docs-ssh:${DOCS_SSH_VERSION:-latest}
     container_name: docs-ssh
     hostname: docs-ssh
     restart: unless-stopped
