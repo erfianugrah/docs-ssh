@@ -284,6 +284,9 @@
     .container > *:nth-child(12) { animation-delay: 0.55s; }
     .container > *:nth-child(13) { animation-delay: 0.6s; }
     .container > *:nth-child(14) { animation-delay: 0.65s; }
+    .container > *:nth-child(15) { animation-delay: 0.7s; }
+    .container > *:nth-child(16) { animation-delay: 0.75s; }
+    .container > *:nth-child(17) { animation-delay: 0.8s; }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -304,7 +307,7 @@
     <p class="tagline">Documentation over SSH for AI coding agents</p>
 
     <div class="hero-cmd">
-      <span class="prompt">$</span><span class="host">ssh docs.erfi.io</span>
+      <span class="prompt">$</span><span class="host">ssh <span class="flag">-p 2222</span> docs@docs.erfi.io</span>
     </div>
 
     <p>
@@ -313,6 +316,16 @@
       Unix tools &mdash; <code>grep</code>, <code>find</code>, <code>cat</code> &mdash;
       to search and read docs with the same interface it uses for your code.
     </p>
+
+    <h2>SSH config</h2>
+    <p>Add this to <code>~/.ssh/config</code> to skip the port and user on every command:</p>
+    <pre><span class="cmd">Host</span> <span class="str">docs.erfi.io</span>
+  <span class="cmd">User</span> <span class="str">docs</span>
+  <span class="cmd">Port</span> <span class="str">2222</span>
+  <span class="cmd">StrictHostKeyChecking</span> <span class="str">no</span>
+  <span class="cmd">UserKnownHostsFile</span> <span class="str">/dev/null</span>
+  <span class="cmd">LogLevel</span> <span class="str">ERROR</span></pre>
+    <p>Then all commands simplify to <code>ssh docs.erfi.io ...</code></p>
 
     <h2>Quick setup</h2>
     <ol class="steps">
@@ -385,7 +398,8 @@
     <p>Sources refreshed daily at 02:00 UTC. All docs under <code>/docs/{source}/</code>.</p>
 
     <h2>Self-host</h2>
-    <pre><span class="prompt">$ </span><span class="cmd">docker run</span> <span class="flag">-d -p</span> <span class="str">2222:2222</span> <span class="flag">-p</span> <span class="str">8080:8080</span> ghcr.io/erfianugrah/docs-ssh:latest</pre>
+    <pre><span class="prompt">$ </span><span class="cmd">docker run</span> <span class="flag">-d -p</span> <span class="str">2222:2222</span> <span class="flag">-p</span> <span class="str">8080:8080</span> ghcr.io/erfianugrah/docs-ssh:latest
+<span class="prompt">$ </span><span class="cmd">ssh</span> <span class="flag">-p 2222</span> docs@localhost help</pre>
     <p>
       See the <a href="https://github.com/erfianugrah/docs-ssh">source on GitHub</a>
       for build instructions and production deployment.
