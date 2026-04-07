@@ -479,6 +479,54 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  // ─── Discovery: RSS ─────────────────────────────────────────────────
+
+  it("discovers URLs from an RSS feed", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+  <title>Cloudflare changelogs</title>
+  <link>https://developers.cloudflare.com/changelog/</link>
+  <item>
+    <title>Workers - Deploy Hooks</title>
+    <link>https://developers.cloudflare.com/changelog/post/2026-04-01-deploy-hooks/</link>
+    <description>Deploy Hooks are now available.</description>
+  </item>
+  <item>
+    <title>WAF Release</title>
+    <link>https://developers.cloudflare.com/changelog/post/2026-04-07-waf-release/</link>
+    <description>New WAF rules.</description>
+  </item>
+</channel>
+</rss>`;
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith("index.xml")) {
+        return { ok: true, text: async () => rssFeed };
+      }
+      return { ok: true, text: async () => `<h1>Changelog entry</h1><p>Details here.</p>` };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "rss-test",
+      type: "http",
+      format: "html",
+      url: "https://developers.cloudflare.com/changelog/",
+      discovery: "rss",
+      discoveryUrl: "https://developers.cloudflare.com/changelog/rss/index.xml",
+      urlPattern: "developers\\.cloudflare\\.com/changelog/post/",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    // 2 items in the RSS, both match urlPattern
+    expect(set.size).toBe(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   // ─── Deduplication ─────────────────────────────────────────────────
 
   it("deduplicates URLs", async () => {
