@@ -36,14 +36,13 @@ RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
 # Copy docs — owned by root, readable by all (docs user cannot modify)
 COPY --from=fetcher /docs /docs
 
-# sshd configuration + command logger + entrypoint
-# Host keys are NOT generated at build time — entrypoint generates them at
-# runtime so each container instance has unique keys.
-RUN mkdir -p /var/run/sshd /var/log
+# sshd configuration + command logger + built-in commands + entrypoint
+RUN mkdir -p /var/run/sshd /var/log /usr/local/lib/docs-ssh
 COPY sshd_config /etc/ssh/sshd_config
 COPY log-cmd.sh /usr/local/bin/log-cmd
 COPY entrypoint.sh /usr/local/bin/entrypoint
-RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint
+COPY commands/ /usr/local/lib/docs-ssh/
+RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint /usr/local/lib/docs-ssh/*.sh
 
 EXPOSE 2222
 
