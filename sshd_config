@@ -29,6 +29,10 @@ MaxStartups 50:30:100
 LoginGraceTime 15
 MaxSessions 5
 
+# Exempt the Docker gateway / Caddy L4 proxy from per-source penalties.
+# All connections arrive from the proxy IP, so penalising it blocks everyone.
+PerSourcePenaltyExemptList 172.16.0.0/12
+
 # Performance
 UseDNS no
 PrintMotd no
