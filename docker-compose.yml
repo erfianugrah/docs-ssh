@@ -11,6 +11,17 @@ services:
       - "2222:2222"
     restart: unless-stopped
     read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - SYS_CHROOT
+      - AUDIT_WRITE
+    security_opt:
+      - no-new-privileges:true
     tmpfs:
       - /tmp
-      - /var/run/sshd
+      - /run/sshd
+      - /var/log

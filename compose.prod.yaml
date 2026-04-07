@@ -1,30 +1,45 @@
-# Production — for Dockge on servarr, behind Caddy L4 proxy
-# Caddy listens on :2222 (network_mode: host) and proxies to 172.19.50.2:2222
+# Production — behind Caddy L4 proxy
 services:
   docs-ssh:
-    image: ghcr.io/erfianugrah/docs-ssh:latest
+    image: ghcr.io/${GITHUB_USER:-your-user}/docs-ssh:latest
     container_name: docs-ssh
     hostname: docs-ssh
     restart: unless-stopped
     read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN           # entrypoint: ssh-keygen -A needs to write host keys
+      - SETUID          # sshd: drops privileges to docs user
+      - SETGID          # sshd: drops privileges to docs group
+      - SYS_CHROOT      # sshd: ChrootDirectory / privilege separation
+      - AUDIT_WRITE     # sshd: writes login records
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
           cpus: "2"
           memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     expose:
       - 2222
     tmpfs:
       - /tmp:size=16M
-      - /var/run/sshd:size=1M
+      - /run/sshd:size=1M
+      - /var/log:size=8M
     environment:
-      - TZ=Asia/Singapore
+      - TZ=UTC
     healthcheck:
       test: ["CMD-SHELL", "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 2222 docs@localhost 'echo ok' || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 10s
     networks:
       docs:
         ipv4_address: 172.19.50.2

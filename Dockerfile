@@ -10,13 +10,10 @@ RUN corepack enable && pnpm install --frozen-lockfile
 COPY tsconfig.json ./
 COPY src/ ./src/
 
-# Docs are either pre-built by CI (faster) or fetched at build time.
-# When DOCS_PREBUILT=true, the caller must COPY docs/ into /docs before this stage runs.
 ARG DOCS_PREBUILT=false
 ENV DOCS_OUT_DIR=/docs
 ENV DOCS_WORK_DIR=/tmp/docs-work
 
-# If pre-built, copy from build context; otherwise fetch at build time
 COPY docs* /docs-ctx/
 RUN if [ "$DOCS_PREBUILT" = "true" ] && [ -d "/docs-ctx" ] && [ "$(ls -A /docs-ctx 2>/dev/null)" ]; then \
       mkdir -p /docs && cp -r /docs-ctx/* /docs/; \
@@ -32,21 +29,25 @@ FROM alpine:3.21
 
 RUN apk add --no-cache openssh bash
 
-# Create a restricted docs user with empty password for local SSH access
+# Create restricted docs user — empty password for passwordless SSH access
 RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
     && passwd -d docs
 
-# Copy the built docs from the fetcher stage
+# Copy docs — owned by root, readable by all (docs user cannot modify)
 COPY --from=fetcher /docs /docs
-RUN chown -R docs:docs /docs
 
-# sshd configuration
-RUN ssh-keygen -A && mkdir -p /var/run/sshd
+# sshd configuration + command logger + entrypoint
+# Host keys are NOT generated at build time — entrypoint generates them at
+# runtime so each container instance has unique keys.
+RUN mkdir -p /var/run/sshd /var/log
 COPY sshd_config /etc/ssh/sshd_config
+COPY log-cmd.sh /usr/local/bin/log-cmd
+COPY entrypoint.sh /usr/local/bin/entrypoint
+RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint
 
 EXPOSE 2222
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 2222 docs@localhost "echo ok" || exit 1
 
-CMD ["/usr/sbin/sshd", "-D", "-e", "-p", "2222"]
+ENTRYPOINT ["/usr/local/bin/entrypoint"]
