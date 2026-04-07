@@ -27,6 +27,9 @@ RUN if [ "$DOCS_PREBUILT" = "true" ] && [ -d "/docs-ctx" ] && [ "$(ls -A /docs-c
 # ─── Stage 2: SSH server ──────────────────────────────────────────────────────
 FROM alpine:3.21
 
+# Link GHCR package to the repository so GITHUB_TOKEN gets write access
+LABEL org.opencontainers.image.source=https://github.com/erfianugrah/docs-ssh
+
 RUN apk add --no-cache openssh bash ripgrep jq
 
 # Create restricted docs user — empty password for passwordless SSH access
