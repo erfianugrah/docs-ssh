@@ -1,0 +1,45 @@
+app = "docs-ssh"
+primary_region = "iad"
+
+[build]
+  # Uses the existing multi-stage Dockerfile.
+  # For daily updates, pass --image ghcr.io/erfianugrah/docs-ssh:latest
+  # to skip the remote build and deploy a pre-built image instead.
+
+[env]
+  DOCS_SSH_HOST = "docs-ssh.fly.dev"
+  DOCS_SSH_PORT = "2222"
+
+# SSH service — raw TCP passthrough, no handlers (SSH handles its own encryption)
+[[services]]
+  internal_port = 2222
+  protocol = "tcp"
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 2222
+
+  [[services.tcp_checks]]
+    grace_period = "10s"
+    interval = "30s"
+    timeout = "5s"
+
+# HTTP landing page — busybox httpd served from entrypoint.sh
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+    force_https = true
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+[vm]
+  size = "shared-cpu-1x"
+  memory = 512

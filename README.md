@@ -86,10 +86,18 @@ docker compose up    # serves on port 2222
 
 ## Production deployment
 
-Use `compose.prod.yaml` — adjust the image reference and network for your environment:
+**Docker Compose** — use `compose.prod.yaml`, adjust the image reference and network for your environment:
 
 ```bash
 docker compose -f compose.prod.yaml up -d
+```
+
+**Fly.io** — see [`DEPLOY-FLY.md`](DEPLOY-FLY.md) for a complete guide. Quick start:
+
+```bash
+fly launch --no-deploy
+fly ips allocate-v4          # required for raw TCP (SSH)
+fly deploy
 ```
 
 ## Security
