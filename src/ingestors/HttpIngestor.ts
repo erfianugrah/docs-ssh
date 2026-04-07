@@ -161,6 +161,8 @@ async function discover(source: DocSource): Promise<string[]> {
       return discoverFromToc(discoveryUrl, baseUrl);
     case "llms-index":
       return discoverFromLlmsIndex(discoveryUrl, source.urlPattern);
+    case "llms-txt":
+      return discoverFromLlmsTxt(discoveryUrl);
     default:
       return [];
   }
@@ -284,6 +286,23 @@ async function discoverFromLlmsIndex(
   }
 
   return allUrls;
+}
+
+/**
+ * Parses a llms.txt file for page URLs and returns them directly.
+ * Unlike llms-index (which looks for child llms.txt files), this treats
+ * all extracted URLs as pages to fetch.
+ */
+async function discoverFromLlmsTxt(llmsTxtUrl: string): Promise<string[]> {
+  const res = await fetch(llmsTxtUrl);
+  if (!res.ok) throw new Error(`Failed to fetch llms.txt ${llmsTxtUrl}: HTTP ${res.status}`);
+  const text = await res.text();
+
+  const urlRegex = /https?:\/\/[^\s)>\]]+/g;
+  const allLinks = text.match(urlRegex) ?? [];
+
+  // Return all page URLs (exclude the llms.txt URL itself and other llms*.txt files)
+  return allLinks.filter((u) => !u.endsWith("/llms.txt") && !u.endsWith("/llms-full.txt") && u !== llmsTxtUrl);
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────

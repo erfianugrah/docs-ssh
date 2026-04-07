@@ -7,8 +7,15 @@ import { DocSource } from "../domain/DocSource.js";
  * - Supabase: official pre-built tarball (cleanest)
  * - Cloudflare: llms-full.txt (40MB full dump) + git repo for raw MDX
  * - Vercel: llms-full.txt (11MB full dump)
+ * - Next.js: llms-full.txt (full dump)
+ * - Astro: llms-full.txt (full dump)
+ * - MCP: llms.txt → per-page markdown URLs
+ * - Fly.io: sitemap → HTML pages (filtered to /docs/)
+ * - Tailwind: git repo with MDX docs
+ * - Rust: git repo (The Rust Book)
  * - Postgres: TOC discovery → HTML pages
  * - AWS: llms-index → per-service llms.txt → HTML pages
+ * - GCP: sitemap-index → child sitemaps → HTML pages (filtered to core services)
  *
  * No hardcoded URL lists. The daily CI cron picks up changes automatically.
  */
@@ -121,5 +128,93 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern:
       "(lambda|AmazonS3|AmazonCloudFront|IAM|amazondynamodb|AWSCloudFormation|vpc|AWSEC2|AmazonRDS|AWSSimpleQueueService|sns|AmazonECS|eks|secretsmanager|systems-manager|cognito|apigateway|eventbridge|step-functions|waf|elasticloadbalancing)",
     urlExclude: "(de_de|ja_jp|zh_cn|fr_fr|ko_kr|es_es|pt_br|it_it|id_id|/APIReference/)",
+  }),
+
+  // ─── Next.js ───────────────────────────────────────────────────────
+
+  // llms-full.txt — entire docs in one file
+  new DocSource({
+    name: "nextjs",
+    type: "http",
+    url: "https://nextjs.org/docs/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://nextjs.org/docs/llms-full.txt",
+  }),
+
+  // ─── Astro ─────────────────────────────────────────────────────────
+
+  // llms-full.txt — complete documentation
+  new DocSource({
+    name: "astro",
+    type: "http",
+    url: "https://docs.astro.build/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://docs.astro.build/llms-full.txt",
+  }),
+
+  // ─── MCP (Model Context Protocol) ─────────────────────────────────
+
+  // llms.txt lists individual .md page URLs
+  new DocSource({
+    name: "mcp",
+    type: "http",
+    url: "https://modelcontextprotocol.io/",
+    format: "markdown",
+    discovery: "llms-txt",
+    discoveryUrl: "https://modelcontextprotocol.io/llms.txt",
+  }),
+
+  // ─── Fly.io ────────────────────────────────────────────────────────
+
+  // Sitemap filtered to /docs/ pages
+  new DocSource({
+    name: "flyio",
+    type: "http",
+    url: "https://fly.io/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://fly.io/sitemap.xml",
+    urlPattern: "fly\\.io/docs/.+",
+  }),
+
+  // ─── Tailwind CSS ──────────────────────────────────────────────────
+
+  // MDX docs from the tailwindcss.com repo
+  new DocSource({
+    name: "tailwindcss",
+    type: "git",
+    url: "https://github.com/tailwindlabs/tailwindcss.com",
+    format: "mdx",
+    paths: ["src"],
+    rootPath: "src",
+  }),
+
+  // ─── Rust ──────────────────────────────────────────────────────────
+
+  // The Rust Programming Language book — markdown from the official repo
+  new DocSource({
+    name: "rust-book",
+    type: "git",
+    url: "https://github.com/rust-lang/book",
+    format: "markdown",
+    paths: ["src"],
+    rootPath: "src",
+  }),
+
+  // ─── GCP ───────────────────────────────────────────────────────────
+
+  // Sitemap-index — 180 child sitemaps, filtered to core services
+  new DocSource({
+    name: "gcp",
+    type: "http",
+    url: "https://cloud.google.com/",
+    format: "html",
+    discovery: "sitemap-index",
+    discoveryUrl: "https://cloud.google.com/sitemap.xml",
+    urlPattern:
+      "(compute|storage|functions|run|kubernetes-engine|iam|vpc|load-balancing|sql|firestore|bigquery|pubsub|secret-manager|artifact-registry|build|logging|monitoring)",
+    urlExclude: "(ja|ko|zh-CN|fr|de|es|pt-BR|it|id)/|/reference/|/release-notes",
   }),
 ];

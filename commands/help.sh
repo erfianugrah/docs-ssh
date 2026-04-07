@@ -1,9 +1,14 @@
 #!/bin/sh
-cat << 'EOF'
+# Dynamic help — uses env vars so HOST and PORT are correct in production.
+
+HOST="${DOCS_SSH_HOST:-localhost}"
+PORT="${DOCS_SSH_PORT:-2222}"
+
+cat << EOF
 docs-ssh — documentation over SSH for AI agents
 
 Usage:
-  ssh -p 2222 docs@HOST <command>
+  ssh -p $PORT docs@$HOST <command>
 
 Built-in commands:
   help          Show this help
@@ -19,8 +24,8 @@ Search & read:
   head -20 /docs/postgres/indexes.md  Skim a file
 
 Examples:
-  ssh -p 2222 docs@HOST agents >> AGENTS.md
-  ssh -p 2222 docs@HOST tools > .opencode/tools/docs.ts
-  ssh -p 2222 docs@HOST setup | opencode
-  ssh -p 2222 docs@HOST "grep -rl 'RLS' /docs/supabase/"
+  ssh -p $PORT docs@$HOST agents >> AGENTS.md
+  ssh -p $PORT docs@$HOST tools > .opencode/tools/docs.ts
+  ssh -p $PORT docs@$HOST setup | opencode
+  ssh -p $PORT docs@$HOST "grep -rl 'RLS' /docs/supabase/"
 EOF

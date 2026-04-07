@@ -10,6 +10,7 @@ export type DocSourceType = "git" | "http";
  * - "sitemap-index": parses a sitemap index, then fetches child sitemaps
  * - "toc":           scrapes href links from an HTML table-of-contents page
  * - "llms-index":    parses a top-level llms.txt for child llms.txt URLs, then uses those as TOCs
+ * - "llms-txt":     parses a llms.txt for page URLs and fetches each one directly
  */
 export type DiscoveryMethod =
   | "none"
@@ -18,7 +19,8 @@ export type DiscoveryMethod =
   | "sitemap"
   | "sitemap-index"
   | "toc"
-  | "llms-index";
+  | "llms-index"
+  | "llms-txt";
 
 export interface DocSourceConfig {
   readonly name: string;

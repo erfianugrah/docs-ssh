@@ -34,6 +34,8 @@ services:
       - /var/log:size=8M
     environment:
       - TZ=UTC
+      - DOCS_SSH_HOST=docs.erfi.io
+      - DOCS_SSH_PORT=2222
     healthcheck:
       test: ["CMD-SHELL", "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 2222 docs@localhost 'echo ok' || exit 1"]
       interval: 30s
