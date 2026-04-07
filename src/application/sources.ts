@@ -63,6 +63,17 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://blog.cloudflare.com/sitemap-posts.xml",
   }),
 
+  // Changelog — individual post pages discovered via RSS feed
+  new DocSource({
+    name: "cloudflare-changelog",
+    type: "http",
+    url: "https://developers.cloudflare.com/changelog/",
+    format: "html",
+    discovery: "rss",
+    discoveryUrl: "https://developers.cloudflare.com/changelog/rss/index.xml",
+    urlPattern: "developers\\.cloudflare\\.com/changelog/post/",
+  }),
+
   // ─── Vercel ────────────────────────────────────────────────────────
 
   // llms-full.txt — entire docs in one 11MB file

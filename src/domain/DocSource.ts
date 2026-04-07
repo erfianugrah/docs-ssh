@@ -11,6 +11,7 @@ export type DocSourceType = "git" | "http";
  * - "toc":           scrapes href links from an HTML table-of-contents page
  * - "llms-index":    parses a top-level llms.txt for child llms.txt URLs, then uses those as TOCs
  * - "llms-txt":     parses a llms.txt for page URLs and fetches each one directly
+ * - "rss":          parses an RSS feed for <link> URLs within <item> elements
  */
 export type DiscoveryMethod =
   | "none"
@@ -20,7 +21,8 @@ export type DiscoveryMethod =
   | "sitemap-index"
   | "toc"
   | "llms-index"
-  | "llms-txt";
+  | "llms-txt"
+  | "rss";
 
 export interface DocSourceConfig {
   readonly name: string;

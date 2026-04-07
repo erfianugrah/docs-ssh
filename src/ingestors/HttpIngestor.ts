@@ -203,6 +203,8 @@ async function discover(source: DocSource): Promise<string[]> {
       return discoverFromLlmsIndex(discoveryUrl, source.urlPattern);
     case "llms-txt":
       return discoverFromLlmsTxt(discoveryUrl);
+    case "rss":
+      return discoverFromRss(discoveryUrl);
     default:
       return [];
   }
@@ -348,6 +350,29 @@ async function discoverFromLlmsTxt(llmsTxtUrl: string): Promise<string[]> {
 
   // Return all page URLs (exclude the llms.txt URL itself and other llms*.txt files)
   return allLinks.filter((u) => !u.endsWith("/llms.txt") && !u.endsWith("/llms-full.txt") && u !== llmsTxtUrl);
+}
+
+/**
+ * Parses an RSS feed for page URLs from <link> elements within <item> blocks.
+ */
+async function discoverFromRss(rssUrl: string): Promise<string[]> {
+  const res = await fetchWithRetry(rssUrl);
+  if (!res.ok) throw new Error(`Failed to fetch RSS ${rssUrl}: HTTP ${res.status}`);
+  const xml = await res.text();
+
+  // Extract <link> URLs from within <item> blocks only (skip channel <link>)
+  const urls: string[] = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+  const linkRegex = /<link>\s*(https?:\/\/[^\s<]+?)\s*<\/link>/;
+  let match;
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const linkMatch = match[1].match(linkRegex);
+    if (linkMatch) {
+      urls.push(linkMatch[1]);
+    }
+  }
+
+  return urls;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────

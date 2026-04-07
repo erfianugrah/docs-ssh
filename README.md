@@ -60,6 +60,7 @@ Each source uses the best available fetch method — no hardcoded URL lists.
 | Supabase Blog | git sparse | mdx → md | 400 posts from `supabase/supabase` repo |
 | Cloudflare | llms-full | markdown | 40MB dump from `llms-full.txt` |
 | Cloudflare Blog | sitemap | html → md | 3,400+ posts from `sitemap-posts.xml` |
+| Cloudflare Changelog | rss | html → md | Full history from RSS feed |
 | Vercel | llms-full | markdown | 11MB dump from `llms-full.txt` |
 | Vercel Blog | sitemap | markdown | `.md` suffix per page |
 | Vercel Changelog | sitemap | markdown | `.md` suffix per page |
