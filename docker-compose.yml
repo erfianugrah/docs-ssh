@@ -1,9 +1,9 @@
+# Local development — builds from source, exposes port directly
 services:
   docs-ssh:
     build:
       context: .
       args:
-        # Set to "true" if you've pre-built docs locally (faster builds)
         DOCS_PREBUILT: "false"
     image: docs-ssh:local
     container_name: docs-ssh
@@ -14,7 +14,3 @@ services:
     tmpfs:
       - /tmp
       - /var/run/sshd
-    # The docs are baked into the image — no mounts needed.
-    # To use a local docs directory during development:
-    # volumes:
-    #   - ./docs:/docs:ro

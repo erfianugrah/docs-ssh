@@ -1,0 +1,38 @@
+# Production — for Dockge on servarr, behind Caddy L4 proxy
+# Caddy listens on :2222 (network_mode: host) and proxies to 172.19.50.2:2222
+services:
+  docs-ssh:
+    image: ghcr.io/erfianugrah/docs-ssh:latest
+    container_name: docs-ssh
+    hostname: docs-ssh
+    restart: unless-stopped
+    read_only: true
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 512M
+    expose:
+      - 2222
+    tmpfs:
+      - /tmp:size=16M
+      - /var/run/sshd:size=1M
+    environment:
+      - TZ=Asia/Singapore
+    healthcheck:
+      test: ["CMD-SHELL", "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 2222 docs@localhost 'echo ok' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      docs:
+        ipv4_address: 172.19.50.2
+
+networks:
+  docs:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.50.0/24
+          gateway: 172.19.50.1
