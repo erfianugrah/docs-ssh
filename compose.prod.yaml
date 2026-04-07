@@ -28,6 +28,7 @@ services:
         max-file: "3"
     expose:
       - 2222
+      - 8080
     tmpfs:
       - /tmp:size=16M
       - /run/sshd:size=1M

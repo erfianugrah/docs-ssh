@@ -5,6 +5,10 @@
 # Built-in commands: help, sources, agents, tools, setup
 # Everything else: executed via bash with audit logging.
 
+# Recover container env vars (sshd drops them for the docs user session)
+[ -f /run/sshd/docs-ssh.env ] && . /run/sshd/docs-ssh.env
+export DOCS_SSH_HOST DOCS_SSH_PORT
+
 LOG_FILE="/var/log/docs-ssh.jsonl"
 CMD_DIR="/usr/local/lib/docs-ssh"
 CLIENT="${SSH_CLIENT%% *}"

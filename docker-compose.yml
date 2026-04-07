@@ -9,6 +9,7 @@ services:
     container_name: docs-ssh
     ports:
       - "2222:2222"
+      - "8080:8080"
     restart: unless-stopped
     read_only: true
     cap_drop:

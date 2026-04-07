@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>docs-ssh — Documentation over SSH for AI Agents</title>
+  <meta name="description" content="Self-hosted SSH docs server serving 28,000+ pages from Supabase, Cloudflare, Vercel, PostgreSQL, AWS, and more as searchable markdown.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #1d1f28;
+      --bg-deep: #15161e;
+      --surface: #282a36;
+      --border: #414457;
+      --muted: #343647;
+      --fg: #fcfcfc;
+      --fg-muted: #bdbdc1;
+      --purple: #c574dd;
+      --purple-dim: #af43d1;
+      --green: #5adecd;
+      --green-bright: #17e2c7;
+      --red: #f37e96;
+      --peach: #f1a171;
+      --blue: #8796f4;
+      --cyan: #79e6f3;
+      --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, SFMono-Regular, Consolas, monospace;
+      --radius: 0.5rem;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Subtle backdrop glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 600px;
+      background: radial-gradient(ellipse 600px 400px at 50% 0%, rgba(197,116,221,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 4rem 1.5rem 3rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 {
+      font-family: var(--font-mono);
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 0 10px rgba(197,116,221,0.5),
+                   0 0 20px rgba(197,116,221,0.3),
+                   0 0 40px rgba(197,116,221,0.1);
+      color: var(--purple);
+    }
+
+    .tagline {
+      color: var(--fg-muted);
+      font-size: 1.05rem;
+      margin-bottom: 2.5rem;
+    }
+
+    h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--fg-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin: 2.5rem 0 1rem;
+    }
+
+    pre {
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      line-height: 1.8;
+      margin-bottom: 1rem;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+    }
+
+    .comment { color: var(--fg-muted); opacity: 0.6; }
+    .cmd { color: var(--fg); }
+    .prompt { color: var(--green); user-select: none; }
+    .str { color: var(--cyan); }
+    .flag { color: var(--blue); }
+    .redirect { color: var(--fg-muted); }
+
+    p {
+      margin-bottom: 1rem;
+      color: var(--fg-muted);
+    }
+
+    p strong { color: var(--fg); }
+    p code {
+      color: var(--fg);
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+      font-size: 0.82em;
+    }
+
+    a {
+      color: var(--purple);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    a:hover { color: var(--fg); }
+
+    /* Hero command */
+    .hero-cmd {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      margin: 1.5rem 0 2rem;
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+    .hero-cmd .prompt { color: var(--green); margin-right: 0.5rem; }
+    .hero-cmd .host {
+      color: var(--fg);
+    }
+
+    /* Steps */
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      margin: 1rem 0;
+    }
+    .steps li {
+      counter-increment: step;
+      margin-bottom: 1.5rem;
+      padding-left: 2.25rem;
+      position: relative;
+      color: var(--fg-muted);
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 1px;
+      width: 1.5rem;
+      height: 1.5rem;
+      background: rgba(197,116,221,0.15);
+      border: 1px solid rgba(197,116,221,0.3);
+      border-radius: 50%;
+      font-size: 0.7rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--purple);
+    }
+    .steps li strong { color: var(--fg); display: block; margin-bottom: 0.5rem; }
+
+    /* Sources grid */
+    .sources-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+    .source {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--fg);
+      transition: border-color 0.15s;
+    }
+    .source:hover { border-color: var(--purple); }
+
+    /* Token efficiency table */
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    thead { background: var(--bg-deep); }
+    th {
+      text-align: left;
+      padding: 0.6rem 1rem;
+      font-weight: 500;
+      color: var(--fg-muted);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td {
+      padding: 0.6rem 1rem;
+      border-top: 1px solid var(--border);
+      color: var(--fg-muted);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+    td:first-child { color: var(--fg); }
+    .savings { color: var(--green); font-weight: 500; }
+    .baseline { color: var(--fg-muted); opacity: 0.5; }
+
+    /* Built-in commands card */
+    .commands-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .commands-card pre {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      margin: 0;
+    }
+
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--fg-muted);
+      font-size: 0.8rem;
+      opacity: 0.6;
+    }
+    footer a { color: var(--fg-muted); }
+    footer a:hover { color: var(--purple); opacity: 1; }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .container > * {
+      animation: fadeInUp 0.4s ease-out both;
+    }
+    .container > *:nth-child(1) { animation-delay: 0s; }
+    .container > *:nth-child(2) { animation-delay: 0.05s; }
+    .container > *:nth-child(3) { animation-delay: 0.1s; }
+    .container > *:nth-child(4) { animation-delay: 0.15s; }
+    .container > *:nth-child(5) { animation-delay: 0.2s; }
+    .container > *:nth-child(6) { animation-delay: 0.25s; }
+    .container > *:nth-child(7) { animation-delay: 0.3s; }
+    .container > *:nth-child(8) { animation-delay: 0.35s; }
+    .container > *:nth-child(9) { animation-delay: 0.4s; }
+    .container > *:nth-child(10) { animation-delay: 0.45s; }
+    .container > *:nth-child(11) { animation-delay: 0.5s; }
+    .container > *:nth-child(12) { animation-delay: 0.55s; }
+    .container > *:nth-child(13) { animation-delay: 0.6s; }
+    .container > *:nth-child(14) { animation-delay: 0.65s; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--purple); }
+
+    @media (max-width: 480px) {
+      .container { padding: 2rem 1rem; }
+      .hero-cmd { font-size: 0.95rem; padding: 1.25rem 1rem; }
+      .sources-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>docs-ssh</h1>
+    <p class="tagline">Documentation over SSH for AI coding agents</p>
+
+    <div class="hero-cmd">
+      <span class="prompt">$</span><span class="host">ssh docs.erfi.io</span>
+    </div>
+
+    <p>
+      A self-hosted SSH server serving <strong>28,000+ documentation pages</strong>
+      as searchable markdown. Your AI agent connects over SSH and uses standard
+      Unix tools &mdash; <code>grep</code>, <code>find</code>, <code>cat</code> &mdash;
+      to search and read docs with the same interface it uses for your code.
+    </p>
+
+    <h2>Quick setup</h2>
+    <ol class="steps">
+      <li>
+        <strong>Install custom tools for your agent</strong>
+        <pre><span class="comment"># OpenCode &mdash; saves tools + agent rules</span>
+<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io tools</span> <span class="redirect">&gt;</span> <span class="str">.opencode/tools/docs.ts</span>
+<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io agents</span> <span class="redirect">&gt;&gt;</span> <span class="str">AGENTS.md</span></pre>
+      </li>
+      <li>
+        <strong>Or pipe the setup guide to your agent</strong>
+        <pre><span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io setup</span> <span class="redirect">|</span> <span class="cmd">opencode</span></pre>
+      </li>
+      <li>
+        <strong>Or just explore</strong>
+        <pre><span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io</span> <span class="str">"grep -rl 'RLS' /docs/supabase/"</span>
+<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io</span> <span class="str">"cat /docs/cloudflare/workers-ai.md"</span>
+<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io</span> <span class="str">"find /docs/vercel -name '*.md' | head -20"</span></pre>
+      </li>
+    </ol>
+
+    <h2>Built-in commands</h2>
+    <div class="commands-card">
+      <pre><span class="cmd">ssh docs.erfi.io</span> <span class="str">help</span>        <span class="comment"># Usage and examples</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">sources</span>     <span class="comment"># List doc sets with file counts</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">agents</span>      <span class="comment"># Output AGENTS.md snippet</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">tools</span>       <span class="comment"># Output OpenCode custom tools</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">setup</span>       <span class="comment"># Interactive setup guide</span></pre>
+    </div>
+
+    <h2>Token efficiency</h2>
+    <p>
+      Custom tools use a <strong>search &rarr; summary &rarr; targeted read</strong>
+      workflow. Output capped at 16K chars (~4K tokens) with truncation pointers.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Approach</th><th>Tokens</th><th>vs MCP</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>docs_search</td><td>~480</td><td class="savings">98% smaller</td></tr>
+          <tr><td>docs_summary</td><td>~200</td><td class="savings">n/a</td></tr>
+          <tr><td>docs_grep</td><td>~1,500</td><td class="savings">77% smaller</td></tr>
+          <tr><td>MCP search</td><td>~30,000</td><td class="baseline">baseline</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Documentation sources</h2>
+    <div class="sources-grid">
+      <div class="source">supabase</div>
+      <div class="source">supabase-blog</div>
+      <div class="source">cloudflare</div>
+      <div class="source">cloudflare-blog</div>
+      <div class="source">vercel</div>
+      <div class="source">vercel-blog</div>
+      <div class="source">vercel-changelog</div>
+      <div class="source">postgres</div>
+      <div class="source">aws</div>
+      <div class="source">nextjs</div>
+      <div class="source">astro</div>
+      <div class="source">mcp</div>
+      <div class="source">flyio</div>
+      <div class="source">tailwindcss</div>
+      <div class="source">rust-book</div>
+      <div class="source">erfi-technical-blog</div>
+      <div class="source">erfi-personal-blog</div>
+    </div>
+    <p>Sources refreshed daily at 02:00 UTC. All docs under <code>/docs/{source}/</code>.</p>
+
+    <h2>Self-host</h2>
+    <pre><span class="prompt">$ </span><span class="cmd">docker run</span> <span class="flag">-d -p</span> <span class="str">2222:2222</span> <span class="flag">-p</span> <span class="str">8080:8080</span> ghcr.io/erfianugrah/docs-ssh:latest</pre>
+    <p>
+      See the <a href="https://github.com/erfianugrah/docs-ssh">source on GitHub</a>
+      for build instructions and production deployment.
+    </p>
+
+    <footer>
+      <a href="https://github.com/erfianugrah/docs-ssh">GitHub</a>
+      &nbsp;&middot;&nbsp;
+      Passwordless by design &mdash; serves public documentation
+    </footer>
+  </div>
+</body>
+</html>

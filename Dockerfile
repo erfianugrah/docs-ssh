@@ -30,7 +30,7 @@ FROM alpine:3.21
 # Link GHCR package to the repository so GITHUB_TOKEN gets write access
 LABEL org.opencontainers.image.source=https://github.com/erfianugrah/docs-ssh
 
-RUN apk add --no-cache openssh bash ripgrep jq
+RUN apk add --no-cache openssh bash ripgrep jq busybox-extras
 
 # Create restricted docs user — empty password for passwordless SSH access
 RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
@@ -52,7 +52,10 @@ COPY entrypoint.sh /usr/local/bin/entrypoint
 COPY commands/ /usr/local/lib/docs-ssh/
 RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint /usr/local/lib/docs-ssh/*.sh
 
-EXPOSE 2222
+# Landing page — served by busybox httpd on port 8080
+COPY public/ /usr/local/lib/docs-ssh/
+
+EXPOSE 2222 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 2222 docs@localhost "echo ok" || exit 1
