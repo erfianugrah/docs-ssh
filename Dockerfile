@@ -27,7 +27,7 @@ RUN if [ "$DOCS_PREBUILT" = "true" ] && [ -d "/docs-ctx" ] && [ "$(ls -A /docs-c
 # ─── Stage 2: SSH server ──────────────────────────────────────────────────────
 FROM alpine:3.21
 
-RUN apk add --no-cache openssh bash
+RUN apk add --no-cache openssh bash ripgrep jq
 
 # Create restricted docs user — empty password for passwordless SSH access
 RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
@@ -35,6 +35,11 @@ RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
 
 # Copy docs — owned by root, readable by all (docs user cannot modify)
 COPY --from=fetcher /docs /docs
+
+# Build search index: one line per file with path, title, and first content line.
+# This lets agents search the index (~1MB) instead of grepping 300MB of docs.
+COPY build-index.sh /tmp/build-index.sh
+RUN sh /tmp/build-index.sh /docs > /docs/_index.tsv && rm /tmp/build-index.sh
 
 # sshd configuration + command logger + built-in commands + entrypoint
 RUN mkdir -p /var/run/sshd /var/log /usr/local/lib/docs-ssh

@@ -1,36 +1,17 @@
 #!/bin/sh
 # Outputs a complete OpenCode custom tools file.
 # Usage: ssh -p 2222 docs@HOST tools > .opencode/tools/docs.ts
-#
-# HOST and PORT are auto-detected from the SSH connection,
-# or can be overridden via DOCS_SSH_HOST / DOCS_SSH_PORT env vars.
 
 HOST="${DOCS_SSH_HOST:-localhost}"
 PORT="${DOCS_SSH_PORT:-2222}"
-
-# Build dynamic source list from what's in the container
-SOURCES=$(ls -1 /docs/ | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
-
-cat << 'TOOLS_EOF'
-import { z } from "zod"
-
-/**
- * Max characters to return from any single tool call.
- * Informed by Claude Code's context management:
- * - Per-tool result cap is 50K chars, oversized gets a 2KB preview
- * - p99 output is ~5K tokens (~20K chars)
- * - Microcompaction evicts the largest results first
- *
- * 16K chars (~4K tokens) is a good budget — large enough to be useful,
- * small enough to avoid triggering compaction.
- */
-const MAX_RESULT_CHARS = 16_000
-
-TOOLS_EOF
+SOURCES=$(ls -1 /docs/ | grep -v '_index' | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
 
 cat << TOOLS_DYNAMIC
+import { z } from "zod"
+
 const SSH_HOST = "docs@${HOST}"
 const SSH_PORT = "${PORT}"
+const MAX_RESULT_CHARS = 16_000
 
 TOOLS_DYNAMIC
 
@@ -72,23 +53,24 @@ TOOLS_EOF
 cat << TOOLS_DYNAMIC
 export const search = {
   description:
-    "Search documentation for ${SOURCES}. " +
-    "Returns file paths matching the query. Use this to find relevant docs before reading them.",
+    "Search documentation by title and summary for ${SOURCES}. " +
+    "Searches a pre-built index instead of scanning all files. " +
+    "Use this FIRST to find relevant docs, then docs_read or docs_grep to get content.",
   args: {
 TOOLS_DYNAMIC
 
 cat << 'TOOLS_EOF'
-    query: z.string().describe("Text pattern to search for (grep regex)"),
+    query: z.string().describe("Text to search for in titles and summaries"),
     source: z
       .string()
       .optional()
       .describe("Limit to a source (e.g. 'supabase', 'cloudflare', 'aws'). Omit to search all."),
-    maxResults: z.number().optional().describe("Max results to return (default: 20)"),
+    maxResults: z.number().optional().describe("Max results (default: 15)"),
   },
   async execute(args: { query: string; source?: string; maxResults?: number }) {
-    const dir = args.source ? safePath(`/docs/${sq(args.source)}/`) : "/docs/"
-    const limit = args.maxResults ?? 20
-    return ssh(`grep -rl '${sq(args.query)}' '${dir}' | head -${limit}`)
+    const limit = args.maxResults ?? 15
+    const filter = args.source ? `| rg '^${sq(args.source)}/'` : ""
+    return ssh(`rg -i '${sq(args.query)}' /docs/_index.tsv ${filter} | head -${limit}`)
   },
 }
 
@@ -132,17 +114,17 @@ export const find = {
 
 export const grep = {
   description:
-    "Search documentation with surrounding context lines. " +
+    "Search documentation content with surrounding context lines using ripgrep. " +
     "More detailed than docs_search — shows actual content around matches.",
   args: {
-    query: z.string().describe("Text pattern to search for (grep regex)"),
+    query: z.string().describe("Text pattern to search for (regex)"),
     path: z.string().describe("File or directory to search (e.g. /docs/postgres/)"),
     context: z.number().optional().describe("Context lines around each match (default: 3)"),
   },
   async execute(args: { query: string; path: string; context?: number }) {
     const ctx = Math.abs(Math.floor(args.context ?? 3))
     const p = safePath(args.path)
-    const result = await ssh(`grep -A${ctx} '${sq(args.query)}' '${sq(p)}' | head -100`)
+    const result = await ssh(`rg -i -A${ctx} '${sq(args.query)}' '${sq(p)}' | head -100`)
     return capOutput(result, args.path)
   },
 }
@@ -156,7 +138,7 @@ export const summary = {
   },
   async execute(args: { path: string }) {
     const p = safePath(args.path)
-    const headings = await ssh(`grep '^#' '${sq(p)}'`)
+    const headings = await ssh(`rg '^#' '${sq(p)}'`)
     const lineCount = await ssh(`wc -l < '${sq(p)}'`)
     return `${lineCount.trim()} lines\n\n${headings}`
   },
