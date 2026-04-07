@@ -72,13 +72,34 @@ export class UpdateDocSets {
     const normalised = new Map<string, DocFile>();
 
     for (const [, file] of set.files) {
-      const normaliser = this.opts.normalisers.find((n) => n.supports(file));
-      if (normaliser) {
-        const out = await normaliser.normalise(file);
-        normalised.set(out.path, out);
-      } else {
-        normalised.set(file.path, file);
+      let current = file;
+
+      // Pass 1: format-based normalisation (HTML→md, MDX→md)
+      const formatNormaliser = this.opts.normalisers.find((n) => {
+        if (set.source.format === "html" && n.name === "HtmlNormaliser") return true;
+        if (set.source.format === "mdx" && n.name === "MdxNormaliser") return true;
+        return false;
+      });
+      if (formatNormaliser) {
+        current = await formatNormaliser.normalise(current);
       }
+
+      // Pass 2: extension-based normalisation (catches files not handled by format)
+      if (!formatNormaliser) {
+        const extNormaliser = this.opts.normalisers.find((n) => n.supports(current));
+        if (extNormaliser) {
+          current = await extNormaliser.normalise(current);
+        }
+      }
+
+      // Pass 3: cleanup normalisers (MarkdownCleaner etc.) — runs on all .md files
+      for (const cleaner of this.opts.normalisers) {
+        if (cleaner.name !== "HtmlNormaliser" && cleaner.name !== "MdxNormaliser" && cleaner.supports(current)) {
+          current = await cleaner.normalise(current);
+        }
+      }
+
+      normalised.set(current.path, current);
     }
 
     return new DocSet(set.source, normalised, set.fetchedAt, set.version);

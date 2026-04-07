@@ -25,16 +25,7 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://supabase.com/docs/docs.tar.gz",
   }),
 
-  // Blog — HTML pages from sitemap
-  new DocSource({
-    name: "supabase-blog",
-    type: "http",
-    url: "https://supabase.com/blog/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://supabase.com/sitemap_www.xml",
-    urlPattern: "supabase\\.com/blog/.+",
-  }),
+  // Supabase blog omitted — pages are RSC-rendered (no extractable HTML content)
 
   // ─── Cloudflare ────────────────────────────────────────────────────
 
@@ -70,26 +61,28 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://vercel.com/docs/llms-full.txt",
   }),
 
-  // Blog — HTML from sitemap
+  // Blog — each page supports .md suffix for clean markdown
   new DocSource({
     name: "vercel-blog",
     type: "http",
     url: "https://vercel.com/blog/",
-    format: "html",
+    format: "markdown",
     discovery: "sitemap",
     discoveryUrl: "https://vercel.com/sitemap.xml",
     urlPattern: "vercel\\.com/blog/.+",
+    urlSuffix: ".md",
   }),
 
-  // Changelog — HTML from sitemap
+  // Changelog — each page supports .md suffix for clean markdown
   new DocSource({
     name: "vercel-changelog",
     type: "http",
     url: "https://vercel.com/changelog/",
-    format: "html",
+    format: "markdown",
     discovery: "sitemap",
     discoveryUrl: "https://vercel.com/sitemap.xml",
     urlPattern: "vercel\\.com/changelog/.+",
+    urlSuffix: ".md",
   }),
 
   // ─── PostgreSQL ────────────────────────────────────────────────────

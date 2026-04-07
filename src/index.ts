@@ -4,6 +4,8 @@ import { GitIngestor } from "./ingestors/GitIngestor.js";
 import { HttpIngestor } from "./ingestors/HttpIngestor.js";
 import { MdxNormaliser } from "./normaliser/MdxNormaliser.js";
 import { HtmlNormaliser } from "./normaliser/HtmlNormaliser.js";
+import { MarkdownCleaner } from "./normaliser/MarkdownCleaner.js";
+import { ContentSanitiser } from "./normaliser/ContentSanitiser.js";
 import { UpdateDocSets } from "./application/UpdateDocSets.js";
 import { SOURCES } from "./application/sources.js";
 
@@ -13,7 +15,7 @@ const WORK_DIR = process.env.DOCS_WORK_DIR ?? path.join(os.tmpdir(), "docs-ssh-w
 const update = new UpdateDocSets({
   sources: SOURCES,
   ingestors: [new GitIngestor(), new HttpIngestor()],
-  normalisers: [new MdxNormaliser(), new HtmlNormaliser()],
+  normalisers: [new MdxNormaliser(), new HtmlNormaliser(), new MarkdownCleaner(), new ContentSanitiser()],
   outDir: OUT_DIR,
   workDir: WORK_DIR,
 });

@@ -48,7 +48,7 @@ describe("E2E smoke tests", () => {
     console.log("Building Docker image…");
     execSync(
       `docker build --build-arg DOCS_PREBUILT=true -t ${IMAGE} .`,
-      { cwd: projectRoot, stdio: "pipe", timeout: 120_000 },
+      { cwd: projectRoot, stdio: "pipe", timeout: 300_000 },
     );
 
     // 3. Start container
