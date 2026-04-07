@@ -33,6 +33,10 @@ MaxSessions 5
 # All connections arrive from the proxy IP, so penalising it blocks everyone.
 PerSourcePenaltyExemptList 172.16.0.0/12
 
+# Suppress failed-auth noise from bot scans (AllowUsers docs rejects them).
+# ERROR level only logs fatal issues, not every rejected username.
+LogLevel ERROR
+
 # Performance
 UseDNS no
 PrintMotd no
