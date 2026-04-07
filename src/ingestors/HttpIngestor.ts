@@ -8,6 +8,23 @@ import type { DocSource, DiscoveryMethod } from "../domain/DocSource.js";
 import { splitLlmsFull } from "./llms-splitter.js";
 
 const CONCURRENCY = 15;
+const UA = "docs-ssh/0.2 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
+const MAX_RETRIES = 2;
+
+/** Fetch with User-Agent header and retry on transient errors. */
+async function fetchWithRetry(url: string, retries = MAX_RETRIES): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url, { headers: { "User-Agent": UA } });
+    if (res.ok || attempt === retries) return res;
+    // Retry on 5xx and 413 (CDN rate-limit), not on 404 etc.
+    if (res.status < 500 && res.status !== 413 && res.status !== 429) return res;
+    const delay = 1000 * 2 ** attempt;
+    console.warn(`  [retry] ${url} → HTTP ${res.status}, waiting ${delay}ms…`);
+    await new Promise((r) => setTimeout(r, delay));
+  }
+  // unreachable, but satisfies TS
+  throw new Error("unreachable");
+}
 
 /**
  * Ingestor for HTTP doc sources.
@@ -70,7 +87,7 @@ export class HttpIngestor implements DocIngestor {
       const batch = urls.slice(i, i + CONCURRENCY);
       const results = await Promise.allSettled(
         batch.map(async (url) => {
-          const res = await fetch(url);
+          const res = await fetchWithRetry(url);
           if (!res.ok) {
             throw new Error(`HTTP ${res.status} for ${url}`);
           }
@@ -123,7 +140,7 @@ export class HttpIngestor implements DocIngestor {
 
   private async ingestFromLlmsFull(source: DocSource): Promise<DocSet> {
     console.log(`  [${source.name}] downloading llms-full.txt…`);
-    const res = await fetch(source.discoveryUrl!);
+    const res = await fetchWithRetry(source.discoveryUrl!);
     if (!res.ok) {
       throw new Error(`Failed to fetch llms-full.txt: HTTP ${res.status}`);
     }
@@ -169,7 +186,7 @@ async function discover(source: DocSource): Promise<string[]> {
 }
 
 async function discoverFromSitemap(sitemapUrl: string): Promise<string[]> {
-  const res = await fetch(sitemapUrl);
+  const res = await fetchWithRetry(sitemapUrl);
   if (!res.ok) throw new Error(`Failed to fetch sitemap ${sitemapUrl}: HTTP ${res.status}`);
   return extractLocs(await res.text());
 }
@@ -178,7 +195,7 @@ async function discoverFromSitemapIndex(
   indexUrl: string,
   urlPattern?: string,
 ): Promise<string[]> {
-  const res = await fetch(indexUrl);
+  const res = await fetchWithRetry(indexUrl);
   if (!res.ok) throw new Error(`Failed to fetch sitemap index ${indexUrl}: HTTP ${res.status}`);
   let childUrls = extractLocs(await res.text());
 
@@ -205,7 +222,7 @@ async function discoverFromSitemapIndex(
     const batch = childUrls.slice(i, i + CONCURRENCY);
     const results = await Promise.allSettled(
       batch.map(async (url) => {
-        const r = await fetch(url);
+        const r = await fetchWithRetry(url);
         if (!r.ok) return [];
         return extractLocs(await r.text());
       }),
@@ -219,7 +236,7 @@ async function discoverFromSitemapIndex(
 }
 
 async function discoverFromToc(tocUrl: string, baseUrl: string): Promise<string[]> {
-  const res = await fetch(tocUrl);
+  const res = await fetchWithRetry(tocUrl);
   if (!res.ok) throw new Error(`Failed to fetch TOC ${tocUrl}: HTTP ${res.status}`);
   const html = await res.text();
 
@@ -247,7 +264,7 @@ async function discoverFromLlmsIndex(
   indexUrl: string,
   urlPattern?: string,
 ): Promise<string[]> {
-  const res = await fetch(indexUrl);
+  const res = await fetchWithRetry(indexUrl);
   if (!res.ok) throw new Error(`Failed to fetch llms index ${indexUrl}: HTTP ${res.status}`);
   const text = await res.text();
 
@@ -277,7 +294,7 @@ async function discoverFromLlmsIndex(
     const batch = childLlmsUrls.slice(i, i + CONCURRENCY);
     const results = await Promise.allSettled(
       batch.map(async (url) => {
-        const r = await fetch(url);
+        const r = await fetchWithRetry(url);
         if (!r.ok) return [];
         const childText = await r.text();
         const childLinks = childText.match(urlRegex) ?? [];
@@ -299,7 +316,7 @@ async function discoverFromLlmsIndex(
  * all extracted URLs as pages to fetch.
  */
 async function discoverFromLlmsTxt(llmsTxtUrl: string): Promise<string[]> {
-  const res = await fetch(llmsTxtUrl);
+  const res = await fetchWithRetry(llmsTxtUrl);
   if (!res.ok) throw new Error(`Failed to fetch llms.txt ${llmsTxtUrl}: HTTP ${res.status}`);
   const text = await res.text();
 

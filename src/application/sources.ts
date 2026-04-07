@@ -15,7 +15,6 @@ import { DocSource } from "../domain/DocSource.js";
  * - Rust: git repo (The Rust Book)
  * - Postgres: TOC discovery → HTML pages
  * - AWS: llms-index → per-service llms.txt → HTML pages
- * - GCP: sitemap-index → child sitemaps → HTML pages (filtered to core services)
  *
  * No hardcoded URL lists. The daily CI cron picks up changes automatically.
  */
@@ -203,18 +202,6 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "src",
   }),
 
-  // ─── GCP ───────────────────────────────────────────────────────────
-
-  // Sitemap-index — 180 child sitemaps, filtered to core services
-  new DocSource({
-    name: "gcp",
-    type: "http",
-    url: "https://cloud.google.com/",
-    format: "html",
-    discovery: "sitemap-index",
-    discoveryUrl: "https://cloud.google.com/sitemap.xml",
-    urlPattern:
-      "(compute|storage|functions|run|kubernetes-engine|iam|vpc|load-balancing|sql|firestore|bigquery|pubsub|secret-manager|artifact-registry|build|logging|monitoring)",
-    urlExclude: "(ja|ko|zh-CN|fr|de|es|pt-BR|it|id)/|/reference/|/release-notes",
-  }),
+  // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
+  // Revisit when cloud.google.com adds llms.txt or a scoped sitemap.
 ];

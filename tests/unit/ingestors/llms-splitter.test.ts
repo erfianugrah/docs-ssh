@@ -3,6 +3,7 @@ import {
   splitLlmsFull,
   splitVercelStyle,
   splitFrontmatterStyle,
+  splitHeadingStyle,
 } from "../../../src/ingestors/llms-splitter.js";
 
 describe("splitVercelStyle", () => {
@@ -226,6 +227,74 @@ describe("splitFrontmatterStyle — real-world patterns", () => {
   });
 });
 
+describe("splitHeadingStyle", () => {
+  it("splits continuous document on top-level headings", () => {
+    const content = [
+      "# Why Astro?",
+      "",
+      "Astro is an all-in-one web framework.",
+      "",
+      "# Getting Started",
+      "",
+      "Install Astro with npm.",
+      "",
+      "# Components",
+      "",
+      "Astro components use .astro syntax.",
+    ].join("\n");
+
+    const pages = splitHeadingStyle(content);
+    expect(pages.size).toBe(3);
+    expect(pages.has("why-astro.md")).toBe(true);
+    expect(pages.has("getting-started.md")).toBe(true);
+    expect(pages.has("components.md")).toBe(true);
+    expect(pages.get("why-astro.md")).toContain("all-in-one web framework");
+    expect(pages.get("getting-started.md")).toContain("Install Astro");
+  });
+
+  it("preserves heading in page content", () => {
+    const content = "# My Page\n\nContent here.";
+    const pages = splitHeadingStyle(content);
+    expect(pages.get("my-page.md")).toContain("# My Page");
+  });
+
+  it("does not split on ## subheadings", () => {
+    const content = [
+      "# Page One",
+      "",
+      "Intro.",
+      "",
+      "## Subsection",
+      "",
+      "More content.",
+    ].join("\n");
+
+    const pages = splitHeadingStyle(content);
+    expect(pages.size).toBe(1);
+    expect(pages.get("page-one.md")).toContain("## Subsection");
+  });
+
+  it("handles duplicate heading titles with suffix", () => {
+    const content = [
+      "# Overview",
+      "",
+      "First overview.",
+      "",
+      "# Overview",
+      "",
+      "Second overview.",
+    ].join("\n");
+
+    const pages = splitHeadingStyle(content);
+    expect(pages.size).toBe(2);
+  });
+
+  it("returns empty map for content with no headings", () => {
+    const pages = splitHeadingStyle("just plain text\nno headings");
+    expect(pages.size).toBe(0);
+  });
+});
+
 describe("splitLlmsFull (auto-detect)", () => {
   it("detects Vercel style when source: metadata is present between long dashes", () => {
     const content = [
@@ -257,6 +326,27 @@ describe("splitLlmsFull (auto-detect)", () => {
     const pages = splitLlmsFull(content, "https://developers.cloudflare.com/");
     expect(pages.size).toBe(1);
     expect(pages.has("workers.md")).toBe(true);
+  });
+
+  it("falls back to heading style for continuous documents without metadata", () => {
+    const content = [
+      "# Why Astro?",
+      "",
+      "Astro is great.",
+      "",
+      "# Getting Started",
+      "",
+      "Install with npm.",
+      "",
+      "# Islands",
+      "",
+      "Island architecture.",
+    ].join("\n");
+
+    // No frontmatter, no Vercel separators — should use heading style
+    const pages = splitLlmsFull(content, "https://docs.astro.build/");
+    expect(pages.size).toBe(3);
+    expect(pages.has("why-astro.md")).toBe(true);
   });
 
   it("does not misdetect CF content with long dashes as Vercel style", () => {
