@@ -1,12 +1,18 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { DocFile } from "../domain/DocFile.js";
 import { DocSet } from "../domain/DocSet.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocSource } from "../domain/DocSource.js";
+import { walkDir } from "../shared/walkDir.js";
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
+
+/** Timeout for heavy git operations (clone, pull) */
+const GIT_CLONE_TIMEOUT = 120_000;
+/** Timeout for lightweight git operations (checkout, sparse-checkout, rev-parse) */
+const GIT_FAST_TIMEOUT = 30_000;
 
 /**
  * Ingestor for git-based doc sources.
@@ -25,26 +31,48 @@ export class GitIngestor implements DocIngestor {
 
     // Clone with sparse checkout if paths are specified
     if (!(await exists(cloneDir))) {
-      const sparseArgs = source.paths.length > 0 ? "--no-checkout --filter=blob:none" : "--depth 1";
-      execSync(`git clone ${sparseArgs} ${source.url} ${cloneDir}`, { stdio: "pipe" });
+      const sparseArgs =
+        source.paths.length > 0
+          ? ["--no-checkout", "--filter=blob:none"]
+          : ["--depth", "1"];
+      execFileSync("git", ["clone", ...sparseArgs, source.url, cloneDir], {
+        stdio: "pipe",
+        timeout: GIT_CLONE_TIMEOUT,
+      });
 
       if (source.paths.length > 0) {
-        execSync("git sparse-checkout init --cone", { cwd: cloneDir, stdio: "pipe" });
-        execSync(`git sparse-checkout set ${source.paths.join(" ")}`, {
+        execFileSync("git", ["sparse-checkout", "init", "--cone"], {
           cwd: cloneDir,
           stdio: "pipe",
+          timeout: GIT_FAST_TIMEOUT,
         });
-        execSync("git checkout", { cwd: cloneDir, stdio: "pipe" });
+        execFileSync("git", ["sparse-checkout", "set", ...source.paths], {
+          cwd: cloneDir,
+          stdio: "pipe",
+          timeout: GIT_FAST_TIMEOUT,
+        });
+        execFileSync("git", ["checkout"], {
+          cwd: cloneDir,
+          stdio: "pipe",
+          timeout: GIT_FAST_TIMEOUT,
+        });
       }
     } else {
       // Pull latest
-      execSync("git pull --rebase", { cwd: cloneDir, stdio: "pipe" });
+      execFileSync("git", ["pull", "--rebase"], {
+        cwd: cloneDir,
+        stdio: "pipe",
+        timeout: GIT_CLONE_TIMEOUT,
+      });
     }
 
     // Get current HEAD SHA for versioning
     let version: string | undefined;
     try {
-      version = execSync("git rev-parse --short HEAD", { cwd: cloneDir }).toString().trim();
+      version = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+        cwd: cloneDir,
+        timeout: GIT_FAST_TIMEOUT,
+      }).toString().trim();
     } catch {
       // non-fatal
     }
@@ -55,48 +83,29 @@ export class GitIngestor implements DocIngestor {
         ? source.paths.map((p) => path.join(cloneDir, p))
         : [cloneDir];
 
+    // Build a path transformer that strips the rootPath prefix
+    const rootPath = source.rootPath;
+    const pathTransform = rootPath
+      ? (relativePath: string) => {
+          const prefix = rootPath.endsWith("/") ? rootPath : rootPath + "/";
+          return relativePath.startsWith(prefix)
+            ? relativePath.slice(prefix.length)
+            : relativePath;
+        }
+      : undefined;
+
     const files = new Map<string, DocFile>();
 
     for (const root of scanRoots) {
       const rootExists = await exists(root);
       if (!rootExists) continue;
-      await walkDir(root, cloneDir, source.rootPath, files);
+      await walkDir(root, cloneDir, files, {
+        extensions: MARKDOWN_EXTENSIONS,
+        pathTransform,
+      });
     }
 
     return new DocSet(source, files, new Date(), version);
-  }
-}
-
-async function walkDir(
-  dir: string,
-  cloneRoot: string,
-  rootPath: string | undefined,
-  files: Map<string, DocFile>,
-): Promise<void> {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-
-    if (entry.isDirectory()) {
-      await walkDir(fullPath, cloneRoot, rootPath, files);
-    } else if (entry.isFile()) {
-      const ext = entry.name.split(".").pop() ?? "";
-      if (!MARKDOWN_EXTENSIONS.has(ext)) continue;
-
-      const content = await fs.readFile(fullPath, "utf-8");
-
-      // Build relative path, optionally stripping the rootPath prefix
-      let relativePath = path.relative(cloneRoot, fullPath);
-      if (rootPath) {
-        const prefix = rootPath.endsWith("/") ? rootPath : rootPath + "/";
-        if (relativePath.startsWith(prefix)) {
-          relativePath = relativePath.slice(prefix.length);
-        }
-      }
-
-      files.set(relativePath, new DocFile(relativePath, content));
-    }
   }
 }
 

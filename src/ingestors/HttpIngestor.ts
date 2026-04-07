@@ -1,13 +1,15 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { DocFile } from "../domain/DocFile.js";
 import { DocSet } from "../domain/DocSet.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocSource, DiscoveryMethod } from "../domain/DocSource.js";
 import { splitLlmsFull } from "./llms-splitter.js";
+import { walkDir } from "../shared/walkDir.js";
 
 const CONCURRENCY = 15;
+const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
 const UA = "docs-ssh/0.2 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
 const MAX_RETRIES = 2;
 
@@ -132,13 +134,26 @@ export class HttpIngestor implements DocIngestor {
     await fs.mkdir(extractDir, { recursive: true });
 
     console.log(`  [${source.name}] downloading tarball…`);
-    execSync(`curl -sL "${source.discoveryUrl}" | tar -xz -C "${extractDir}"`, {
+    // Download to a temp file first, then extract — avoids shell injection
+    // from interpolating URLs into a shell pipeline.
+    const tarballPath = path.join(workDir, `${source.name}.tar.gz`);
+    const res = await fetchWithRetry(source.discoveryUrl!);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch tarball: HTTP ${res.status}`);
+    }
+    const buffer = Buffer.from(await res.arrayBuffer());
+    await fs.writeFile(tarballPath, buffer);
+
+    execFileSync("tar", ["-xzf", tarballPath, "-C", extractDir], {
       stdio: "pipe",
       timeout: 120_000,
     });
 
+    // Clean up the temp tarball
+    await fs.rm(tarballPath, { force: true });
+
     const files = new Map<string, DocFile>();
-    await walkDir(extractDir, extractDir, files);
+    await walkDir(extractDir, extractDir, files, { extensions: MARKDOWN_EXTENSIONS });
 
     console.log(`  [${source.name}] extracted ${files.size} files from tarball`);
     return new DocSet(source, files, new Date());
@@ -362,16 +377,4 @@ function urlToPath(url: string, baseUrl: string): string {
   return relative;
 }
 
-async function walkDir(dir: string, root: string, files: Map<string, DocFile>): Promise<void> {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      await walkDir(full, root, files);
-    } else if (entry.isFile() && (entry.name.endsWith(".md") || entry.name.endsWith(".mdx"))) {
-      const rel = path.relative(root, full);
-      const content = await fs.readFile(full, "utf-8");
-      files.set(rel, new DocFile(rel, content));
-    }
-  }
-}
+

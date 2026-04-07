@@ -2,9 +2,17 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { DocFile } from "../domain/DocFile.js";
 import { DocSet, type UpdateResult } from "../domain/DocSet.js";
+import { walkDir } from "../shared/walkDir.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
-import type { DocSource } from "../domain/DocSource.js";
+import type { DocSource, DocFormat } from "../domain/DocSource.js";
+
+const FORMAT_VALUES: readonly DocFormat[] = ["html", "mdx", "markdown"];
+
+/** Returns true if the normaliser is a format converter (HTML→MD, MDX→MD) */
+function isFormatConverter(n: DocNormaliser): boolean {
+  return FORMAT_VALUES.some((f) => n.supportsFormat(f));
+}
 
 export interface UpdateDocSetsOptions {
   sources: readonly DocSource[];
@@ -75,11 +83,9 @@ export class UpdateDocSets {
       let current = file;
 
       // Pass 1: format-based normalisation (HTML→md, MDX→md)
-      const formatNormaliser = this.opts.normalisers.find((n) => {
-        if (set.source.format === "html" && n.name === "HtmlNormaliser") return true;
-        if (set.source.format === "mdx" && n.name === "MdxNormaliser") return true;
-        return false;
-      });
+      const formatNormaliser = this.opts.normalisers.find((n) =>
+        n.supportsFormat(set.source.format),
+      );
       if (formatNormaliser) {
         current = await formatNormaliser.normalise(current);
       }
@@ -93,8 +99,11 @@ export class UpdateDocSets {
       }
 
       // Pass 3: cleanup normalisers (MarkdownCleaner etc.) — runs on all .md files
+      // Skip format converters (they already ran in pass 1/2) — identified by
+      // supportsFormat returning true for any format.
       for (const cleaner of this.opts.normalisers) {
-        if (cleaner.name !== "HtmlNormaliser" && cleaner.name !== "MdxNormaliser" && cleaner.supports(current)) {
+        if (isFormatConverter(cleaner)) continue;
+        if (cleaner.supports(current)) {
           current = await cleaner.normalise(current);
         }
       }
@@ -139,20 +148,6 @@ export class UpdateDocSets {
       return new DocSet(source, files);
     } catch {
       return null;
-    }
-  }
-}
-
-async function walkDir(dir: string, root: string, files: Map<string, DocFile>): Promise<void> {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      await walkDir(full, root, files);
-    } else if (entry.isFile()) {
-      const rel = path.relative(root, full);
-      const content = await fs.readFile(full, "utf-8");
-      files.set(rel, new DocFile(rel, content));
     }
   }
 }

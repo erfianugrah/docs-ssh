@@ -1,6 +1,6 @@
 # docs-ssh
 
-Self-hosted SSH docs server for AI agents. Serves Supabase, Cloudflare, Vercel, PostgreSQL, and AWS documentation — plus blogs and changelogs — as a searchable markdown filesystem over SSH.
+Self-hosted SSH docs server for AI agents. Serves Supabase, Cloudflare, Vercel, PostgreSQL, AWS, Next.js, Astro, Fly.io, Tailwind CSS, Rust, and MCP documentation — plus blogs and changelogs — as a searchable markdown filesystem over SSH.
 
 ## Get started
 
@@ -65,6 +65,14 @@ Each source uses the best available fetch method — no hardcoded URL lists.
 | Vercel Changelog | sitemap | markdown | `.md` suffix per page |
 | PostgreSQL | toc | html → md | All pages from `bookindex.html` |
 | AWS | llms-index | html → md | 20 core services via per-service `llms.txt` |
+| Next.js | llms-full | markdown | Full docs from `llms-full.txt` |
+| Astro | llms-full | markdown | Full docs from `llms-full.txt` |
+| MCP | llms-txt | markdown | Per-page URLs from `llms.txt` |
+| Fly.io | sitemap | html → md | `/docs/` pages filtered from sitemap |
+| Tailwind CSS | git sparse | mdx → md | MDX docs from `tailwindcss.com` repo |
+| Rust Book | git sparse | markdown | The Rust Programming Language |
+| Erfi Technical Blog | git sparse | mdx → md | Technical docs from `erfianugrah/lexicanum` |
+| Erfi Personal Blog | git sparse | mdx → md | Photography & writing from `erfianugrah/revista-3` |
 
 ## Build from source
 
@@ -100,14 +108,14 @@ docker compose -f compose.prod.yaml up -d
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `ci.yml` | push / PR | typecheck + 70 unit tests |
+| `ci.yml` | push / PR | typecheck + 141 unit tests |
 | `update-docs.yml` | daily 02:00 UTC + manual | fetch docs, build & push Docker image |
 | `release.yml` | tags `v*` | build & push with semver tags |
 
 ## Development
 
 ```bash
-pnpm test           # 70 unit tests
+pnpm test           # 141 unit tests
 pnpm test:e2e       # 16 Docker-based E2E tests
 pnpm test:bench     # token efficiency benchmark (requires live server)
 pnpm test:coverage  # with coverage report

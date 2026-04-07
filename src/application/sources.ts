@@ -202,6 +202,28 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "src",
   }),
 
+  // ─── Erfi's Blogs ───────────────────────────────────────────────────
+
+  // Technical blog — Astro Starlight site with MDX docs
+  new DocSource({
+    name: "erfi-technical-blog",
+    type: "git",
+    url: "https://github.com/erfianugrah/lexicanum",
+    format: "mdx",
+    paths: ["src/content/docs"],
+    rootPath: "src/content/docs",
+  }),
+
+  // Personal blog — Astro photography & writing site with MDX content
+  new DocSource({
+    name: "erfi-personal-blog",
+    type: "git",
+    url: "https://github.com/erfianugrah/revista-3",
+    format: "mdx",
+    paths: ["src/content"],
+    rootPath: "src/content",
+  }),
+
   // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
   // Revisit when cloud.google.com adds llms.txt or a scoped sitemap.
 ];

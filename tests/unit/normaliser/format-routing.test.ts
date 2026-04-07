@@ -143,7 +143,8 @@ describe("format-based normaliser routing", () => {
 
   it("preserves content when normalising RSC pages produces too little output", async () => {
     // RSC-rendered pages produce almost no output from Turndown.
-    // The normaliser should detect this and keep the original.
+    // HtmlNormaliser.ts safety guard: if input > 1000 chars and output < 1%
+    // of input size, the original content is preserved to avoid data loss.
     const source = new DocSource({
       name: "test-rsc-blog",
       type: "http",
@@ -151,8 +152,12 @@ describe("format-based normaliser routing", () => {
       format: "html",
     });
 
-    // Simulate an RSC payload — no real HTML content
-    const rscHtml = `<!DOCTYPE html><html><head><title>Blog</title></head><body><div hidden></div><script>self.__next_f=[]</script><script>self.__next_f.push([1,"content here"])</script></body></html>`;
+    // Simulate a large RSC payload — lots of script tags, no extractable HTML.
+    // Must exceed 1000 chars to trigger the MIN_CONVERSION_RATIO guard.
+    const rscPayload = `self.__next_f.push([1,"${"a]b[c".repeat(300)}"])`;
+    const rscHtml = `<!DOCTYPE html><html><head><title>Blog</title></head><body><div hidden></div><script>${rscPayload}</script></body></html>`;
+    expect(rscHtml.length).toBeGreaterThan(1000); // precondition
+
     const files = new Map([["rsc-post.md", new DocFile("rsc-post.md", rscHtml)]]);
     const set = new DocSet(source, files);
 
@@ -170,9 +175,12 @@ describe("format-based normaliser routing", () => {
     const file = normalised.getFile("rsc-post.md");
     expect(file).toBeDefined();
 
-    // If normalisation produces very little output (<50 chars),
-    // the original should be preserved to avoid data loss
-    // OR it's acceptable that near-empty RSC pages are dropped
-    // Either way, it should NOT produce a misleadingly tiny file
+    // The safety guard should have preserved the original content since
+    // Turndown produces almost nothing from script-only pages
+    expect(file!.content.length).toBeGreaterThan(100);
+    // Content should still contain the RSC payload (not be converted to near-empty MD)
+    expect(file!.content).toContain("self.__next_f");
+
+    await fs.rm(tmpDir, { recursive: true });
   });
 });

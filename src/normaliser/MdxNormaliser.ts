@@ -1,5 +1,6 @@
 import type { DocFile } from "../domain/DocFile.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
+import type { DocFormat } from "../domain/DocSource.js";
 
 /**
  * Normalises MDX files to clean Markdown by:
@@ -13,6 +14,10 @@ export class MdxNormaliser implements DocNormaliser {
 
   supports(file: DocFile): boolean {
     return file.extension === "mdx";
+  }
+
+  supportsFormat(format: DocFormat): boolean {
+    return format === "mdx";
   }
 
   async normalise(file: DocFile): Promise<DocFile> {

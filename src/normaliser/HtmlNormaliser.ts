@@ -1,6 +1,7 @@
 import TurndownService from "turndown";
 import type { DocFile } from "../domain/DocFile.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
+import type { DocFormat } from "../domain/DocSource.js";
 
 /**
  * Minimum output-to-input ratio to accept the conversion.
@@ -30,6 +31,10 @@ export class HtmlNormaliser implements DocNormaliser {
 
   supports(file: DocFile): boolean {
     return file.extension === "html";
+  }
+
+  supportsFormat(format: DocFormat): boolean {
+    return format === "html";
   }
 
   async normalise(file: DocFile): Promise<DocFile> {

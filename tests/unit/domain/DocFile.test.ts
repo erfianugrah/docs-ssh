@@ -49,4 +49,42 @@ describe("DocFile", () => {
     expect(a.equals(b)).toBe(true);
     expect(a.equals(c)).toBe(false);
   });
+
+  // ─── Edge cases ───────────────────────────────────────────────────
+
+  it("extension returns last segment for files with multiple dots", () => {
+    expect(new DocFile("file.test.ts", "").extension).toBe("ts");
+    expect(new DocFile("archive.tar.gz", "").extension).toBe("gz");
+  });
+
+  it("extension returns filename itself for files with no dot", () => {
+    // This is a known quirk: split(".").pop() returns the whole name
+    expect(new DocFile("Makefile", "").extension).toBe("Makefile");
+  });
+
+  it("equals returns false when paths differ but content matches", () => {
+    const a = new DocFile("a.md", "same");
+    const b = new DocFile("b.md", "same");
+    expect(a.equals(b)).toBe(false);
+  });
+
+  it("withPath throws if new path is empty", () => {
+    const file = new DocFile("x.md", "content");
+    expect(() => file.withPath("")).toThrow("path must not be empty");
+  });
+
+  it("withPath throws if new path is absolute", () => {
+    const file = new DocFile("x.md", "content");
+    expect(() => file.withPath("/etc/passwd")).toThrow("must be relative");
+  });
+
+  it("throws if path is whitespace-only", () => {
+    expect(() => new DocFile("   ", "content")).toThrow("path must not be empty");
+  });
+
+  it("allows empty content", () => {
+    const f = new DocFile("empty.md", "");
+    expect(f.content).toBe("");
+    expect(f.isEmpty).toBe(true);
+  });
 });

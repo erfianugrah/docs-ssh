@@ -1,5 +1,6 @@
 import type { DocFile } from "../domain/DocFile.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
+import type { DocFormat } from "../domain/DocSource.js";
 
 /**
  * Security sanitiser that runs on all files before writing to disk.
@@ -17,6 +18,10 @@ export class ContentSanitiser implements DocNormaliser {
   supports(_file: DocFile): boolean {
     // Run on every file
     return true;
+  }
+
+  supportsFormat(_format: DocFormat): boolean {
+    return false;
   }
 
   async normalise(file: DocFile): Promise<DocFile> {

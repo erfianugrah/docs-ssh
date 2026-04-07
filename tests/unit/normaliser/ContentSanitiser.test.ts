@@ -70,4 +70,37 @@ describe("ContentSanitiser", () => {
     const result = await sanitiser.normalise(file);
     expect(result.path).toBe("normal.md");
   });
+
+  // ─── Edge cases ───────────────────────────────────────────────────
+
+  it("strips backslash-style traversal (..\\..) from paths", async () => {
+    const file = new DocFile("docs\\..\\..\\etc\\passwd", "content");
+    const result = await sanitiser.normalise(file);
+    expect(result.path).not.toContain("..");
+  });
+
+  it("collapses double slashes in paths", async () => {
+    const file = new DocFile("docs//nested//file.md", "content");
+    const result = await sanitiser.normalise(file);
+    expect(result.path).toBe("docs/nested/file.md");
+  });
+
+  it("strips multiple ../ sequences from paths", async () => {
+    const file = new DocFile("a/../b/../c/../etc/passwd", "content");
+    const result = await sanitiser.normalise(file);
+    expect(result.path).not.toContain("..");
+    expect(result.path).toBe("a/b/c/etc/passwd");
+  });
+
+  it("handles combined ANSI, null bytes, and control chars", async () => {
+    const file = new DocFile("test.md", "A\x1b[31m\0B\x01C\x1b]0;title\x07D");
+    const result = await sanitiser.normalise(file);
+    expect(result.content).toBe("ABCD");
+  });
+
+  it("supportsFormat returns false (sanitiser is not a format converter)", () => {
+    expect(sanitiser.supportsFormat("html")).toBe(false);
+    expect(sanitiser.supportsFormat("mdx")).toBe(false);
+    expect(sanitiser.supportsFormat("markdown")).toBe(false);
+  });
 });

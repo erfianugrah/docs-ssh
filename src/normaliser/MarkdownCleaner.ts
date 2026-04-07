@@ -1,5 +1,6 @@
 import type { DocFile } from "../domain/DocFile.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
+import type { DocFormat } from "../domain/DocSource.js";
 
 /**
  * Cleans up markdown files that have common boilerplate from doc sites.
@@ -18,6 +19,10 @@ export class MarkdownCleaner implements DocNormaliser {
   supports(file: DocFile): boolean {
     // Only apply to .md files that contain known boilerplate patterns
     return file.extension === "md" && file.content.includes("[Skip to content]");
+  }
+
+  supportsFormat(_format: DocFormat): boolean {
+    return false;
   }
 
   async normalise(file: DocFile): Promise<DocFile> {
