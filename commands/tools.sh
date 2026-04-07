@@ -2,14 +2,29 @@
 # Outputs a complete OpenCode custom tools file.
 # Usage: ssh -p 2222 docs@HOST tools > .opencode/tools/docs.ts
 #
-# The HOST and PORT are auto-detected from the SSH connection,
+# HOST and PORT are auto-detected from the SSH connection,
 # or can be overridden via DOCS_SSH_HOST / DOCS_SSH_PORT env vars.
 
 HOST="${DOCS_SSH_HOST:-localhost}"
 PORT="${DOCS_SSH_PORT:-2222}"
 
+# Build dynamic source list from what's in the container
+SOURCES=$(ls -1 /docs/ | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
+
 cat << 'TOOLS_EOF'
 import { z } from "zod"
+
+/**
+ * Max characters to return from any single tool call.
+ * Informed by Claude Code's context management:
+ * - Per-tool result cap is 50K chars, oversized gets a 2KB preview
+ * - p99 output is ~5K tokens (~20K chars)
+ * - Microcompaction evicts the largest results first
+ *
+ * 16K chars (~4K tokens) is a good budget — large enough to be useful,
+ * small enough to avoid triggering compaction.
+ */
+const MAX_RESULT_CHARS = 16_000
 
 TOOLS_EOF
 
@@ -32,6 +47,16 @@ function safePath(p: string): string {
   return cleaned
 }
 
+function capOutput(text: string, path?: string): string {
+  if (text.length <= MAX_RESULT_CHARS) return text
+  const truncated = text.slice(0, MAX_RESULT_CHARS)
+  const remaining = text.length - MAX_RESULT_CHARS
+  const hint = path
+    ? `\n\n[truncated ${remaining} chars — use docs_read with lines parameter or docs_summary to read specific sections of ${path}]`
+    : `\n\n[truncated ${remaining} chars — narrow your query or add a line limit]`
+  return truncated + hint
+}
+
 async function ssh(command: string): Promise<string> {
   const proc = Bun.spawn(
     ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "LogLevel=ERROR", "-p", SSH_PORT, SSH_HOST, command],
@@ -42,11 +67,17 @@ async function ssh(command: string): Promise<string> {
   return text.trim()
 }
 
+TOOLS_EOF
+
+cat << TOOLS_DYNAMIC
 export const search = {
   description:
-    "Search documentation for Supabase, Cloudflare, Vercel, PostgreSQL, and AWS. " +
+    "Search documentation for ${SOURCES}. " +
     "Returns file paths matching the query. Use this to find relevant docs before reading them.",
   args: {
+TOOLS_DYNAMIC
+
+cat << 'TOOLS_EOF'
     query: z.string().describe("Text pattern to search for (grep regex)"),
     source: z
       .string()
@@ -63,24 +94,32 @@ export const search = {
 
 export const read = {
   description:
-    "Read a documentation file. Pass a path from docs_search results.",
+    "Read a documentation file. For large files, use docs_summary first to see " +
+    "the headings, then read with a line limit to get only the section you need.",
   args: {
     path: z.string().describe("File path (e.g. /docs/supabase/guides/auth.md)"),
     lines: z.number().optional().describe("Only read first N lines. Omit for full file."),
+    offset: z.number().optional().describe("Start reading from this line number (1-indexed)."),
   },
-  async execute(args: { path: string; lines?: number }) {
+  async execute(args: { path: string; lines?: number; offset?: number }) {
     const p = safePath(args.path)
-    if (args.lines) {
-      return ssh(`head -${Math.abs(Math.floor(args.lines))} '${sq(p)}'`)
+    let cmd: string
+    if (args.offset && args.lines) {
+      cmd = `sed -n '${Math.max(1, Math.floor(args.offset))},${Math.floor(args.offset) + Math.floor(args.lines) - 1}p' '${sq(p)}'`
+    } else if (args.lines) {
+      cmd = `head -${Math.abs(Math.floor(args.lines))} '${sq(p)}'`
+    } else {
+      cmd = `cat '${sq(p)}'`
     }
-    return ssh(`cat '${sq(p)}'`)
+    const result = await ssh(cmd)
+    return capOutput(result, args.path)
   },
 }
 
 export const find = {
   description: "Find documentation files by name or path pattern.",
   args: {
-    pattern: z.string().describe("File name pattern (e.g. '*.md', '*auth*')"),
+    pattern: z.string().describe("File name pattern (e.g. '*.md', '*auth*', '*lambda*')"),
     source: z.string().optional().describe("Limit to a source (e.g. 'supabase', 'aws')"),
     maxResults: z.number().optional().describe("Max results (default: 30)"),
   },
@@ -103,7 +142,8 @@ export const grep = {
   async execute(args: { query: string; path: string; context?: number }) {
     const ctx = Math.abs(Math.floor(args.context ?? 3))
     const p = safePath(args.path)
-    return ssh(`grep -A${ctx} '${sq(args.query)}' '${sq(p)}' | head -100`)
+    const result = await ssh(`grep -A${ctx} '${sq(args.query)}' '${sq(p)}' | head -100`)
+    return capOutput(result, args.path)
   },
 }
 
@@ -116,7 +156,9 @@ export const summary = {
   },
   async execute(args: { path: string }) {
     const p = safePath(args.path)
-    return ssh(`grep '^#' '${sq(p)}'`)
+    const headings = await ssh(`grep '^#' '${sq(p)}'`)
+    const lineCount = await ssh(`wc -l < '${sq(p)}'`)
+    return `${lineCount.trim()} lines\n\n${headings}`
   },
 }
 
