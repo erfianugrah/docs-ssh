@@ -1,16 +1,15 @@
 #!/bin/sh
 # ForceCommand wrapper — structured JSON audit logging.
 #
-# Writes log lines to a named pipe that sshd's entrypoint tails to stderr,
-# ensuring logs appear in Docker logs without needing /proc/1/fd/2 access.
+# Appends JSON lines to /var/log/docs-ssh.jsonl. The entrypoint tails
+# this file to stderr so Docker/Dockge captures it.
 # stdout/stderr from the actual command flow directly to the SSH client.
 
-LOG_PIPE="/var/log/docs-ssh.pipe"
+LOG_FILE="/var/log/docs-ssh.jsonl"
 CLIENT="${SSH_CLIENT%% *}"
 
 log_json() {
-  # Write to named pipe if it exists, otherwise silently skip
-  [ -p "$LOG_PIPE" ] && printf '%s\n' "$1" > "$LOG_PIPE" 2>/dev/null
+  printf '%s\n' "$1" >> "$LOG_FILE" 2>/dev/null
 }
 
 # Interactive shell
@@ -19,7 +18,7 @@ if [ -z "$SSH_ORIGINAL_COMMAND" ]; then
   exec /bin/bash -l
 fi
 
-# Escape command for JSON: backslashes, quotes, newlines, tabs, control chars
+# Escape command for JSON: backslashes, quotes, newlines, tabs
 LOG_CMD="$(printf '%.1024s' "$SSH_ORIGINAL_COMMAND" | \
   sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g' | \
   tr '\n' ' ')"
