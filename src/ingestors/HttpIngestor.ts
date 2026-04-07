@@ -182,14 +182,19 @@ async function discoverFromSitemapIndex(
   if (!res.ok) throw new Error(`Failed to fetch sitemap index ${indexUrl}: HTTP ${res.status}`);
   let childUrls = extractLocs(await res.text());
 
-  // Pre-filter child sitemaps using the alternation group from urlPattern
+  // Pre-filter child sitemaps using the alternation group from urlPattern.
+  // Only apply if the filter actually matches some URLs (skip for generic
+  // sitemap names like sitemap_12_of_180.xml that don't contain keywords).
   if (urlPattern) {
     const altMatch = urlPattern.match(/\(([^)]+)\)/);
     if (altMatch) {
       const keywords = altMatch[1].split("|");
-      childUrls = childUrls.filter((u) =>
+      const filtered = childUrls.filter((u) =>
         keywords.some((kw) => u.toLowerCase().includes(kw.toLowerCase())),
       );
+      if (filtered.length > 0) {
+        childUrls = filtered;
+      }
     }
   }
 

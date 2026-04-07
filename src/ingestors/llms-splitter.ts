@@ -1,9 +1,9 @@
 /**
  * Splits an llms-full.txt file into per-page [path, content] entries.
  *
- * Supports two formats:
+ * Supports three formats:
  *
- * Vercel style — long dash separators with metadata blocks:
+ * Vercel/Next.js style — long dash separators with metadata blocks:
  *   ----------------
  *   title: "Page Title"
  *   source: "https://vercel.com/docs/functions"
@@ -19,6 +19,12 @@
  *   [Skip to content]
  *   # Argo Smart Routing
  *   content...
+ *
+ * Heading style — continuous document split on top-level headings (Astro):
+ *   # Why Astro?
+ *   content...
+ *   # Getting Started
+ *   content...
  */
 export function splitLlmsFull(content: string, baseUrl: string): Map<string, string> {
   // Vercel format: long-dash separator immediately followed by metadata lines
@@ -27,7 +33,20 @@ export function splitLlmsFull(content: string, baseUrl: string): Map<string, str
   if (hasVercelMeta) {
     return splitVercelStyle(content, baseUrl);
   }
-  return splitFrontmatterStyle(content, baseUrl);
+
+  // Try frontmatter style first
+  const fmResult = splitFrontmatterStyle(content, baseUrl);
+  if (fmResult.size > 20) {
+    return fmResult;
+  }
+
+  // Fallback: split on top-level headings (# Title) for continuous docs
+  const headingResult = splitHeadingStyle(content);
+  if (headingResult.size > fmResult.size) {
+    return headingResult;
+  }
+
+  return fmResult;
 }
 
 /**
@@ -150,6 +169,52 @@ export function splitFrontmatterStyle(content: string, _baseUrl: string): Map<st
     const filePath = slug ? `${slug}.md` : `page-${idx}.md`;
     pages.set(filePath, pageContent);
   }
+
+  return pages;
+}
+
+/**
+ * Heading style: continuous document split on top-level `# Heading` lines.
+ * Used for llms-full.txt files that are a single concatenated document
+ * with no frontmatter or separators (e.g. Astro).
+ */
+export function splitHeadingStyle(content: string): Map<string, string> {
+  const pages = new Map<string, string>();
+  const lines = content.split("\n");
+
+  let currentTitle = "";
+  let currentLines: string[] = [];
+
+  function flush() {
+    if (!currentTitle || currentLines.length === 0) return;
+    const pageContent = currentLines.join("\n").trim();
+    if (!pageContent) return;
+
+    const slug = currentTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    const filePath = slug ? `${slug}.md` : `page-${pages.size}.md`;
+
+    // Deduplicate: if slug already exists, append a suffix
+    if (pages.has(filePath)) {
+      pages.set(`${slug}-${pages.size}.md`, `# ${currentTitle}\n\n${pageContent}`);
+    } else {
+      pages.set(filePath, `# ${currentTitle}\n\n${pageContent}`);
+    }
+  }
+
+  for (const line of lines) {
+    const headingMatch = line.match(/^# (.+)$/);
+    if (headingMatch) {
+      flush();
+      currentTitle = headingMatch[1].trim();
+      currentLines = [];
+    } else {
+      currentLines.push(line);
+    }
+  }
+  flush();
 
   return pages;
 }
