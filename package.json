@@ -11,7 +11,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:bench": "vitest run --config vitest.bench.config.ts",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "docker:build": "DOCS_OUT_DIR=./docs DOCS_WORK_DIR=/tmp/docs-ssh-work node --import tsx/esm src/index.ts && docker build --build-arg DOCS_PREBUILT=true -t docs-ssh:local . && rm -rf ./docs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

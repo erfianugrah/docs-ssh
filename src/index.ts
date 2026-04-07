@@ -22,13 +22,19 @@ const update = new UpdateDocSets({
 
 const results = await update.run();
 
+const successes = results.filter((r) => r.status === "ok");
 const errors = results.filter((r) => r.status === "error");
+
 if (errors.length > 0) {
-  console.error("\nFailed sources:");
+  console.warn(`\n${errors.length} source(s) failed:`);
   for (const e of errors) {
-    console.error(`  ${e.source}: ${e.error}`);
+    console.warn(`  ${e.source}: ${e.error}`);
   }
+}
+
+if (successes.length === 0) {
+  console.error("\nAll sources failed — aborting.");
   process.exit(1);
 }
 
-console.log("\nAll sources updated successfully.");
+console.log(`\n${successes.length}/${results.length} sources updated successfully.`);
