@@ -332,9 +332,11 @@
     <ol class="steps">
       <li>
         <strong>Install custom tools for your agent</strong>
-        <pre><span class="comment"># OpenCode &mdash; saves tools + agent rules</span>
+        <pre><span class="comment"># OpenCode &mdash; custom tools + rules</span>
 <span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io tools</span> <span class="redirect">&gt;</span> <span class="str">.opencode/tools/docs.ts</span>
-<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io agents</span> <span class="redirect">&gt;&gt;</span> <span class="str">AGENTS.md</span></pre>
+<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io agents</span> <span class="redirect">&gt;&gt;</span> <span class="str">AGENTS.md</span>
+<span class="comment"># Claude Code / Cursor / Gemini</span>
+<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io agents claude</span> <span class="redirect">&gt;&gt;</span> <span class="str">CLAUDE.md</span></pre>
       </li>
       <li>
         <strong>Or pipe the setup guide to your agent</strong>
@@ -342,19 +344,22 @@
       </li>
       <li>
         <strong>Or just explore</strong>
-        <pre><span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io</span> <span class="str">"grep -rl 'RLS' /docs/supabase/"</span>
-<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io</span> <span class="str">"cat /docs/cloudflare/workers-ai.md"</span>
-<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io</span> <span class="str">"find /docs/vercel -name '*.md' | head -20"</span></pre>
+        <pre><span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io</span> <span class="str">"rg -i 'RLS' /docs/supabase/"</span>
+<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io</span> <span class="str">"bat --plain --paging=never /docs/postgres/indexes.md"</span>
+<span class="prompt">$ </span><span class="cmd">ssh docs.erfi.io</span> <span class="str">"tree /docs/cloudflare/ -L 2"</span></pre>
       </li>
     </ol>
 
     <h2>Built-in commands</h2>
     <div class="commands-card">
-      <pre><span class="cmd">ssh docs.erfi.io</span> <span class="str">help</span>        <span class="comment"># Usage and examples</span>
-<span class="cmd">ssh docs.erfi.io</span> <span class="str">sources</span>     <span class="comment"># List doc sets with file counts</span>
-<span class="cmd">ssh docs.erfi.io</span> <span class="str">agents</span>      <span class="comment"># Output AGENTS.md snippet</span>
-<span class="cmd">ssh docs.erfi.io</span> <span class="str">tools</span>       <span class="comment"># Output OpenCode custom tools</span>
-<span class="cmd">ssh docs.erfi.io</span> <span class="str">setup</span>       <span class="comment"># Interactive setup guide</span></pre>
+      <pre><span class="cmd">ssh docs.erfi.io</span> <span class="str">help</span>            <span class="comment"># Usage and examples</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">sources</span>         <span class="comment"># List doc sets with file counts</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">agents</span>          <span class="comment"># AGENTS.md (default format)</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">agents claude</span>   <span class="comment"># CLAUDE.md format</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">agents skill</span>    <span class="comment"># SKILL.md with YAML frontmatter</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">agents help</span>     <span class="comment"># Show all output formats</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">tools</span>           <span class="comment"># OpenCode custom tools (rg --json, bat)</span>
+<span class="cmd">ssh docs.erfi.io</span> <span class="str">setup</span>           <span class="comment"># Interactive setup guide</span></pre>
     </div>
 
     <h2>Token efficiency</h2>

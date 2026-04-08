@@ -8,12 +8,23 @@ Self-hosted SSH docs server for AI agents. Serves Supabase, Cloudflare, Vercel, 
 docker run -d -p 2222:2222 ghcr.io/YOUR_USER/docs-ssh:latest
 ```
 
-Then set up your agent with one command:
+Then set up your agent:
 
 ```bash
-# OpenCode: install custom tools + rules
+# OpenCode: custom tools + agent instructions
 ssh -p 2222 docs@localhost tools > .opencode/tools/docs.ts
 ssh -p 2222 docs@localhost agents >> AGENTS.md
+
+# Claude Code
+ssh -p 2222 docs@localhost agents claude >> CLAUDE.md
+
+# Cursor / Gemini / any tool
+ssh -p 2222 docs@localhost agents cursor >> .cursorrules
+ssh -p 2222 docs@localhost agents gemini >> GEMINI.md
+
+# On-demand skill (works with any tool)
+mkdir -p .opencode/skills/docs-ssh
+ssh -p 2222 docs@localhost agents skill > .opencode/skills/docs-ssh/SKILL.md
 
 # Or pipe the interactive setup guide to your agent
 ssh -p 2222 docs@localhost setup | opencode
@@ -22,9 +33,10 @@ ssh -p 2222 docs@localhost setup | opencode
 Search and read docs:
 
 ```bash
-ssh -p 2222 docs@localhost "grep -rl 'RLS' /docs/"
-ssh -p 2222 docs@localhost "cat /docs/supabase/guides/auth.md"
-ssh -p 2222 docs@localhost "find /docs/cloudflare -name '*.md' -path '*workers*'"
+ssh -p 2222 docs@localhost "rg -i 'RLS' /docs/supabase/"
+ssh -p 2222 docs@localhost "bat --plain --paging=never /docs/supabase/guides/auth.md"
+ssh -p 2222 docs@localhost "tree /docs/cloudflare/ -L 2"
+ssh -p 2222 docs@localhost "rg --json 'auth' /docs/supabase/"
 ```
 
 ## Built-in commands
@@ -32,9 +44,14 @@ ssh -p 2222 docs@localhost "find /docs/cloudflare -name '*.md' -path '*workers*'
 | Command | What it does |
 |---------|-------------|
 | `help` | Show usage and available commands |
-| `sources` | List all doc sets with file counts |
-| `agents` | Output AGENTS.md snippet (append to your rules file) |
-| `tools` | Output OpenCode custom tools file (save as `.opencode/tools/docs.ts`) |
+| `sources` | List all doc sets with file counts (colorized in TTY) |
+| `agents` | Output agent instructions — default AGENTS.md format |
+| `agents claude` | CLAUDE.md format with header |
+| `agents cursor` | .cursorrules format |
+| `agents gemini` | GEMINI.md format with header |
+| `agents skill` | SKILL.md with YAML frontmatter (on-demand skill) |
+| `agents help` | Show all available output formats |
+| `tools` | Output OpenCode custom tools file (rg --json, bat, fallbacks) |
 | `setup` | Interactive setup guide (pipe to your agent) |
 
 ## Token efficiency
@@ -103,30 +120,32 @@ fly deploy
 
 ## Security
 
+- **Post-quantum key exchange** — sntrup761x25519 KEX, chacha20-poly1305/AES-256-GCM ciphers, ETM-only MACs
 - **Read-only filesystem** — docs cannot be modified at runtime
 - **Capability-restricted** — `cap_drop: ALL`, adds back only CHOWN/SETUID/SETGID/SYS_CHROOT/AUDIT_WRITE
 - **no-new-privileges** — processes cannot escalate
-- **Runtime host keys** — generated at startup, not baked into the image
+- **Runtime host keys** — ed25519 + RSA generated at startup, not baked into the image
 - **Content sanitised** — ANSI escapes, null bytes, control characters stripped at ingest
 - **Path traversal prevented** — `..` stripped from all paths during ingest
 - **Output capped** — 16K char limit prevents context window exhaustion
-- **Structured audit logging** — every command logged as JSON to Docker logs
+- **Structured audit logging** — every command logged as JSON to Docker logs with cache status
 - **Passwordless by design** — serves public documentation, same model as supabase.sh
 
 ## CI workflows
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `ci.yml` | push / PR | typecheck + 141 unit tests |
+| `ci.yml` | push / PR | typecheck + 171 unit tests |
 | `update-docs.yml` | daily 02:00 UTC + manual | fetch docs, build & push Docker image |
 | `release.yml` | tags `v*` | build & push with semver tags |
 
 ## Development
 
 ```bash
-pnpm test           # 141 unit tests
-pnpm test:e2e       # 16 Docker-based E2E tests
+pnpm test           # 171 unit tests
+pnpm test:e2e       # 50 Docker-based E2E tests
 pnpm test:bench     # token efficiency benchmark (requires live server)
 pnpm test:coverage  # with coverage report
 pnpm lint           # typecheck only
+pnpm generate:tools # regenerate commands/tools.sh from TypeScript template
 ```

@@ -30,7 +30,7 @@ FROM alpine:3.21
 # Link GHCR package to the repository so GITHUB_TOKEN gets write access
 LABEL org.opencontainers.image.source=https://github.com/erfianugrah/docs-ssh
 
-RUN apk add --no-cache openssh bash ripgrep jq busybox-extras
+RUN apk add --no-cache openssh bash ripgrep jq busybox-extras bat tree less
 
 # Create restricted docs user — empty password for passwordless SSH access
 RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
@@ -45,12 +45,13 @@ COPY build-index.sh /tmp/build-index.sh
 RUN sh /tmp/build-index.sh /docs > /docs/_index.tsv && rm /tmp/build-index.sh
 
 # sshd configuration + command logger + built-in commands + entrypoint
-RUN mkdir -p /var/run/sshd /var/log /usr/local/lib/docs-ssh
+RUN mkdir -p /var/run/sshd /var/log /usr/local/lib/docs-ssh/lib
 COPY sshd_config /etc/ssh/sshd_config
 COPY log-cmd.sh /usr/local/bin/log-cmd
 COPY entrypoint.sh /usr/local/bin/entrypoint
 COPY commands/ /usr/local/lib/docs-ssh/
-RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint /usr/local/lib/docs-ssh/*.sh
+RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint \
+             /usr/local/lib/docs-ssh/*.sh /usr/local/lib/docs-ssh/lib/*.sh
 
 # Landing page — served by busybox httpd on port 8080
 COPY public/ /usr/local/lib/docs-ssh/

@@ -1,54 +1,73 @@
 #!/bin/sh
-# ForceCommand wrapper — routes built-in commands and logs all exec.
-# Uses jq for safe JSON encoding (no shell injection in log output).
+# ForceCommand router — the entry point for every SSH session.
 #
-# Built-in commands: help, sources, agents, tools, setup
-# Everything else: executed via bash with audit logging.
+# Responsibilities (and nothing else):
+#   1. Recover env vars that sshd drops
+#   2. Source shared libraries (colors, logging, caching)
+#   3. Route to the correct handler: interactive / builtin / exec
+#
+# All heavy logic lives in commands/lib/ and commands/*.sh.
 
-# Recover container env vars (sshd drops them for the docs user session)
+# ─── Environment ────────────────────────────────────────────────────
+
 [ -f /run/sshd/docs-ssh.env ] && . /run/sshd/docs-ssh.env
 export DOCS_SSH_HOST DOCS_SSH_PORT
 
 LOG_FILE="/var/log/docs-ssh.jsonl"
 CMD_DIR="/usr/local/lib/docs-ssh"
+LIB_DIR="$CMD_DIR/lib"
 CLIENT="${SSH_CLIENT%% *}"
+CACHE_DIR="/tmp/docs-ssh-cache"
 
-log_json() {
-  # Use jq for proper JSON encoding — immune to injection via command strings
-  jq -nc --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-         --arg type "$1" \
-         --arg client "$CLIENT" \
-         --arg cmd "${2:-}" \
-         --argjson exit "${3:-0}" \
-         --argjson dur "${4:-0}" \
-         '{ts: $ts, type: $type, client: $client, cmd: $cmd, exit: $exit, dur_s: $dur}' \
-    >> "$LOG_FILE" 2>/dev/null
-}
+# ─── Libraries ──────────────────────────────────────────────────────
 
-# Interactive shell — show help on connect
+. "$LIB_DIR/colors.sh"
+. "$LIB_DIR/log.sh"
+. "$LIB_DIR/cache.sh"
+
+# ─── Route: interactive shell ──────────────────────────────────────
+
 if [ -z "$SSH_ORIGINAL_COMMAND" ]; then
   log_json "interactive"
-  sh "$CMD_DIR/help.sh"
+  if [ "$USE_COLOR" = "1" ]; then
+    LIB_DIR="$LIB_DIR" sh "$CMD_DIR/banner.sh"
+    export PS1="${C_PURPLE}docs${C_RESET} ${C_DIM}\w${C_RESET} \$ "
+  else
+    sh "$CMD_DIR/help.sh"
+  fi
   exec /bin/bash -l
 fi
 
-# Check for built-in commands (first word only, no args)
+# ─── Route: built-in commands ──────────────────────────────────────
+
 FIRST_WORD="${SSH_ORIGINAL_COMMAND%% *}"
 case "$FIRST_WORD" in
   help|sources|agents|tools|setup)
-    log_json "builtin" "$FIRST_WORD"
+    log_json "builtin" "$SSH_ORIGINAL_COMMAND"
+    # Pass full command so builtins can parse their own arguments
+    export SSH_ORIGINAL_COMMAND
     exec sh "$CMD_DIR/${FIRST_WORD}.sh"
     ;;
 esac
 
-# Regular command — log and execute
+# ─── Route: regular command (with caching) ─────────────────────────
+
+if should_cache "$SSH_ORIGINAL_COMMAND" && try_cache "$SSH_ORIGINAL_COMMAND"; then
+  log_json "exec" "$SSH_ORIGINAL_COMMAND" "$CACHE_EXIT_CODE" "0" "true"
+  exit "$CACHE_EXIT_CODE"
+fi
+
 log_json "exec" "$SSH_ORIGINAL_COMMAND"
-
 START_S=$(date +%s)
-/bin/bash -c "$SSH_ORIGINAL_COMMAND"
-EXIT_CODE=$?
+
+if should_cache "$SSH_ORIGINAL_COMMAND"; then
+  exec_and_cache "$SSH_ORIGINAL_COMMAND"
+  EXIT_CODE=$?
+else
+  /bin/bash -c "$SSH_ORIGINAL_COMMAND"
+  EXIT_CODE=$?
+fi
+
 DUR=$(( $(date +%s) - START_S ))
-
-log_json "exec.done" "$SSH_ORIGINAL_COMMAND" "$EXIT_CODE" "$DUR"
-
+log_json "exec.done" "$SSH_ORIGINAL_COMMAND" "$EXIT_CODE" "$DUR" "false"
 exit "$EXIT_CODE"
