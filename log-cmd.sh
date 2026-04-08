@@ -42,9 +42,17 @@ fi
 
 FIRST_WORD="${SSH_ORIGINAL_COMMAND%% *}"
 case "$FIRST_WORD" in
-  help|sources|agents|tools|setup)
+  help|sources)
+    # Human-facing builtins — force color even over SSH exec (not a TTY but
+    # the output goes to a human terminal). Agents don't call help/sources.
     log_json "builtin" "$SSH_ORIGINAL_COMMAND"
-    # Pass full command so builtins can parse their own arguments
+    export SSH_ORIGINAL_COMMAND FORCE_COLOR=1
+    exec sh "$CMD_DIR/${FIRST_WORD}.sh"
+    ;;
+  agents|tools|setup)
+    # Machine-consumable builtins — output is piped to files or agents.
+    # No forced color; plain text is correct.
+    log_json "builtin" "$SSH_ORIGINAL_COMMAND"
     export SSH_ORIGINAL_COMMAND
     exec sh "$CMD_DIR/${FIRST_WORD}.sh"
     ;;

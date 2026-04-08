@@ -196,7 +196,8 @@ describe("E2E smoke tests", () => {
 
   it("help: shows usage and available commands", () => {
     const out = run(`${SSH_CMD} help`);
-    expect(out).toContain("docs-ssh");
+    // ASCII art banner spells out "docs" and "ssh" in the art
+    expect(out).toContain("Documentation over SSH");
     expect(out).toContain("help");
     expect(out).toContain("sources");
     expect(out).toContain("agents");
@@ -204,17 +205,25 @@ describe("E2E smoke tests", () => {
     expect(out).toContain("setup");
   });
 
-  it("help: mentions new tools (rg, bat, tree)", () => {
+  it("help: mentions all tools (rg, bat, tree)", () => {
     const out = run(`${SSH_CMD} help`);
-    expect(out).toContain("ripgrep");
+    expect(out).toContain("rg");
     expect(out).toContain("bat");
     expect(out).toContain("tree");
+    expect(out).toContain("--json");
   });
 
-  it("help: plain text in exec mode (no ANSI escapes)", () => {
+  it("help: colorized via FORCE_COLOR (has ANSI escapes)", () => {
     const out = run(`${SSH_CMD} help`);
-    // exec mode is not a TTY, so should not contain ANSI escape sequences
-    expect(out).not.toMatch(/\x1b\[/);
+    // help and sources use FORCE_COLOR=1 for human-facing output
+    expect(out).toMatch(/\x1b\[/);
+  });
+
+  it("help: shows agents subcommand variants", () => {
+    const out = run(`${SSH_CMD} help`);
+    expect(out).toContain("agents opencode");
+    expect(out).toContain("agents claude");
+    expect(out).toContain("agents skill");
   });
 
   it("sources: lists all doc sets with file counts", () => {
@@ -226,12 +235,13 @@ describe("E2E smoke tests", () => {
     expect(out).toContain("Total:");
   });
 
-  it("sources: plain text in exec mode (no ANSI escapes)", () => {
+  it("sources: colorized via FORCE_COLOR (has ANSI escapes)", () => {
     const out = run(`${SSH_CMD} sources`);
-    expect(out).not.toMatch(/\x1b\[/);
+    // sources uses FORCE_COLOR=1 for human-facing output
+    expect(out).toMatch(/\x1b\[/);
   });
 
-  it("agents (default): outputs raw SSH patterns", () => {
+  it("agents (default): outputs raw SSH patterns, no ANSI", () => {
     const out = run(`${SSH_CMD} agents`);
     expect(out).toContain("## Documentation");
     expect(out).toContain("ssh -p");
@@ -239,6 +249,8 @@ describe("E2E smoke tests", () => {
     // Default should NOT reference custom tools
     expect(out).not.toContain("docs_search");
     expect(out).not.toContain("docs_read");
+    // Machine-consumable output — no ANSI escapes
+    expect(out).not.toMatch(/\x1b\[/);
   });
 
   it("agents (default): mentions server-side tools (rg, bat, tree)", () => {
