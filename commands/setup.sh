@@ -22,10 +22,10 @@ mkdir -p .opencode/tools
 ssh -p $PORT docs@$HOST tools > .opencode/tools/docs.ts
 \`\`\`
 
-Then add to your rules file:
+Then add the OpenCode-specific agent instructions (references the custom tools, not raw SSH):
 
 \`\`\`bash
-ssh -p $PORT docs@$HOST agents >> AGENTS.md
+ssh -p $PORT docs@$HOST agents opencode > ~/.config/opencode/AGENTS.md
 \`\`\`
 
 Make sure \`zod\` is installed (the tools file needs it):

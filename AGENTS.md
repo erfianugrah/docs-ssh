@@ -10,7 +10,7 @@ SSH docs server that serves 18 documentation sources as a searchable markdown fi
 pnpm install              # Node 22+, pnpm 10
 pnpm lint                 # typecheck only (tsc --noEmit)
 pnpm test                 # 171 unit tests (vitest, tests/unit/)
-pnpm test:e2e             # 50 Docker-based E2E tests (builds image, starts container, SSH tests)
+pnpm test:e2e             # 52 Docker-based E2E tests (builds image, starts container, SSH tests)
 pnpm test:coverage        # unit tests with v8 coverage
 pnpm generate:tools       # regenerate commands/tools.sh from TypeScript template
 pnpm fetch-docs           # fetch all 18 doc sources into ./docs/ (network-heavy, slow)
@@ -62,7 +62,7 @@ commands/               — shell scripts for SSH built-in commands (help, sourc
 ## Testing
 
 - **Unit tests** (`tests/unit/`): mirror `src/` structure including `commands/tools-template.test.ts`. No network or Docker needed.
-- **E2E tests** (`tests/e2e/smoke.test.ts`): 50 tests covering all built-in commands, agents subcommands (claude/cursor/gemini/skill), new tools (bat, tree, rg --json), caching, logging, SSH security, and ANSI-free exec mode. Build a Docker image with mock docs, start a container, run SSH commands against it. Require Docker. 3-minute timeout.
+- **E2E tests** (`tests/e2e/smoke.test.ts`): 52 tests covering all built-in commands, agents subcommands (claude/cursor/gemini/skill/opencode), new tools (bat, tree, rg --json), caching, logging, SSH security, and ANSI-free exec mode. Build a Docker image with mock docs, start a container, run SSH commands against it. Require Docker. 3-minute timeout.
 - **Benchmarks** (`tests/benchmark/`): token efficiency tests, require a live SSH server.
 - Vitest with globals enabled. Three separate configs: `vitest.config.ts` (unit), `vitest.e2e.config.ts`, `vitest.bench.config.ts`.
 
@@ -90,7 +90,7 @@ The SSH server is the canonical source for all agent configuration. Never hand-e
 ```bash
 # OpenCode tools + global AGENTS.md
 ssh docs.erfi.io tools > ~/.config/opencode/tools/docs.ts
-ssh docs.erfi.io agents > ~/.config/opencode/AGENTS.md
+ssh docs.erfi.io agents opencode > ~/.config/opencode/AGENTS.md
 
 # Per-project AGENTS.md (append)
 ssh docs.erfi.io agents >> AGENTS.md
@@ -110,7 +110,8 @@ ssh docs.erfi.io agents skill > .opencode/skills/docs-ssh/SKILL.md
 ```
 
 The `agents` command accepts a format argument:
-- `agents` / `agents opencode` — AGENTS.md (default)
+- `agents` — AGENTS.md (default, raw SSH patterns for any agent)
+- `agents opencode` — AGENTS.md for OpenCode (references custom docs_* tools, tells agent to never use raw SSH)
 - `agents claude` — CLAUDE.md with header
 - `agents cursor` — .cursorrules format
 - `agents gemini` — GEMINI.md with header

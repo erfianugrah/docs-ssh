@@ -231,14 +231,17 @@ describe("E2E smoke tests", () => {
     expect(out).not.toMatch(/\x1b\[/);
   });
 
-  it("agents: outputs valid AGENTS.md snippet", () => {
+  it("agents (default): outputs raw SSH patterns", () => {
     const out = run(`${SSH_CMD} agents`);
     expect(out).toContain("## Documentation");
     expect(out).toContain("ssh -p");
     expect(out).toContain("/docs/");
+    // Default should NOT reference custom tools
+    expect(out).not.toContain("docs_search");
+    expect(out).not.toContain("docs_read");
   });
 
-  it("agents: mentions new tools (rg, bat, tree)", () => {
+  it("agents (default): mentions server-side tools (rg, bat, tree)", () => {
     const out = run(`${SSH_CMD} agents`);
     expect(out).toContain("rg");
     expect(out).toContain("bat");
@@ -247,10 +250,31 @@ describe("E2E smoke tests", () => {
     expect(out).toContain("--line-range");
   });
 
-  it("agents claude: outputs CLAUDE.md with header", () => {
+  it("agents opencode: references custom docs_* tools", () => {
+    const out = run(`${SSH_CMD} "agents opencode"`);
+    expect(out).toContain("## Documentation");
+    expect(out).toContain("docs_search");
+    expect(out).toContain("docs_read");
+    expect(out).toContain("docs_grep");
+    expect(out).toContain("docs_find");
+    expect(out).toContain("docs_summary");
+    expect(out).toContain("docs_sources");
+    // Should NOT contain raw SSH examples
+    expect(out).not.toContain("ssh -p");
+    expect(out).not.toContain('rg -i');
+  });
+
+  it("agents opencode: tells agent not to use raw SSH", () => {
+    const out = run(`${SSH_CMD} "agents opencode"`);
+    expect(out).toContain("Do not use");
+    expect(out).toContain("custom docs tools installed");
+  });
+
+  it("agents claude: outputs CLAUDE.md with header and raw SSH", () => {
     const out = run(`${SSH_CMD} "agents claude"`);
     expect(out).toContain("# CLAUDE.md");
     expect(out).toContain("## Documentation");
+    expect(out).toContain("ssh -p");
     expect(out).toContain("rg --json");
   });
 
@@ -258,6 +282,7 @@ describe("E2E smoke tests", () => {
     const out = run(`${SSH_CMD} "agents gemini"`);
     expect(out).toContain("# GEMINI.md");
     expect(out).toContain("## Documentation");
+    expect(out).toContain("ssh -p");
   });
 
   it("agents cursor: outputs without extra header", () => {
@@ -265,6 +290,7 @@ describe("E2E smoke tests", () => {
     expect(out).not.toContain("# CLAUDE.md");
     expect(out).not.toContain("# GEMINI.md");
     expect(out).toContain("## Documentation");
+    expect(out).toContain("ssh -p");
   });
 
   it("agents skill: outputs SKILL.md with YAML frontmatter", () => {
@@ -277,6 +303,7 @@ describe("E2E smoke tests", () => {
 
   it("agents help: shows all format options", () => {
     const out = run(`${SSH_CMD} "agents help"`);
+    expect(out).toContain("opencode");
     expect(out).toContain("claude");
     expect(out).toContain("cursor");
     expect(out).toContain("gemini");

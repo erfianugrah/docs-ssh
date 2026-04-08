@@ -2,15 +2,13 @@
 # Generates agent instruction snippets in the right format for each tool.
 #
 # Usage:
-#   ssh ... agents                → AGENTS.md (default, works for OpenCode/Copilot/Codex)
-#   ssh ... agents claude         → CLAUDE.md format
-#   ssh ... agents cursor         → .cursorrules format
-#   ssh ... agents gemini         → GEMINI.md format
-#   ssh ... agents skill          → SKILL.md (on-demand skill for any tool)
-#   ssh ... agents opencode       → AGENTS.md (same as default)
-#
-# All formats contain the same comprehensive instructions; only the
-# frontmatter/wrapper differs per tool.
+#   ssh ... agents                → AGENTS.md (raw SSH patterns for any agent)
+#   ssh ... agents opencode       → AGENTS.md tuned for OpenCode (references custom tools)
+#   ssh ... agents claude         → CLAUDE.md format (raw SSH)
+#   ssh ... agents cursor         → .cursorrules format (raw SSH)
+#   ssh ... agents gemini         → GEMINI.md format (raw SSH)
+#   ssh ... agents skill          → SKILL.md with YAML frontmatter
+#   ssh ... agents help           → show all formats
 
 HOST="${DOCS_SSH_HOST:-localhost}"
 PORT="${DOCS_SSH_PORT:-2222}"
@@ -27,7 +25,7 @@ FORMAT="${SSH_ORIGINAL_COMMAND#agents}"
 FORMAT=$(echo "$FORMAT" | sed 's/^ *//' | tr '[:upper:]' '[:lower:]')
 : "${FORMAT:=default}"
 
-# ─── Skill frontmatter (only for skill format) ─────────────────────
+# ─── Skill frontmatter ──────────────────────────────────────────────
 
 emit_skill_frontmatter() {
   cat << SKILL_FM
@@ -39,9 +37,63 @@ description: Search and read documentation for ${SOURCES} over SSH. Use when wor
 SKILL_FM
 }
 
-# ─── Core instructions (shared by all formats) ─────────────────────
+# ─── Instructions for agents WITH custom tools installed ────────────
+# OpenCode has docs_search, docs_read, docs_grep, docs_find, docs_summary,
+# docs_sources as first-class tools.  The agent should NEVER fall back to
+# raw SSH — the tools handle connection, output capping, and structured
+# parsing automatically.
 
-emit_instructions() {
+emit_tools_instructions() {
+  cat << EOF
+## Documentation
+
+A docs server at \`$HOST\` serves ${FILE_COUNT}+ documentation pages across ${SOURCE_COUNT} sources as searchable markdown files over SSH. Always check docs before implementing features, debugging issues, or answering questions about these technologies.
+
+**You have custom docs tools installed. Always use \`docs_search\`, \`docs_read\`, \`docs_grep\`, \`docs_find\`, \`docs_summary\`, and \`docs_sources\` instead of raw SSH commands.** Do not use \`ssh\` or \`Bash\` to access the docs server directly — the custom tools handle SSH, output capping, and structured parsing automatically.
+
+### Available sources
+
+${SOURCES}
+
+### Recommended workflow
+
+Use a **search -> summary -> targeted read** pattern to minimise token usage:
+
+1. **Search** the index to find relevant files:
+   \`docs_search(query="RLS policies", source="postgres")\`
+
+2. **Get the outline** of a promising file:
+   \`docs_summary(path="/docs/postgres/row-security.md")\`
+
+3. **Read only the section you need** (e.g. lines 45-80):
+   \`docs_read(path="/docs/postgres/row-security.md", offset=45, lines=35)\`
+
+### Tool reference
+
+| Tool | Purpose | When to use |
+|------|---------|-------------|
+| \`docs_search\` | Search titles+summaries across all sources | First step — find relevant files fast (~1MB index) |
+| \`docs_summary\` | Get headings/outline of a file | Before reading — find the right section |
+| \`docs_read\` | Read a file or line range | After summary — read only what you need |
+| \`docs_grep\` | Regex search with context lines (rg --json) | When you need to find content within files |
+| \`docs_find\` | Find files by name pattern | When you know part of the filename |
+| \`docs_sources\` | List all sources with file counts | When you need to know what's available |
+
+### Performance tips
+
+- **Search the index first**: \`docs_search\` searches titles+summaries (~1MB) instead of all docs (~300MB).
+- **Use \`docs_summary\` before \`docs_read\`**: Get headings first to find the right line range.
+- **Use offset+lines**: \`docs_read(path="...", offset=45, lines=35)\` reads 35 lines starting at line 45 (~140 tokens vs ~2K for the full file).
+- **Use \`docs_grep\` with a source path**: \`docs_grep(query="RLS", path="/docs/postgres/")\` is faster than searching all docs.
+- **Use the \`source\` parameter**: \`docs_search(query="auth", source="supabase")\` filters to one source.
+EOF
+}
+
+# ─── Instructions for agents WITHOUT custom tools (raw SSH) ─────────
+# Claude Code, Cursor, Gemini, Copilot, etc. use their Bash tool to
+# run SSH commands directly.
+
+emit_ssh_instructions() {
   cat << EOF
 ## Documentation
 
@@ -154,33 +206,37 @@ $SSH "rg -il 'cron' /docs/ | head -5 | while read f; do echo \"--- \\\$f ---\"; 
 EOF
 }
 
-# ─── Format-specific output ─────────────────────────────────────────
+# ─── Format routing ──────────────────────────────────────────────────
 
 case "$FORMAT" in
+  opencode)
+    # OpenCode has custom tools — tell agent to use them, not raw SSH
+    emit_tools_instructions
+    ;;
   skill)
     emit_skill_frontmatter
-    emit_instructions
+    emit_ssh_instructions
     ;;
   claude)
     echo "# CLAUDE.md"
     echo ""
-    emit_instructions
+    emit_ssh_instructions
     ;;
   cursor)
-    emit_instructions
+    emit_ssh_instructions
     ;;
   gemini)
     echo "# GEMINI.md"
     echo ""
-    emit_instructions
+    emit_ssh_instructions
     ;;
   help|--help|-h)
     cat << 'USAGE'
 Usage: ssh ... agents [format]
 
 Formats:
-  (default)    AGENTS.md — works for OpenCode, GitHub Copilot, Codex
-  opencode     Same as default
+  (default)    AGENTS.md — raw SSH patterns for any agent
+  opencode     AGENTS.md tuned for OpenCode (references custom docs_* tools)
   claude       CLAUDE.md with header
   cursor       .cursorrules format
   gemini       GEMINI.md with header
@@ -188,13 +244,15 @@ Formats:
 
 Examples:
   ssh ... agents >> AGENTS.md
+  ssh ... agents opencode > ~/.config/opencode/AGENTS.md
   ssh ... agents claude >> CLAUDE.md
+  ssh ... agents cursor >> .cursorrules
+  ssh ... agents gemini >> GEMINI.md
   ssh ... agents skill > .opencode/skills/docs-ssh/SKILL.md
-  ssh ... agents skill > .claude/skills/docs-ssh/SKILL.md
-  ssh ... agents skill > .cursor/skills/docs-ssh/SKILL.md
 USAGE
     ;;
-  default|opencode|*)
-    emit_instructions
+  default|*)
+    # Default: raw SSH patterns (works with any agent)
+    emit_ssh_instructions
     ;;
 esac

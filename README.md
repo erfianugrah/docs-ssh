@@ -45,7 +45,8 @@ ssh -p 2222 docs@localhost "rg --json 'auth' /docs/supabase/"
 |---------|-------------|
 | `help` | Show usage and available commands |
 | `sources` | List all doc sets with file counts (colorized in TTY) |
-| `agents` | Output agent instructions — default AGENTS.md format |
+| `agents` | Output agent instructions — raw SSH patterns (any agent) |
+| `agents opencode` | OpenCode format (references custom docs_* tools, not raw SSH) |
 | `agents claude` | CLAUDE.md format with header |
 | `agents cursor` | .cursorrules format |
 | `agents gemini` | GEMINI.md format with header |
@@ -143,7 +144,7 @@ fly deploy
 
 ```bash
 pnpm test           # 171 unit tests
-pnpm test:e2e       # 50 Docker-based E2E tests
+pnpm test:e2e       # 52 Docker-based E2E tests
 pnpm test:bench     # token efficiency benchmark (requires live server)
 pnpm test:coverage  # with coverage report
 pnpm lint           # typecheck only

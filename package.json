@@ -1,7 +1,7 @@
 {
   "name": "docs-ssh",
-  "version": "0.1.0",
-  "description": "Self-hosted SSH docs server for Supabase, Cloudflare and Postgres",
+  "version": "0.4.1",
+  "description": "Self-hosted SSH docs server serving 18 documentation sources as searchable markdown over SSH",
   "type": "module",
   "scripts": {
     "build": "tsc",

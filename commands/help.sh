@@ -24,7 +24,7 @@ printf '  ssh %s-p %s%s docs@%s %s<command>%s\n\n' \
 printf '%sBuilt-in commands:%s\n' "${C_BOLD}" "${C_RESET}"
 printf '  %shelp%s          Show this help\n' "${C_GREEN}" "${C_RESET}"
 printf '  %ssources%s       List available doc sets and file counts\n' "${C_GREEN}" "${C_RESET}"
-printf '  %sagents%s        Output agent instructions (agents claude|cursor|gemini|skill|help)\n' "${C_GREEN}" "${C_RESET}"
+printf '  %sagents%s        Output agent instructions (opencode|claude|cursor|gemini|skill|help)\n' "${C_GREEN}" "${C_RESET}"
 printf '  %stools%s         Output OpenCode custom tools file (save as .opencode/tools/docs.ts)\n' "${C_GREEN}" "${C_RESET}"
 printf '  %ssetup%s         Interactive setup guide (pipe to your agent: ssh ... setup | opencode)\n\n' "${C_GREEN}" "${C_RESET}"
 
