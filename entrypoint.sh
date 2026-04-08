@@ -26,10 +26,12 @@ chmod 664 "$LOG_FILE"
 
 # Command result cache — docs are static for the container's lifetime, so
 # identical commands always produce the same output. Cache in tmpfs.
+# chown is sufficient; chmod 700 fails under cap-drop-all + no-new-privileges
+# because CAP_FOWNER is not granted. The docs user owns the dir (755), and
+# only the docs user (via ForceCommand) writes to it.
 CACHE_DIR="/tmp/docs-ssh-cache"
 mkdir -p "$CACHE_DIR"
 chown docs:docs "$CACHE_DIR"
-chmod 700 "$CACHE_DIR"
 
 # Tail log to stderr so Docker captures it
 tail -F "$LOG_FILE" >&2 &
