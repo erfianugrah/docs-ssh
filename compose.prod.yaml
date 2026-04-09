@@ -26,7 +26,7 @@ services:
         max-size: 10m
         max-file: "3"
     expose:
-      - 2222
+      - 22
       - 8080
     tmpfs:
       - /tmp:size=16M
