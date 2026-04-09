@@ -1,6 +1,6 @@
 services:
   docs-ssh:
-    image: ghcr.io/${GITHUB_USER}/docs-ssh:latest
+    image: ghcr.io/erfianugrah/docs-ssh:latest
     container_name: docs-ssh
     hostname: docs-ssh
     restart: unless-stopped
