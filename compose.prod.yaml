@@ -1,7 +1,6 @@
-# Production — behind Caddy L4 proxy
 services:
   docs-ssh:
-    image: ghcr.io/${GITHUB_USER:-your-user}/docs-ssh:${DOCS_SSH_VERSION:-latest}
+    image: ghcr.io/${GITHUB_USER}/docs-ssh:latest
     container_name: docs-ssh
     hostname: docs-ssh
     restart: unless-stopped
@@ -9,11 +8,11 @@ services:
     cap_drop:
       - ALL
     cap_add:
-      - CHOWN           # entrypoint: ssh-keygen -A needs to write host keys
-      - SETUID          # sshd: drops privileges to docs user
-      - SETGID          # sshd: drops privileges to docs group
-      - SYS_CHROOT      # sshd: ChrootDirectory / privilege separation
-      - AUDIT_WRITE     # sshd: writes login records
+      - CHOWN # entrypoint: ssh-keygen -A needs to write host keys
+      - SETUID # sshd: drops privileges to docs user
+      - SETGID # sshd: drops privileges to docs group
+      - SYS_CHROOT # sshd: ChrootDirectory / privilege separation
+      - AUDIT_WRITE # sshd: writes login records
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -24,7 +23,7 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: "10m"
+        max-size: 10m
         max-file: "3"
     expose:
       - 2222
@@ -38,7 +37,10 @@ services:
       - DOCS_SSH_HOST=docs.erfi.io
       - DOCS_SSH_PORT=2222
     healthcheck:
-      test: ["CMD-SHELL", "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 2222 docs@localhost 'echo ok' || exit 1"]
+      test:
+        - CMD-SHELL
+        - ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 2222
+          docs@localhost 'echo ok' || exit 1
       interval: 30s
       timeout: 5s
       retries: 3
@@ -46,7 +48,6 @@ services:
     networks:
       docs:
         ipv4_address: 172.19.50.2
-
 networks:
   docs:
     driver: bridge
