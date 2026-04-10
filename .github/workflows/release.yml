@@ -66,7 +66,6 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Notify Composer
-        if: ${{ secrets.COMPOSER_WEBHOOK_SECRET != '' }}
         continue-on-error: true
         env:
           WEBHOOK_URL: https://composer.erfi.io/api/v1/hooks/wh_605deebe349c279a9a2e91e0124b27de
