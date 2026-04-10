@@ -8,7 +8,6 @@
  * Placeholders (replaced at SSH runtime by the shell wrapper):
  *   {{SSH_HOST}}  — e.g. "docs@docs.erfi.io"
  *   {{SSH_PORT}}  — e.g. "2222"
- *   {{SOURCES}}   — e.g. "supabase, cloudflare, postgres, ..."
  */
 
 // ─── Dynamic constants (injected by shell at runtime) ──────────────
@@ -111,30 +110,21 @@ function formatRgMatches(matches: RgMatch[]): string {
 }
 `;
 
-// ─── Search tool (has dynamic SOURCES in description) ──────────────
+// ─── Search tool ───────────────────────────────────────────────────
 
-export const SEARCH_DESCRIPTION_PREFIX =
-  "Search documentation by title and summary for {{SOURCES}}. " +
-  "Searches a pre-built index instead of scanning all files. " +
-  "Use this FIRST to find relevant docs, then docs_read or docs_grep to get content.";
-
-// The search tool is split into two parts: the description (dynamic, needs
-// SOURCES expansion by the shell) and the body (static, has backtick template
-// literals with $/{}/| that shell would misinterpret in an unquoted heredoc).
-
-export const SEARCH_DESCRIPTION_DYNAMIC = `\
+export const SEARCH_DESCRIPTION = `\
 export const search = {
   description:
-    "{{SEARCH_DESCRIPTION}}",
+    "Search documentation by title and summary. Searches a pre-built index instead of scanning all files. Use this FIRST to find relevant docs, then docs_read or docs_grep to get content.",
 `;
 
 export const SEARCH_BODY_STATIC = `\
   args: {
-    query: z.string().describe("Text to search for in titles and summaries"),
+    query: z.string().describe("Search text"),
     source: z
       .string()
       .optional()
-      .describe("Limit to a source (e.g. 'supabase', 'cloudflare', 'aws'). Omit to search all."),
+      .describe("Filter to source (e.g. 'supabase', 'aws'). Omit for all."),
     maxResults: z.number().optional().describe("Max results (default: 15)"),
   },
   async execute(args: { query: string; source?: string; maxResults?: number }) {
@@ -150,12 +140,11 @@ export const SEARCH_BODY_STATIC = `\
 export const REMAINING_TOOLS = `\
 export const read = {
   description:
-    "Read a documentation file. For large files, use docs_summary first to see " +
-    "the headings, then read with offset/limit to get only the section you need.",
+    "Read a documentation file. For large files, use docs_summary first to see the headings, then read with offset/limit to get only the section you need.",
   args: {
     path: z.string().describe("File path (e.g. /docs/supabase/guides/auth.md)"),
-    lines: z.number().optional().describe("Only read N lines. Omit for full file."),
-    offset: z.number().optional().describe("Start reading from this line number (1-indexed)."),
+    lines: z.number().optional().describe("Read N lines. Omit for full file."),
+    offset: z.number().optional().describe("Start line (1-indexed)."),
   },
   async execute(args: { path: string; lines?: number; offset?: number }) {
     const p = safePath(args.path)
@@ -181,8 +170,8 @@ export const read = {
 export const find = {
   description: "Find documentation files by name or path pattern.",
   args: {
-    pattern: z.string().describe("File name pattern (e.g. '*.md', '*auth*', '*lambda*')"),
-    source: z.string().optional().describe("Limit to a source (e.g. 'supabase', 'aws')"),
+    pattern: z.string().describe("Glob pattern (e.g. '*.md', '*auth*')"),
+    source: z.string().optional().describe("Filter to source (e.g. 'supabase', 'aws')"),
     maxResults: z.number().optional().describe("Max results (default: 30)"),
   },
   async execute(args: { pattern: string; source?: string; maxResults?: number }) {
@@ -196,11 +185,11 @@ export const grep = {
   description:
     "Search documentation content with surrounding context lines using ripgrep. " +
     "Returns structured results with file paths and exact line numbers. " +
-    "More detailed than docs_search — shows actual content around matches.",
+    "More detailed than docs_search \u2014 shows actual content around matches.",
   args: {
-    query: z.string().describe("Text pattern to search for (regex supported)"),
-    path: z.string().describe("File or directory to search (e.g. /docs/postgres/)"),
-    context: z.number().optional().describe("Context lines around each match (default: 3)"),
+    query: z.string().describe("Regex pattern to search for"),
+    path: z.string().describe("File or dir path (e.g. /docs/postgres/)"),
+    context: z.number().optional().describe("Context lines per match (default: 3)"),
   },
   async execute(args: { query: string; path: string; context?: number }) {
     const ctx = Math.abs(Math.floor(args.context ?? 3))
@@ -229,8 +218,8 @@ export const grep = {
 
 export const summary = {
   description:
-    "Get the structure/outline of a documentation file — headings and section names. " +
-    "Use this before docs_grep to find the right section to read, saving tokens.",
+    "Get the structure/outline of a documentation file \u2014 headings and section names. " +
+    "Use this before docs_read to find the right section to read, saving tokens.",
   args: {
     path: z.string().describe("File path (e.g. /docs/supabase/guides/auth.md)"),
   },
@@ -263,15 +252,11 @@ export const sources = {
 export function renderToolsTemplate(vars: {
   host: string;
   port: string;
-  sources: string;
 }): string {
   const header = DYNAMIC_HEADER.replace("{{SSH_HOST}}", `docs@${vars.host}`)
     .replace("{{SSH_PORT}}", vars.port);
 
-  const searchDesc = SEARCH_DESCRIPTION_PREFIX.replace("{{SOURCES}}", vars.sources);
-  const searchDescDynamic = SEARCH_DESCRIPTION_DYNAMIC.replace("{{SEARCH_DESCRIPTION}}", searchDesc);
-
-  return [header, STATIC_BODY, searchDescDynamic, SEARCH_BODY_STATIC, REMAINING_TOOLS].join("\n");
+  return [header, STATIC_BODY, SEARCH_DESCRIPTION, SEARCH_BODY_STATIC, REMAINING_TOOLS].join("\n");
 }
 
 /**

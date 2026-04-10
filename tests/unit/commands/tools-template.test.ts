@@ -4,7 +4,7 @@ import {
   EXPECTED_EXPORTS,
   DYNAMIC_HEADER,
   STATIC_BODY,
-  SEARCH_DESCRIPTION_DYNAMIC,
+  SEARCH_DESCRIPTION,
   SEARCH_BODY_STATIC,
   REMAINING_TOOLS,
 } from "../../../src/commands/tools-template.js";
@@ -13,7 +13,6 @@ describe("tools-template", () => {
   const rendered = renderToolsTemplate({
     host: "docs.erfi.io",
     port: "2222",
-    sources: "supabase, cloudflare, postgres",
   });
 
   // ─── Structure ─────────────────────────────────────────────────
@@ -102,10 +101,10 @@ describe("tools-template", () => {
     expect(grepSection).toContain("Fallback to plain rg");
   });
 
-  // ─── Search description includes sources ──────────────────────
+  // ─── Search description ─────────────────────────────────────
 
-  it("search description includes provided sources", () => {
-    expect(rendered).toContain("supabase, cloudflare, postgres");
+  it("search description mentions pre-built index", () => {
+    expect(rendered).toContain("pre-built index");
   });
 
   // ─── Template sections are non-empty ──────────────────────────
@@ -118,8 +117,8 @@ describe("tools-template", () => {
     expect(STATIC_BODY.length).toBeGreaterThan(500);
   });
 
-  it("SEARCH_DESCRIPTION_DYNAMIC is non-empty", () => {
-    expect(SEARCH_DESCRIPTION_DYNAMIC.length).toBeGreaterThan(50);
+  it("SEARCH_DESCRIPTION is non-empty", () => {
+    expect(SEARCH_DESCRIPTION.length).toBeGreaterThan(50);
   });
 
   it("SEARCH_BODY_STATIC is non-empty", () => {

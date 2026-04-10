@@ -16,8 +16,7 @@ import * as path from "node:path";
 import {
   DYNAMIC_HEADER,
   STATIC_BODY,
-  SEARCH_DESCRIPTION_PREFIX,
-  SEARCH_DESCRIPTION_DYNAMIC,
+  SEARCH_DESCRIPTION,
   SEARCH_BODY_STATIC,
   REMAINING_TOOLS,
 } from "./tools-template.js";
@@ -32,7 +31,6 @@ const HEADER = `\
 
 HOST="\${DOCS_SSH_HOST:-localhost}"
 PORT="\${DOCS_SSH_PORT:-2222}"
-SOURCES=$(ls -1 /docs/ | grep -v '_index' | tr '\\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
 `;
 
 /**
@@ -57,14 +55,6 @@ function toDynamicShell(template: string): string {
     .replace("{{SSH_PORT}}", "${PORT}");
 }
 
-/**
- * Converts the search description placeholder to a shell-expanded version.
- */
-function toSearchToolShell(template: string, descPrefix: string): string {
-  const shellDesc = descPrefix.replace("{{SOURCES}}", "${SOURCES}");
-  return template.replace("{{SEARCH_DESCRIPTION}}", shellDesc);
-}
-
 function generate(): string {
   const parts: string[] = [HEADER];
 
@@ -80,10 +70,10 @@ function generate(): string {
   parts.push(`TOOLS_STATIC`);
   parts.push(``);
 
-  // Search tool description (dynamic — SOURCES expansion by shell)
-  parts.push(`cat << TOOLS_DYNAMIC`);
-  parts.push(toSearchToolShell(SEARCH_DESCRIPTION_DYNAMIC, SEARCH_DESCRIPTION_PREFIX));
-  parts.push(`TOOLS_DYNAMIC`);
+  // Search tool description (static — no dynamic vars needed)
+  parts.push(`cat << 'TOOLS_STATIC'`);
+  parts.push(forQuotedHeredoc(SEARCH_DESCRIPTION));
+  parts.push(`TOOLS_STATIC`);
   parts.push(``);
 
   // Search tool body (static — has backtick templates with $/{}/| chars)
