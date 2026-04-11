@@ -65,3 +65,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Deploy to Composer
+        run: |
+          curl -sf -X POST "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/sync" \
+            -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
+            -H "X-Requested-With: XMLHttpRequest"
+          curl -sf -X POST "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/pull" \
+            -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
+            -H "X-Requested-With: XMLHttpRequest"
+          curl -sf -X POST "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/up" \
+            -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
+            -H "X-Requested-With: XMLHttpRequest"
+

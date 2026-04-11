@@ -655,5 +655,96 @@ export const SOURCES: readonly DocSource[] = [
       "https://www.keycloak.org/docs-api/latest/rest-api/openapi.yaml",
   }),
 
+  // ─── Zsh ────────────────────────────────────────────────────────
+
+  // TOC-based discovery — full manual as browsable HTML chapters
+  new DocSource({
+    name: "zsh",
+    type: "http",
+    url: "https://zsh.sourceforge.io/Doc/Release/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://zsh.sourceforge.io/Doc/Release/zsh_toc.html",
+    urlPattern: "zsh\\.sourceforge\\.io/Doc/Release/",
+    urlExclude:
+      "(Concept-Index|Variables-Index|Options-Index|Functions-Index|Editor-Functions-Index|Style-and-Tag-Index|zsh_toc)\\.html",
+  }),
+
+  // ─── Oh My Zsh ────────────────────────────────────────────────
+
+  // Public wiki repo — curated docs (FAQ, plugins overview, themes, etc.)
+  new DocSource({
+    name: "ohmyzsh",
+    type: "git",
+    url: "https://github.com/ohmyzsh/wiki",
+    format: "markdown",
+  }),
+
+  // ─── Zinit ─────────────────────────────────────────────────────
+
+  // Docusaurus wiki — guides, syntax, annexes, ecosystem plugins
+  new DocSource({
+    name: "zinit",
+    type: "git",
+    url: "https://github.com/z-shell/wiki",
+    format: "mdx",
+    paths: ["docs", "ecosystem", "community"],
+  }),
+
+  // ─── Powerlevel10k ─────────────────────────────────────────────
+
+  // Markdown docs from the romkatv/powerlevel10k repo
+  new DocSource({
+    name: "powerlevel10k",
+    type: "git",
+    url: "https://github.com/romkatv/powerlevel10k",
+    format: "markdown",
+  }),
+
+  // ─── WezTerm ───────────────────────────────────────────────────
+
+  // Markdown docs from the wezterm/wezterm repo (634 files)
+  new DocSource({
+    name: "wezterm",
+    type: "git",
+    url: "https://github.com/wezterm/wezterm",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── SOPS ──────────────────────────────────────────────────────
+
+  // Sitemap — secrets management tool docs (comprehensive single-page)
+  new DocSource({
+    name: "sops",
+    type: "http",
+    url: "https://getsops.io/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://getsops.io/sitemap.xml",
+    urlPattern: "getsops\\.io/docs/",
+  }),
+
+  // ─── age ───────────────────────────────────────────────────────
+
+  // Markdown docs from the FiloSottile/age repo (README + spec)
+  new DocSource({
+    name: "age",
+    type: "git",
+    url: "https://github.com/FiloSottile/age",
+    format: "markdown",
+  }),
+
+  // ─── tmux ──────────────────────────────────────────────────────
+
+  // GitHub wiki — curated guides (getting started, advanced use, FAQ, etc.)
+  new DocSource({
+    name: "tmux",
+    type: "git",
+    url: "https://github.com/tmux/tmux.wiki",
+    format: "markdown",
+  }),
+
   // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
 ];

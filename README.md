@@ -1,6 +1,6 @@
 # docs-ssh
 
-Self-hosted SSH docs server for AI agents. Serves 51 documentation sources — Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, Bun, Hono, Zod, Drizzle, TypeScript, Python, Ansible, PostgreSQL, Astro, Fly.io, Traefik, Caddy, Neovim, Tailwind CSS, Rust, MCP, Mermaid, D2, Shadcn, K3s, Starlight, MDN, Gitea, Authentik, Keycloak, OpenID, Terraform — plus blogs, changelogs, and OpenAPI specs for Cloudflare, Docker, Kubernetes, Supabase, Fly.io, Gitea, Authentik, and Keycloak — as a searchable markdown filesystem over SSH.
+Self-hosted SSH docs server for AI agents. Serves 60 documentation sources — Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, Bun, Hono, Zod, Drizzle, TypeScript, Python, Ansible, PostgreSQL, Astro, Fly.io, Traefik, Caddy, Neovim, Tailwind CSS, Rust, MCP, Mermaid, D2, Shadcn, K3s, Starlight, MDN, Gitea, Authentik, Keycloak, OpenID, Terraform, Zsh, Oh My Zsh, Zinit, Powerlevel10k, WezTerm, SOPS, age, tmux — plus blogs, changelogs, and OpenAPI specs for Cloudflare, Docker, Kubernetes, Supabase, Fly.io, Gitea, Authentik, and Keycloak — as a searchable markdown filesystem over SSH.
 
 ## Get started
 
@@ -116,6 +116,14 @@ Each source uses the best available fetch method — no hardcoded URL lists.
 | Keycloak | sitemap | html → md | OIDC/SAML IdP guides (server, HA, securing apps) |
 | OpenID | sitemap | html → md | OIDC specs and developer docs from `openid.net` |
 | Terraform | git sparse | mdx → md | IaC docs from `hashicorp/web-unified-docs` (all versions) |
+| Zsh | toc | html → md | Full manual (28 chapters) from `zsh.sourceforge.io` |
+| Oh My Zsh | git | markdown | Curated wiki (FAQ, plugins, themes, customization) |
+| Zinit | git sparse | mdx → md | Guides, syntax, annexes, ecosystem from `z-shell/wiki` |
+| Powerlevel10k | git | markdown | Comprehensive README (105KB) from `romkatv/powerlevel10k` |
+| WezTerm | git sparse | markdown | 634 doc files from `wezterm/wezterm` |
+| SOPS | sitemap | html → md | Secrets management docs from `getsops.io` |
+| age | git | markdown | File encryption tool from `FiloSottile/age` |
+| tmux | git (wiki) | markdown | Terminal multiplexer guides from `tmux/tmux` wiki |
 
 ### OpenAPI specs
 
