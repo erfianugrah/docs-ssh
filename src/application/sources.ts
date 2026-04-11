@@ -575,15 +575,38 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── OpenID Connect ───────────────────────────────────────────
 
-  // Sitemap — OIDC specs, developer docs, working group specifications
+  // OIDC spec pages — direct URLs (sitemap unreliable, CDATA parse errors)
   new DocSource({
     name: "openid",
     type: "http",
     url: "https://openid.net/",
     format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://openid.net/page-sitemap.xml",
-    urlPattern: "openid\\.net/(developers|wg/.+/specifications)",
+    urls: [
+      "https://openid.net/specs/openid-connect-core-1_0.html",
+      "https://openid.net/specs/openid-connect-discovery-1_0.html",
+      "https://openid.net/specs/openid-connect-registration-1_0.html",
+      "https://openid.net/specs/openid-connect-rpinitiated-1_0.html",
+      "https://openid.net/specs/openid-connect-frontchannel-1_0.html",
+      "https://openid.net/specs/openid-connect-backchannel-1_0.html",
+      "https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html",
+      "https://openid.net/specs/oauth-v2-form-post-response-mode-1_0.html",
+      "https://openid.net/specs/openid-connect-session-1_0.html",
+      "https://openid.net/specs/openid-federation-1_0.html",
+    ],
+  }),
+
+  // ─── SAML 2.0 ─────────────────────────────────────────────────
+
+  // OASIS SAML 2.0 specs — technical overview + core documents
+  new DocSource({
+    name: "saml",
+    type: "http",
+    url: "https://docs.oasis-open.org/",
+    format: "html",
+    urls: [
+      "https://docs.oasis-open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html",
+      "https://docs.oasis-open.org/security/saml/v2.0/sstc-saml-approved-errata-2.0.html",
+    ],
   }),
 
   // ─── Terraform ─────────────────────────────────────────────────
