@@ -310,16 +310,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Starlight (Astro) ───────────────────────────────────────
 
-  // Sitemap — Astro's Starlight documentation framework
+  // MDX docs from the withastro/starlight repo (includes translations)
   new DocSource({
     name: "starlight",
-    type: "http",
-    url: "https://starlight.astro.build/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://starlight.astro.build/sitemap-0.xml",
-    urlPattern: "starlight\\.astro\\.build/.+",
-    urlExclude: "(showcase|resources/community|resources/plugins)",
+    type: "git",
+    url: "https://github.com/withastro/starlight",
+    format: "mdx",
+    paths: ["docs/src/content/docs"],
+    rootPath: "docs/src/content/docs",
   }),
 
   // ─── Mermaid ───────────────────────────────────────────────────
