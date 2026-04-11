@@ -2,7 +2,7 @@
 
 ## What this is
 
-SSH docs server that serves 42 documentation sources (docs + API specs) as a searchable markdown filesystem over SSH. The Node.js codebase fetches, normalises, and writes docs; a Docker image serves them via OpenSSH with `ForceCommand` routing.
+SSH docs server that serves 51 documentation sources (docs + API specs) as a searchable markdown filesystem over SSH. The Node.js codebase fetches, normalises, and writes docs; a Docker image serves them via OpenSSH with `ForceCommand` routing.
 
 ## Commands
 
@@ -13,7 +13,7 @@ pnpm test                 # 171 unit tests (vitest, tests/unit/)
 pnpm test:e2e             # 52 Docker-based E2E tests (builds image, starts container, SSH tests)
 pnpm test:coverage        # unit tests with v8 coverage
 pnpm generate:tools       # regenerate commands/tools.sh from TypeScript template
-pnpm fetch-docs           # fetch all 42 doc sources into ./docs/ (network-heavy, slow)
+pnpm fetch-docs           # fetch all 51 doc sources into ./docs/ (network-heavy, slow)
 pnpm docker:build         # fetch-docs + docker build in one step
 ```
 
@@ -25,7 +25,7 @@ CI runs `pnpm lint` then `pnpm test:coverage`. Match that order locally.
 src/
   index.ts              — entrypoint for fetch-docs (not the SSH server)
   domain/               — value objects + port interfaces (DocSource, DocIngestor, DocNormaliser)
-  application/          — UpdateDocSets orchestrator, sources.ts (all 42 source definitions)
+  application/          — UpdateDocSets orchestrator, sources.ts (all 51 source definitions)
   ingestors/            — GitIngestor (sparse clone), HttpIngestor (tarball/llms-full/sitemap/toc/openapi)
   normaliser/           — MDX→MD, HTML→MD (turndown), markdown cleanup, content sanitiser
   shared/               — walkDir utility

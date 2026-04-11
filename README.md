@@ -1,6 +1,6 @@
 # docs-ssh
 
-Self-hosted SSH docs server for AI agents. Serves 42 documentation sources — Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, Bun, Hono, Zod, Drizzle, TypeScript, Python, Ansible, PostgreSQL, Astro, Fly.io, Traefik, Caddy, Neovim, Tailwind CSS, Rust, MCP, Mermaid, D2, Shadcn, K3s, Starlight — plus blogs, changelogs, and OpenAPI specs for Cloudflare, Docker, Kubernetes, Supabase, and Fly.io — as a searchable markdown filesystem over SSH.
+Self-hosted SSH docs server for AI agents. Serves 51 documentation sources — Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, Bun, Hono, Zod, Drizzle, TypeScript, Python, Ansible, PostgreSQL, Astro, Fly.io, Traefik, Caddy, Neovim, Tailwind CSS, Rust, MCP, Mermaid, D2, Shadcn, K3s, Starlight, MDN, Gitea, Authentik, Keycloak, OpenID, Terraform — plus blogs, changelogs, and OpenAPI specs for Cloudflare, Docker, Kubernetes, Supabase, Fly.io, Gitea, Authentik, and Keycloak — as a searchable markdown filesystem over SSH.
 
 ## Get started
 
@@ -110,6 +110,12 @@ Each source uses the best available fetch method — no hardcoded URL lists.
 | Ansible | toc | html → md | Playbooks, inventory, vault, modules, dev guide |
 | Erfi Technical Blog | git sparse | mdx → md | Technical docs from `erfianugrah/lexicanum` |
 | Erfi Personal Blog | git sparse | mdx → md | Photography & writing from `erfianugrah/revista-3` |
+| MDN Web Docs | git sparse | markdown | 14,000+ pages — HTML, CSS, JS, HTTP, Web APIs |
+| Gitea | sitemap | html → md | Self-hosted Git forge docs (unversioned latest) |
+| Authentik | git sparse | mdx → md | Identity provider docs from `goauthentik/authentik` |
+| Keycloak | sitemap | html → md | OIDC/SAML IdP guides (server, HA, securing apps) |
+| OpenID | sitemap | html → md | OIDC specs and developer docs from `openid.net` |
+| Terraform | git sparse | mdx → md | IaC docs from `hashicorp/web-unified-docs` (all versions) |
 
 ### OpenAPI specs
 
@@ -123,6 +129,9 @@ Converted to per-endpoint-group markdown at ingestion time (4-8x compression vs 
 | Supabase Management API | OpenAPI 3.0 | 455 KB | 17 files, 62 KB |
 | Supabase Auth API | OpenAPI 3.0 | 132 KB | 9 files, 38 KB |
 | Fly.io Machines API | Swagger 2.0 | 203 KB | 9 files, 26 KB |
+| Gitea API | Swagger 2.0 | ~1.5 MB | TBD |
+| Authentik API | OpenAPI 3.0 | ~1.6 MB | TBD |
+| Keycloak Admin API | OpenAPI 3.0 | ~600 KB | TBD |
 
 ## Build from source
 

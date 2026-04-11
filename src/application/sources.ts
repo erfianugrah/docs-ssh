@@ -520,8 +520,117 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://docs.machines.dev/swagger/doc.json",
   }),
 
-  // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
+  // ─── MDN Web Docs ───────────────────────────────────────────────
 
-  // Terraform: skipped — HashiCorp doesn't expose docs via llms.txt/sitemap/git.
-  // Use context7 MCP for terraform docs until they add llms.txt.
+  // Markdown docs from the mdn/content repo (English only)
+  new DocSource({
+    name: "mdn",
+    type: "git",
+    url: "https://github.com/mdn/content",
+    format: "markdown",
+    paths: ["files/en-us"],
+    rootPath: "files/en-us",
+  }),
+
+  // ─── Gitea ───────────────────────────────────────────────────────
+
+  // Sitemap — self-hosted Git forge docs (unversioned = latest stable)
+  new DocSource({
+    name: "gitea",
+    type: "http",
+    url: "https://docs.gitea.com/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://docs.gitea.com/sitemap.xml",
+    urlPattern:
+      "docs\\.gitea\\.com/(administration|installation|usage|development|contributing|help|packages|actions)",
+    urlExclude: "/category/",
+  }),
+
+  // ─── Authentik ─────────────────────────────────────────────────
+
+  // MDX/MD docs from the goauthentik monorepo
+  new DocSource({
+    name: "authentik",
+    type: "git",
+    url: "https://github.com/goauthentik/authentik",
+    format: "mdx",
+    paths: ["website/docs"],
+    rootPath: "website/docs",
+  }),
+
+  // ─── Keycloak ──────────────────────────────────────────────────
+
+  // Sitemap — OIDC/SAML IdP guides (server, HA, securing apps, etc.)
+  new DocSource({
+    name: "keycloak",
+    type: "http",
+    url: "https://www.keycloak.org/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://www.keycloak.org/sitemap.xml",
+    urlPattern:
+      "keycloak\\.org/(server|getting-started|high-availability|securing-apps|operator|observability|ui-customization|migration)/",
+  }),
+
+  // ─── OpenID Connect ───────────────────────────────────────────
+
+  // Sitemap — OIDC specs, developer docs, working group specifications
+  new DocSource({
+    name: "openid",
+    type: "http",
+    url: "https://openid.net/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://openid.net/page-sitemap.xml",
+    urlPattern: "openid\\.net/(developers|wg/.+/specifications)",
+  }),
+
+  // ─── Terraform ─────────────────────────────────────────────────
+
+  // MDX docs from the hashicorp/web-unified-docs repo (all versions)
+  new DocSource({
+    name: "terraform",
+    type: "git",
+    url: "https://github.com/hashicorp/web-unified-docs",
+    format: "mdx",
+    paths: ["content/terraform"],
+    rootPath: "content/terraform",
+  }),
+
+  // ─── OpenAPI Specs (continued) ─────────────────────────────────
+
+  // Gitea API — Swagger 2.0, JSON (live spec from gitea.com)
+  new DocSource({
+    name: "gitea-api",
+    type: "http",
+    url: "https://docs.gitea.com/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://gitea.com/swagger.v1.json",
+  }),
+
+  // Authentik API — OpenAPI 3.0, YAML
+  new DocSource({
+    name: "authentik-api",
+    type: "http",
+    url: "https://docs.goauthentik.io/developer-docs/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl:
+      "https://raw.githubusercontent.com/goauthentik/authentik/main/schema.yml",
+  }),
+
+  // Keycloak Admin REST API — OpenAPI 3.0, YAML
+  new DocSource({
+    name: "keycloak-api",
+    type: "http",
+    url: "https://www.keycloak.org/docs-api/latest/rest-api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl:
+      "https://www.keycloak.org/docs-api/latest/rest-api/openapi.yaml",
+  }),
+
+  // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
 ];

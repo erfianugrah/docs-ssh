@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231d1f28'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='18' font-weight='700' fill='%23c574dd' text-anchor='middle'%3E%3E_%3C/text%3E%3C/svg%3E" type="image/svg+xml">
   <title>docs-ssh — Documentation over SSH for AI Agents</title>
-  <meta name="description" content="Self-hosted SSH docs server serving 28,000+ pages from Supabase, Cloudflare, Vercel, PostgreSQL, AWS, and more as searchable markdown.">
+  <meta name="description" content="Self-hosted SSH docs server serving 50 documentation sources from Supabase, Cloudflare, Vercel, AWS, Kubernetes, Terraform, Keycloak, and more as searchable markdown over SSH.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -312,7 +312,7 @@
     </div>
 
     <p>
-      A self-hosted SSH server serving <strong>28,000+ documentation pages</strong>
+      A self-hosted SSH server serving <strong>51 documentation sources</strong>
       as searchable markdown. Your AI agent connects over SSH and uses standard
       Unix tools &mdash; <code>grep</code>, <code>find</code>, <code>cat</code> &mdash;
       to search and read docs with the same interface it uses for your code.
@@ -400,8 +400,44 @@
       <div class="source">flyio</div>
       <div class="source">tailwindcss</div>
       <div class="source">rust-book</div>
+      <div class="source">docker</div>
+      <div class="source">shadcn</div>
+      <div class="source">kubernetes</div>
+      <div class="source">traefik</div>
+      <div class="source">caddy</div>
+      <div class="source">neovim</div>
+      <div class="source">starlight</div>
+      <div class="source">mermaid</div>
+      <div class="source">d2</div>
+      <div class="source">bun</div>
+      <div class="source">react</div>
+      <div class="source">hono</div>
+      <div class="source">zod</div>
+      <div class="source">drizzle</div>
+      <div class="source">typescript</div>
+      <div class="source">k3s</div>
+      <div class="source">python</div>
+      <div class="source">ansible</div>
+      <div class="source">mdn</div>
+      <div class="source">gitea</div>
+      <div class="source">authentik</div>
+      <div class="source">keycloak</div>
+      <div class="source">openid</div>
+      <div class="source">terraform</div>
       <div class="source">erfi-technical-blog</div>
       <div class="source">erfi-personal-blog</div>
+    </div>
+    <h2>API specs</h2>
+    <div class="sources-grid">
+      <div class="source">cloudflare-api</div>
+      <div class="source">docker-api</div>
+      <div class="source">kubernetes-api</div>
+      <div class="source">supabase-api</div>
+      <div class="source">supabase-auth-api</div>
+      <div class="source">flyio-api</div>
+      <div class="source">gitea-api</div>
+      <div class="source">authentik-api</div>
+      <div class="source">keycloak-api</div>
     </div>
     <p>Sources refreshed daily at 02:00 UTC. All docs under <code>/docs/{source}/</code>.</p>
 
@@ -415,6 +451,8 @@
 
     <footer>
       <a href="https://github.com/erfianugrah/docs-ssh">GitHub</a>
+      &nbsp;&middot;&nbsp;
+      v__VERSION__
       &nbsp;&middot;&nbsp;
       Passwordless by design &mdash; serves public documentation
     </footer>
