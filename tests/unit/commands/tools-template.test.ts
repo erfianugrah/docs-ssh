@@ -34,7 +34,7 @@ describe("tools-template", () => {
   });
 
   it("contains MAX_RESULT_CHARS", () => {
-    expect(rendered).toContain("const MAX_RESULT_CHARS = 16_000");
+    expect(rendered).toContain("const MAX_RESULT_CHARS = 51_200");
   });
 
   // ─── All expected exports present ──────────────────────────────

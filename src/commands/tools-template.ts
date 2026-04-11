@@ -17,7 +17,7 @@ import { z } from "zod"
 
 const SSH_HOST = "{{SSH_HOST}}"
 const SSH_PORT = "{{SSH_PORT}}"
-const MAX_RESULT_CHARS = 16_000
+const MAX_RESULT_CHARS = 51_200
 `;
 
 // ─── Static TypeScript body ────────────────────────────────────────

@@ -13,7 +13,7 @@ import { z } from "zod"
 
 const SSH_HOST = "docs@${HOST}"
 const SSH_PORT = "${PORT}"
-const MAX_RESULT_CHARS = 16_000
+const MAX_RESULT_CHARS = 51_200
 
 TOOLS_DYNAMIC
 
