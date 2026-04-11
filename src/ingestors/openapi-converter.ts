@@ -26,7 +26,7 @@ export function convertOpenApiToMarkdown(raw: string, sourceName: string): SpecF
   resolveRefs(spec, spec);
 
   const isSwagger2 = "swagger" in spec;
-  const info = spec.info ?? {};
+  const info = (spec.info ?? {}) as Record<string, unknown>;
   const paths = spec.paths ?? {};
 
   // Group operations by tag
