@@ -1,4 +1,4 @@
-export type DocFormat = "markdown" | "mdx" | "html";
+export type DocFormat = "markdown" | "mdx" | "html" | "openapi";
 export type DocSourceType = "git" | "http";
 
 /**
@@ -12,6 +12,7 @@ export type DocSourceType = "git" | "http";
  * - "llms-index":    parses a top-level llms.txt for child llms.txt URLs, then uses those as TOCs
  * - "llms-txt":     parses a llms.txt for page URLs and fetches each one directly
  * - "rss":          parses an RSS feed for <link> URLs within <item> elements
+ * - "openapi":      downloads a single OpenAPI/Swagger spec and converts to per-tag markdown
  */
 export type DiscoveryMethod =
   | "none"
@@ -22,7 +23,8 @@ export type DiscoveryMethod =
   | "toc"
   | "llms-index"
   | "llms-txt"
-  | "rss";
+  | "rss"
+  | "openapi";
 
 export interface DocSourceConfig {
   readonly name: string;

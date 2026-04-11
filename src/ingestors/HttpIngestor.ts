@@ -6,11 +6,12 @@ import { DocSet } from "../domain/DocSet.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocSource, DiscoveryMethod } from "../domain/DocSource.js";
 import { splitLlmsFull } from "./llms-splitter.js";
+import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { walkDir } from "../shared/walkDir.js";
 
 const CONCURRENCY = 15;
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
-const UA = "docs-ssh/0.2 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
+const UA = "docs-ssh/0.5 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
 const MAX_RETRIES = 2;
 
 /** Fetch with User-Agent header and retry on transient/network errors. */
@@ -54,6 +55,9 @@ export class HttpIngestor implements DocIngestor {
     }
     if (source.discovery === "llms-full" && source.discoveryUrl) {
       return this.ingestFromLlmsFull(source);
+    }
+    if (source.discovery === "openapi" && source.discoveryUrl) {
+      return this.ingestFromOpenApi(source);
     }
 
     // Everything else is URL-based: discover URLs, filter, fetch each page
@@ -182,6 +186,26 @@ export class HttpIngestor implements DocIngestor {
     }
 
     console.log(`  [${source.name}] split into ${files.size} pages`);
+    return new DocSet(source, files, new Date());
+  }
+  // ─── OpenAPI spec ───────────────────────────────────────────────────
+
+  private async ingestFromOpenApi(source: DocSource): Promise<DocSet> {
+    console.log(`  [${source.name}] downloading OpenAPI spec…`);
+    const res = await fetchWithRetry(source.discoveryUrl!);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch OpenAPI spec: HTTP ${res.status}`);
+    }
+    const raw = await res.text();
+    console.log(`  [${source.name}] spec: ${(raw.length / 1024).toFixed(0)} KB`);
+
+    const specFiles = convertOpenApiToMarkdown(raw, source.name);
+    const files = new Map<string, DocFile>();
+    for (const sf of specFiles) {
+      files.set(sf.path, new DocFile(sf.path, sf.content));
+    }
+
+    console.log(`  [${source.name}] converted to ${files.size} markdown files`);
     return new DocSet(source, files, new Date());
   }
 }

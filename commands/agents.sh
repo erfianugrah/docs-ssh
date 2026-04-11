@@ -15,8 +15,11 @@ PORT="${DOCS_SSH_PORT:-2222}"
 USER="docs"
 
 # Dynamic parts from what's actually in the container
-SOURCES=$(ls -1 /docs/ | grep -v '_index' | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
-SOURCE_COUNT=$(ls -1 /docs/ | grep -v '_index' | wc -l | tr -d ' ')
+ALL_SOURCES=$(ls -1 /docs/ | grep -v '_index')
+DOC_SOURCES=$(echo "$ALL_SOURCES" | grep -v '\-api$' | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
+API_SOURCES=$(echo "$ALL_SOURCES" | grep '\-api$' | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
+SOURCES=$(echo "$ALL_SOURCES" | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
+SOURCE_COUNT=$(echo "$ALL_SOURCES" | wc -l | tr -d ' ')
 FILE_COUNT=$(find /docs -type f | wc -l | tr -d ' ')
 SSH="ssh -p $PORT $USER@$HOST"
 
@@ -47,45 +50,55 @@ emit_tools_instructions() {
   cat << EOF
 ## Documentation
 
-A docs server at \`$HOST\` serves ${FILE_COUNT}+ documentation pages across ${SOURCE_COUNT} sources as searchable markdown files over SSH. Always check docs before implementing features, debugging issues, or answering questions about these technologies.
+Docs server at \`$HOST\` — ${SOURCE_COUNT} sources (docs + API specs), searchable markdown over SSH. Check docs before implementing/debugging.
 
-**You have custom docs tools installed. Always use \`docs_search\`, \`docs_read\`, \`docs_grep\`, \`docs_find\`, \`docs_summary\`, and \`docs_sources\` instead of raw SSH commands.** Do not use \`ssh\` or \`Bash\` to access the docs server directly — the custom tools handle SSH, output capping, and structured parsing automatically.
+**Always use custom \`docs_search\`, \`docs_read\`, \`docs_grep\`, \`docs_find\`, \`docs_summary\`, \`docs_sources\` tools.** No raw \`ssh\` or \`Bash\` for docs access.
 
-### Available sources
+### Sources
 
-${SOURCES}
+${DOC_SOURCES}
 
-### Recommended workflow
+### API Reference Sources
 
-Use a **search -> summary -> targeted read** pattern to minimise token usage:
+OpenAPI specs converted to per-endpoint-group markdown. Each has \`api/overview.md\` (endpoint index) + \`api/{tag}.md\` files.
 
-1. **Search** the index to find relevant files:
+${API_SOURCES}
+
+**API lookup pattern:**
+1. \`docs_search(query="create zone", source="cloudflare-api")\` — find endpoint group
+2. \`docs_grep(query="POST /zones", path="/docs/cloudflare-api/")\` — find exact endpoint
+3. \`docs_read(path="/docs/cloudflare-api/api/zones.md")\` — read full endpoint group
+
+### Workflow: search -> summary -> targeted read
+
+1. **Search** index for relevant files:
    \`docs_search(query="RLS policies", source="postgres")\`
 
-2. **Get the outline** of a promising file:
+2. **Outline** promising file:
    \`docs_summary(path="/docs/postgres/row-security.md")\`
 
-3. **Read only the section you need** (e.g. lines 45-80):
+3. **Read only needed section** (e.g. lines 45-80):
    \`docs_read(path="/docs/postgres/row-security.md", offset=45, lines=35)\`
 
-### Tool reference
+### Tools
 
-| Tool | Purpose | When to use |
-|------|---------|-------------|
-| \`docs_search\` | Search titles+summaries across all sources | First step — find relevant files fast (~1MB index) |
-| \`docs_summary\` | Get headings/outline of a file | Before reading — find the right section |
-| \`docs_read\` | Read a file or line range | After summary — read only what you need |
-| \`docs_grep\` | Regex search with context lines (rg --json) | When you need to find content within files |
-| \`docs_find\` | Find files by name pattern | When you know part of the filename |
-| \`docs_sources\` | List all sources with file counts | When you need to know what's available |
+| Tool | Purpose | When |
+|------|---------|------|
+| \`docs_search\` | Search titles+summaries | First step — find files fast (~1MB index) |
+| \`docs_summary\` | Headings/outline of file | Before reading — find right section |
+| \`docs_read\` | Read file or line range | After summary — read only what needed |
+| \`docs_grep\` | Regex search + context lines | Find content within files |
+| \`docs_find\` | Find files by name pattern | Know part of filename |
+| \`docs_sources\` | List sources + file counts | Check what available |
 
-### Performance tips
+### Token tips
 
-- **Search the index first**: \`docs_search\` searches titles+summaries (~1MB) instead of all docs (~300MB).
-- **Use \`docs_summary\` before \`docs_read\`**: Get headings first to find the right line range.
-- **Use offset+lines**: \`docs_read(path="...", offset=45, lines=35)\` reads 35 lines starting at line 45 (~140 tokens vs ~2K for the full file).
-- **Use \`docs_grep\` with a source path**: \`docs_grep(query="RLS", path="/docs/postgres/")\` is faster than searching all docs.
-- **Use the \`source\` parameter**: \`docs_search(query="auth", source="supabase")\` filters to one source.
+- \`docs_search\` searches ~1MB index, not ~300MB raw docs
+- \`docs_summary\` before \`docs_read\` — find right line range first
+- \`offset+lines\`: 35 lines = ~140 tokens vs ~2K for full file
+- \`docs_grep\` with source path: \`docs_grep(query="RLS", path="/docs/postgres/")\` faster than searching all
+- \`source\` param: \`docs_search(query="auth", source="supabase")\` filters to one source
+- API specs: \`docs_read(path="/docs/{source}-api/api/overview.md")\` for endpoint index
 EOF
 }
 
@@ -117,11 +130,27 @@ Host $HOST
   LogLevel ERROR
 \`\`\`
 
-### Available sources
+### Sources
 
-${SOURCES}
+${DOC_SOURCES}
 
 All docs live under \`/docs/{source}/\` as markdown files.
+
+### API Reference Sources
+
+OpenAPI specs converted to per-endpoint-group markdown. Each has \`api/overview.md\` (endpoint index) + \`api/{tag}.md\` files.
+
+${API_SOURCES}
+
+**API lookup pattern:**
+\`\`\`bash
+# Find endpoint group
+$SSH "rg -i 'create zone' /docs/cloudflare-api/api/overview.md"
+# Find exact endpoint
+$SSH "rg 'POST /zones' /docs/cloudflare-api/"
+# Read full endpoint group
+$SSH "bat --plain --paging=never --color=never /docs/cloudflare-api/api/zones.md"
+\`\`\`
 
 ### Recommended workflow
 

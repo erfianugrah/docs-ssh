@@ -235,6 +235,295 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "src/content",
   }),
 
+  // ─── Docker ──────────────────────────────────────────────────────
+
+  // llms.txt — TOC with ~400+ page links
+  new DocSource({
+    name: "docker",
+    type: "http",
+    url: "https://docs.docker.com/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://docs.docker.com/llms.txt",
+  }),
+
+  // ─── Shadcn/UI ─────────────────────────────────────────────────
+
+  // llms.txt — component docs index
+  new DocSource({
+    name: "shadcn",
+    type: "http",
+    url: "https://ui.shadcn.com/docs/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://ui.shadcn.com/llms.txt",
+  }),
+
+  // ─── Kubernetes ────────────────────────────────────────────────
+
+  // Markdown docs from the official website repo
+  new DocSource({
+    name: "kubernetes",
+    type: "git",
+    url: "https://github.com/kubernetes/website",
+    format: "markdown",
+    paths: ["content/en/docs"],
+    rootPath: "content/en/docs",
+  }),
+
+  // ─── Traefik ───────────────────────────────────────────────────
+
+  // Markdown docs from the traefik repo
+  new DocSource({
+    name: "traefik",
+    type: "git",
+    url: "https://github.com/traefik/traefik",
+    format: "markdown",
+    paths: ["docs/content"],
+    rootPath: "docs/content",
+  }),
+
+  // ─── Caddy ─────────────────────────────────────────────────────
+
+  // Markdown docs from the caddyserver website repo
+  new DocSource({
+    name: "caddy",
+    type: "git",
+    url: "https://github.com/caddyserver/website",
+    format: "markdown",
+    paths: ["src/docs/markdown"],
+    rootPath: "src/docs/markdown",
+  }),
+
+  // ─── Neovim ────────────────────────────────────────────────────
+
+  // HTML docs from sitemap — vimdoc format in git, HTML is cleaner
+  new DocSource({
+    name: "neovim",
+    type: "http",
+    url: "https://neovim.io/doc/user/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://neovim.io/sitemap.xml",
+    urlPattern: "neovim\\.io/doc/user/.+",
+  }),
+
+  // ─── Starlight (Astro) ───────────────────────────────────────
+
+  // Sitemap — Astro's Starlight documentation framework
+  new DocSource({
+    name: "starlight",
+    type: "http",
+    url: "https://starlight.astro.build/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://starlight.astro.build/sitemap-0.xml",
+    urlPattern: "starlight\\.astro\\.build/.+",
+    urlExclude: "(showcase|resources/community|resources/plugins)",
+  }),
+
+  // ─── Mermaid ───────────────────────────────────────────────────
+
+  // Markdown docs from the mermaid monorepo
+  new DocSource({
+    name: "mermaid",
+    type: "git",
+    url: "https://github.com/mermaid-js/mermaid",
+    format: "markdown",
+    paths: ["packages/mermaid/src/docs"],
+    rootPath: "packages/mermaid/src/docs",
+  }),
+
+  // ─── D2 ────────────────────────────────────────────────────────
+
+  // Sitemap — D2 diagramming language docs (tour + examples)
+  new DocSource({
+    name: "d2",
+    type: "http",
+    url: "https://d2lang.com/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://d2lang.com/sitemap.xml",
+    urlPattern: "d2lang\\.com/(tour|examples)/.+",
+  }),
+
+  // ─── Bun ───────────────────────────────────────────────────────
+
+  // llms.txt — comprehensive docs with .md URLs
+  new DocSource({
+    name: "bun",
+    type: "http",
+    url: "https://bun.sh/docs/",
+    format: "markdown",
+    discovery: "llms-txt",
+    discoveryUrl: "https://bun.sh/llms.txt",
+  }),
+
+  // ─── React ─────────────────────────────────────────────────────
+
+  // llms.txt — complete React docs with .md URLs
+  new DocSource({
+    name: "react",
+    type: "http",
+    url: "https://react.dev/",
+    format: "markdown",
+    discovery: "llms-txt",
+    discoveryUrl: "https://react.dev/llms.txt",
+  }),
+
+  // ─── Hono ──────────────────────────────────────────────────────
+
+  // llms.txt — ultrafast web framework for CF Workers + Bun
+  new DocSource({
+    name: "hono",
+    type: "http",
+    url: "https://hono.dev/docs/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://hono.dev/llms.txt",
+  }),
+
+  // ─── Zod ───────────────────────────────────────────────────────
+
+  // llms.txt — TypeScript schema validation
+  new DocSource({
+    name: "zod",
+    type: "http",
+    url: "https://zod.dev/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://zod.dev/llms.txt",
+  }),
+
+  // ─── Drizzle ORM ──────────────────────────────────────────────
+
+  // llms.txt — TypeScript ORM for Postgres/MySQL/SQLite
+  new DocSource({
+    name: "drizzle",
+    type: "http",
+    url: "https://orm.drizzle.team/docs/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://orm.drizzle.team/llms.txt",
+  }),
+
+  // ─── TypeScript ────────────────────────────────────────────────
+
+  // Handbook and reference from the TypeScript-Website repo
+  new DocSource({
+    name: "typescript",
+    type: "git",
+    url: "https://github.com/microsoft/TypeScript-Website",
+    format: "markdown",
+    paths: ["packages/documentation"],
+    rootPath: "packages/documentation",
+  }),
+
+  // ─── K3s ───────────────────────────────────────────────────────
+
+  // Sitemap — lightweight Kubernetes distribution docs
+  new DocSource({
+    name: "k3s",
+    type: "http",
+    url: "https://docs.k3s.io/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://docs.k3s.io/sitemap.xml",
+    urlPattern: "docs\\.k3s\\.io/(add-ons|advanced|architecture|cli|cluster-access|datastore|faq|installation|known-issues|networking|quick-start|reference|security|upgrades)",
+  }),
+
+  // ─── Python ────────────────────────────────────────────────────
+
+  // TOC-based discovery from the Python docs contents page
+  new DocSource({
+    name: "python",
+    type: "http",
+    url: "https://docs.python.org/3/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.python.org/3/contents.html",
+    urlPattern: "docs\\.python\\.org/3/(tutorial|library|reference|howto|faq)/",
+    urlExclude: "(genindex|modindex|copyright|license|bugs|about)",
+  }),
+
+  // ─── Ansible ───────────────────────────────────────────────────
+
+  // TOC-based — core Ansible docs from the index page
+  new DocSource({
+    name: "ansible",
+    type: "http",
+    url: "https://docs.ansible.com/projects/ansible/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.ansible.com/projects/ansible/latest/index.html",
+    urlPattern: "docs\\.ansible\\.com/projects/ansible/latest/(getting_started|installation_guide|inventory_guide|command_guide|playbook_guide|vault_guide|module_plugin_guide|collections_guide|os_guide|tips_tricks|dev_guide|network|galaxy|reference_appendices)",
+    urlExclude: "(porting_guides|roadmap|community|scenario_guides|collections/index|all_plugins)",
+  }),
+
+  // ─── OpenAPI Specs ──────────────────────────────────────────────
+
+  // Cloudflare API — OpenAPI 3.x, monolithic JSON (>5MB)
+  new DocSource({
+    name: "cloudflare-api",
+    type: "http",
+    url: "https://developers.cloudflare.com/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/cloudflare/api-schemas/main/openapi.json",
+  }),
+
+  // Docker Engine API — Swagger 2.0, YAML
+  new DocSource({
+    name: "docker-api",
+    type: "http",
+    url: "https://docs.docker.com/reference/api/engine/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/moby/moby/master/api/swagger.yaml",
+  }),
+
+  // Kubernetes API — Swagger 2.0, JSON (~4MB)
+  new DocSource({
+    name: "kubernetes-api",
+    type: "http",
+    url: "https://kubernetes.io/docs/reference/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/kubernetes/kubernetes/master/api/openapi-spec/swagger.json",
+  }),
+
+  // Supabase Management API — OpenAPI 3.0, JSON
+  new DocSource({
+    name: "supabase-api",
+    type: "http",
+    url: "https://supabase.com/docs/reference/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/supabase/supabase/master/apps/docs/spec/api_v1_openapi.json",
+  }),
+
+  // Supabase Auth API — OpenAPI 3.0, YAML
+  new DocSource({
+    name: "supabase-auth-api",
+    type: "http",
+    url: "https://supabase.com/docs/reference/auth/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/supabase/auth/master/openapi.yaml",
+  }),
+
+  // Fly.io Machines API — Swagger 2.0, JSON
+  new DocSource({
+    name: "flyio-api",
+    type: "http",
+    url: "https://docs.machines.dev/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://docs.machines.dev/swagger/doc.json",
+  }),
+
   // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
-  // Revisit when cloud.google.com adds llms.txt or a scoped sitemap.
+
+  // Terraform: skipped — HashiCorp doesn't expose docs via llms.txt/sitemap/git.
+  // Use context7 MCP for terraform docs until they add llms.txt.
 ];

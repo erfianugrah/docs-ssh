@@ -1,7 +1,7 @@
 {
   "name": "docs-ssh",
-  "version": "0.4.1",
-  "description": "Self-hosted SSH docs server serving 18 documentation sources as searchable markdown over SSH",
+  "version": "0.5.0",
+  "description": "Self-hosted SSH docs server serving 42 documentation sources (docs + API specs) as searchable markdown over SSH",
   "type": "module",
   "scripts": {
     "build": "tsc",
@@ -16,6 +16,7 @@
     "docker:build": "DOCS_OUT_DIR=./docs DOCS_WORK_DIR=/tmp/docs-ssh-work node --import tsx/esm src/index.ts && docker build --build-arg DOCS_PREBUILT=true -t docs-ssh:local . && rm -rf ./docs"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
     "@types/turndown": "^5.0.0",
     "@vitest/coverage-v8": "^2.0.0",
@@ -24,6 +25,7 @@
     "vitest": "^2.0.0"
   },
   "dependencies": {
+    "js-yaml": "^4.1.1",
     "turndown": "^7.2.0"
   },
   "engines": {

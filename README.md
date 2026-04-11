@@ -1,6 +1,6 @@
 # docs-ssh
 
-Self-hosted SSH docs server for AI agents. Serves Supabase, Cloudflare, Vercel, PostgreSQL, AWS, Next.js, Astro, Fly.io, Tailwind CSS, Rust, and MCP documentation — plus blogs and changelogs — as a searchable markdown filesystem over SSH.
+Self-hosted SSH docs server for AI agents. Serves 42 documentation sources — Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, Bun, Hono, Zod, Drizzle, TypeScript, Python, Ansible, PostgreSQL, Astro, Fly.io, Traefik, Caddy, Neovim, Tailwind CSS, Rust, MCP, Mermaid, D2, Shadcn, K3s, Starlight — plus blogs, changelogs, and OpenAPI specs for Cloudflare, Docker, Kubernetes, Supabase, and Fly.io — as a searchable markdown filesystem over SSH.
 
 ## Get started
 
@@ -90,8 +90,39 @@ Each source uses the best available fetch method — no hardcoded URL lists.
 | Fly.io | sitemap | html → md | `/docs/` pages filtered from sitemap |
 | Tailwind CSS | git sparse | mdx → md | MDX docs from `tailwindcss.com` repo |
 | Rust Book | git sparse | markdown | The Rust Programming Language |
+| Docker | llms-txt | html → md | 1,400+ pages from `llms.txt` |
+| Shadcn/UI | llms-txt | html → md | Component docs from `llms.txt` |
+| Kubernetes | git sparse | markdown | Full docs from `kubernetes/website` |
+| Traefik | git sparse | markdown | Docs from `traefik/traefik` repo |
+| Caddy | git sparse | markdown | Docs from `caddyserver/website` repo |
+| Neovim | sitemap | html → md | Help docs from `neovim.io/doc/user/` |
+| Starlight | sitemap | html → md | Astro's Starlight framework docs |
+| Mermaid | git sparse | markdown | Diagram syntax from `mermaid-js/mermaid` |
+| D2 | sitemap | html → md | Diagramming language tour + examples |
+| Bun | llms-txt | markdown | 315 pages with `.md` URLs |
+| React | llms-txt | markdown | Full React docs with `.md` URLs |
+| Hono | llms-txt | html → md | CF Workers + Bun web framework |
+| Zod | llms-txt | html → md | TypeScript schema validation |
+| Drizzle ORM | llms-txt | html → md | TypeScript ORM for Postgres/MySQL/SQLite |
+| TypeScript | git sparse | markdown | Handbook + reference from `TypeScript-Website` |
+| K3s | sitemap | html → md | Lightweight Kubernetes docs |
+| Python | toc | html → md | Tutorial, library, reference, howto, FAQ |
+| Ansible | toc | html → md | Playbooks, inventory, vault, modules, dev guide |
 | Erfi Technical Blog | git sparse | mdx → md | Technical docs from `erfianugrah/lexicanum` |
 | Erfi Personal Blog | git sparse | mdx → md | Photography & writing from `erfianugrah/revista-3` |
+
+### OpenAPI specs
+
+Converted to per-endpoint-group markdown at ingestion time (4-8x compression vs raw JSON/YAML).
+
+| Source | Spec format | Raw size | Output |
+|--------|-------------|----------|--------|
+| Cloudflare API | OpenAPI 3.x | 9 MB | 456 files, 1.9 MB |
+| Docker Engine API | Swagger 2.0 | 456 KB | 16 files, 73 KB |
+| Kubernetes API | Swagger 2.0 | 4 MB | 65 files, 727 KB |
+| Supabase Management API | OpenAPI 3.0 | 455 KB | 17 files, 62 KB |
+| Supabase Auth API | OpenAPI 3.0 | 132 KB | 9 files, 38 KB |
+| Fly.io Machines API | Swagger 2.0 | 203 KB | 9 files, 26 KB |
 
 ## Build from source
 
