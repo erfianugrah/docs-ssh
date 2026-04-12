@@ -66,7 +66,7 @@ The tools use a search → summary → targeted read workflow that's **80% more 
 | `docs_grep` (targeted) | ~1,500 | 77% smaller |
 | MCP search (full pages) | ~30,000 | baseline |
 
-Output is capped at 16K chars (~4K tokens) with a truncation pointer — informed by Claude Code's context management patterns where oversized tool results trigger microcompaction.
+Output is capped at 51K chars (~12K tokens) with truncation hints that direct the agent to narrow its query or use offset/limit.
 
 ## Doc sources
 
@@ -137,9 +137,9 @@ Converted to per-endpoint-group markdown at ingestion time (4-8x compression vs 
 | Supabase Management API | OpenAPI 3.0 | 455 KB | 17 files, 62 KB |
 | Supabase Auth API | OpenAPI 3.0 | 132 KB | 9 files, 38 KB |
 | Fly.io Machines API | Swagger 2.0 | 203 KB | 9 files, 26 KB |
-| Gitea API | Swagger 2.0 | ~1.5 MB | TBD |
-| Authentik API | OpenAPI 3.0 | ~1.6 MB | TBD |
-| Keycloak Admin API | OpenAPI 3.0 | ~600 KB | TBD |
+| Gitea API | Swagger 2.0 | 819 KB | 10 files |
+| Authentik API | OpenAPI 3.0 | 1.6 MB | 26 files |
+| Keycloak Admin API | OpenAPI 3.0 | 360 KB | 23 files |
 
 ## Build from source
 
@@ -147,8 +147,12 @@ Converted to per-endpoint-group markdown at ingestion time (4-8x compression vs 
 git clone https://github.com/YOUR_USER/docs-ssh
 cd docs-ssh
 pnpm install
-pnpm fetch-docs     # fetches all docs into ./docs/
-docker compose up    # serves on port 2222
+pnpm fetch-docs           # fetches all docs into ./docs/ (parallel, cached)
+docker compose up          # serves on port 2222
+
+# Or build a self-contained image:
+pnpm docker:build          # force-refresh docs + docker build
+pnpm docker:build:cached   # use cached docs (fastest for iterating)
 ```
 
 ## Production deployment
@@ -184,15 +188,15 @@ fly deploy
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `ci.yml` | push / PR | typecheck + 171 unit tests |
+| `ci.yml` | push / PR | typecheck + unit tests with coverage |
 | `update-docs.yml` | daily 02:00 UTC + manual | fetch docs, build & push Docker image |
 | `release.yml` | tags `v*` | build & push with semver tags |
 
 ## Development
 
 ```bash
-pnpm test           # 171 unit tests
-pnpm test:e2e       # 52 Docker-based E2E tests
+pnpm test           # unit tests (vitest)
+pnpm test:e2e       # Docker-based E2E tests (requires Docker)
 pnpm test:bench     # token efficiency benchmark (requires live server)
 pnpm test:coverage  # with coverage report
 pnpm lint           # typecheck only

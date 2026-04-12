@@ -11,6 +11,8 @@ import { SOURCES } from "./application/sources.js";
 
 const OUT_DIR = process.env.DOCS_OUT_DIR ?? path.join(process.cwd(), "docs");
 const WORK_DIR = process.env.DOCS_WORK_DIR ?? path.join(os.tmpdir(), "docs-ssh-work");
+const CONCURRENCY = parseInt(process.env.DOCS_CONCURRENCY ?? "6", 10);
+const MAX_AGE = parseInt(process.env.DOCS_MAX_AGE ?? "86400", 10);
 
 const update = new UpdateDocSets({
   sources: SOURCES,
@@ -18,11 +20,14 @@ const update = new UpdateDocSets({
   normalisers: [new MdxNormaliser(), new HtmlNormaliser(), new MarkdownCleaner(), new ContentSanitiser()],
   outDir: OUT_DIR,
   workDir: WORK_DIR,
+  concurrency: CONCURRENCY,
+  maxAge: MAX_AGE,
 });
 
 const results = await update.run();
 
 const successes = results.filter((r) => r.status === "ok");
+const skipped = results.filter((r) => r.status === "skipped");
 const errors = results.filter((r) => r.status === "error");
 
 if (errors.length > 0) {
@@ -32,9 +37,12 @@ if (errors.length > 0) {
   }
 }
 
-if (successes.length === 0) {
+if (successes.length === 0 && skipped.length === 0) {
   console.error("\nAll sources failed — aborting.");
   process.exit(1);
 }
 
-console.log(`\n${successes.length}/${results.length} sources updated successfully.`);
+const parts = [`${successes.length} updated`];
+if (skipped.length > 0) parts.push(`${skipped.length} cached`);
+if (errors.length > 0) parts.push(`${errors.length} failed`);
+console.log(`\n${results.length} sources: ${parts.join(", ")}.`);

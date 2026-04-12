@@ -237,7 +237,7 @@ async function discover(source: DocSource): Promise<string[]> {
 async function discoverFromSitemap(sitemapUrl: string): Promise<string[]> {
   const res = await fetchWithRetry(sitemapUrl);
   if (!res.ok) throw new Error(`Failed to fetch sitemap ${sitemapUrl}: HTTP ${res.status}`);
-  return extractLocs(await res.text());
+  return resolveLocs(extractLocs(await res.text()), sitemapUrl);
 }
 
 async function discoverFromSitemapIndex(
@@ -246,7 +246,7 @@ async function discoverFromSitemapIndex(
 ): Promise<string[]> {
   const res = await fetchWithRetry(indexUrl);
   if (!res.ok) throw new Error(`Failed to fetch sitemap index ${indexUrl}: HTTP ${res.status}`);
-  let childUrls = extractLocs(await res.text());
+  let childUrls = resolveLocs(extractLocs(await res.text()), indexUrl);
 
   // Pre-filter child sitemaps using the alternation group from urlPattern.
   // Only apply if the filter actually matches some URLs (skip for generic
@@ -273,7 +273,7 @@ async function discoverFromSitemapIndex(
       batch.map(async (url) => {
         const r = await fetchWithRetry(url);
         if (!r.ok) return [];
-        return extractLocs(await r.text());
+        return resolveLocs(extractLocs(await r.text()), url);
       }),
     );
     for (const result of results) {
@@ -289,7 +289,7 @@ async function discoverFromToc(tocUrl: string, baseUrl: string): Promise<string[
   if (!res.ok) throw new Error(`Failed to fetch TOC ${tocUrl}: HTTP ${res.status}`);
   const html = await res.text();
 
-  const hrefRegex = /href="([^"]*\.html)"/g;
+  const hrefRegex = /href="([^"#]*\.html)[^"]*"/g;
   const urls = new Set<string>();
   let match;
   while ((match = hrefRegex.exec(html)) !== null) {
@@ -409,6 +409,11 @@ function extractLocs(xml: string): string[] {
     urls.push(match[1]);
   }
   return urls;
+}
+
+/** Resolve relative URLs against a base (sitemaps should use absolute URLs but some don't). */
+function resolveLocs(urls: string[], baseUrl: string): string[] {
+  return urls.map((u) => (u.startsWith("http") ? u : new URL(u, baseUrl).href));
 }
 
 function urlToPath(url: string, baseUrl: string): string {

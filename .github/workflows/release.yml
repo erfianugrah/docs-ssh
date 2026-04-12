@@ -52,6 +52,7 @@ jobs:
         env:
           DOCS_OUT_DIR: ${{ github.workspace }}/docs
           DOCS_WORK_DIR: /tmp/docs-work
+          DOCS_MAX_AGE: "0"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7

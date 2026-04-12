@@ -84,7 +84,7 @@ ${API_SOURCES}
 
 | Tool | Purpose | When |
 |------|---------|------|
-| \`docs_search\` | Search titles+summaries | First step — find files fast (~1MB index) |
+| \`docs_search\` | Search titles+summaries | First step — find files fast (index ~15x smaller than raw docs) |
 | \`docs_summary\` | Headings/outline of file | Before reading — find right section |
 | \`docs_read\` | Read file or line range | After summary — read only what needed |
 | \`docs_grep\` | Regex search + context lines | Find content within files |
@@ -93,7 +93,7 @@ ${API_SOURCES}
 
 ### Token tips
 
-- \`docs_search\` searches ~1MB index, not ~300MB raw docs
+- \`docs_search\` searches index (~15x smaller than raw docs)
 - \`docs_summary\` before \`docs_read\` — find right line range first
 - \`offset+lines\`: 35 lines = ~140 tokens vs ~2K for full file
 - \`docs_grep\` with source path: \`docs_grep(query="RLS", path="/docs/postgres/")\` faster than searching all
@@ -163,7 +163,7 @@ Use a **search → summary → targeted read** pattern to minimise token usage:
 
 2. **Get the outline** of a promising file:
    \`\`\`bash
-   $SSH "rg '^#' /docs/supabase/guides/auth.md"
+   $SSH "rg -n '^#' /docs/supabase/guides/auth.md"
    \`\`\`
 
 3. **Read only the section you need** (e.g. lines 45-80):
@@ -218,7 +218,7 @@ $SSH "rg -i 'authentication' /docs/_index.tsv | head -10"
 $SSH "rg -i 'auth' /docs/_index.tsv | rg '^supabase/'"
 
 # Get all headings in a file (document outline)
-$SSH "rg '^#' /docs/supabase/guides/auth.md"
+$SSH "rg -n '^#' /docs/supabase/guides/auth.md"
 
 # Pipe and combine commands
 $SSH "rg -il 'cron' /docs/ | head -5 | while read f; do echo \"--- \\\$f ---\"; head -3 \"\\\$f\"; done"
@@ -226,12 +226,12 @@ $SSH "rg -il 'cron' /docs/ | head -5 | while read f; do echo \"--- \\\$f ---\"; 
 
 ### Performance tips
 
-- **Search the index first**: \`rg -i 'query' /docs/_index.tsv\` searches titles+summaries (~1MB) instead of all docs (~300MB).
+- **Search the index first**: \`rg -i 'query' /docs/_index.tsv\` searches titles+summaries (index is ~15x smaller than raw docs).
 - **Use \`rg\` over \`grep\`**: ripgrep is 10-50x faster for large directory searches.
 - **Limit output**: Pipe through \`head -N\` when searching broadly to avoid overwhelming context.
 - **Use \`--line-range\`**: Read specific sections instead of entire files (30 lines ~120 tokens vs 500 lines ~2K tokens).
 - **Use \`-l\` for file lists**: \`rg -il 'pattern'\` returns only filenames, not content.
-- **Get structure first**: \`rg '^#' /docs/file.md\` shows headings before reading full file.
+- **Get structure first**: \`rg -n '^#' /docs/file.md\` shows headings with line numbers before reading full file.
 EOF
 }
 

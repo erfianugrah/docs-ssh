@@ -84,8 +84,8 @@ describe("tools-template", () => {
     expect(rendered).toContain("|| sed -n");
   });
 
-  it("uses bat for full reads with fallback to cat", () => {
-    expect(rendered).toContain("bat --plain --paging=never --color=never --style=numbers");
+  it("uses bat for full reads with line numbers and fallback to cat", () => {
+    expect(rendered).toContain("bat --decorations=always --paging=never --color=never --style=numbers");
     expect(rendered).toContain("|| cat");
   });
 
@@ -127,6 +127,41 @@ describe("tools-template", () => {
 
   it("REMAINING_TOOLS is non-empty", () => {
     expect(REMAINING_TOOLS.length).toBeGreaterThan(500);
+  });
+
+  // ─── SSH error handling ────────────────────────────────────────
+
+  it("ssh() reads stderr alongside stdout", () => {
+    expect(rendered).toContain("Promise.all");
+    expect(rendered).toContain("errText");
+  });
+
+  it("ssh() checks for SSH connection failure (exit 255)", () => {
+    expect(rendered).toContain("exitCode === 255");
+    expect(rendered).toContain("SSH connection failed");
+  });
+
+  it("ssh() checks for remote command errors (exit > 1)", () => {
+    expect(rendered).toContain("exitCode > 1");
+  });
+
+  // ─── Search result count ──────────────────────────────────────
+
+  it("search tool reports total result count when truncated", () => {
+    expect(SEARCH_BODY_STATIC).toContain("wc -l");
+    expect(SEARCH_BODY_STATIC).toContain("showing");
+  });
+
+  // ─── Grep total match count ───────────────────────────────────
+
+  it("grep tool counts total matches in parallel", () => {
+    expect(REMAINING_TOOLS).toContain("rg -ic");
+    expect(REMAINING_TOOLS).toContain("countResult");
+  });
+
+  it("grep tool shows count note when results are truncated", () => {
+    expect(REMAINING_TOOLS).toContain("countNote");
+    expect(REMAINING_TOOLS).toContain("showing");
   });
 
   // ─── No unresolved placeholders ───────────────────────────────

@@ -23,11 +23,11 @@ export function convertOpenApiToMarkdown(raw: string, sourceName: string): SpecF
     throw new Error("Failed to parse OpenAPI spec");
   }
 
-  resolveRefs(spec, spec);
+  const resolved = resolveRefs(spec, spec) as Record<string, unknown>;
 
-  const isSwagger2 = "swagger" in spec;
-  const info = (spec.info ?? {}) as Record<string, unknown>;
-  const paths = spec.paths ?? {};
+  const isSwagger2 = "swagger" in resolved;
+  const info = (resolved.info ?? {}) as Record<string, unknown>;
+  const paths = resolved.paths ?? {};
 
   // Group operations by tag
   const groups = new Map<string, OperationInfo[]>();
@@ -40,7 +40,7 @@ export function convertOpenApiToMarkdown(raw: string, sourceName: string): SpecF
 
       const operation = op as Record<string, unknown>;
       const tags = (operation.tags as string[]) ?? ["default"];
-      const opInfo = extractOperation(method, pathStr, operation, isSwagger2, spec);
+      const opInfo = extractOperation(method, pathStr, operation, isSwagger2, resolved);
 
       for (const tag of tags) {
         const normalTag = tag.toLowerCase().replace(/\s+/g, "-");

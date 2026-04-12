@@ -13,6 +13,7 @@ COPY src/ ./src/
 ARG DOCS_PREBUILT=false
 ENV DOCS_OUT_DIR=/docs
 ENV DOCS_WORK_DIR=/tmp/docs-work
+ENV DOCS_MAX_AGE=0
 
 # Extract version from package.json for injection into static assets
 RUN node -e "process.stdout.write(require('./package.json').version)" > /tmp/version.txt
@@ -40,10 +41,12 @@ RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
   && passwd -d docs
 
 # Copy docs — owned by root, readable by all (docs user cannot modify)
+# Remove freshness stamps (.stamp.json) — only needed during fetch, not at runtime.
 COPY --from=fetcher /docs /docs
+RUN find /docs -name '.stamp.json' -delete
 
-# Build search index: one line per file with path, title, and first content line.
-# This lets agents search the index (~1MB) instead of grepping 300MB of docs.
+# Build search index: one line per file with path, title, and headings summary.
+# This lets agents search the index (~10-20MB) instead of grepping ~300MB of raw docs.
 COPY build-index.sh /tmp/build-index.sh
 RUN sh /tmp/build-index.sh /docs > /docs/_index.tsv && rm /tmp/build-index.sh
 

@@ -12,8 +12,9 @@ describe("E2E smoke tests", () => {
   beforeAll(async () => {
     const projectRoot = path.resolve(import.meta.dirname, "../..");
 
-    // Create mock docs in the build context
+    // Clean any existing docs (e.g. from docker:build:cached) so E2E uses only mock docs
     const docsDir = path.join(projectRoot, "docs");
+    await fs.rm(docsDir, { recursive: true, force: true });
     await fs.mkdir(path.join(docsDir, "supabase", "guides"), { recursive: true });
     await fs.mkdir(path.join(docsDir, "cloudflare", "workers"), { recursive: true });
     await fs.mkdir(path.join(docsDir, "postgres"), { recursive: true });
@@ -114,11 +115,11 @@ describe("E2E smoke tests", () => {
 
   // ─── New tools: bat, tree, rg, less ─────────────────────────────
 
-  it("bat: reads files with plain output", () => {
-    const out = run(`${SSH_CMD} "bat --paging=never --color=never --style=numbers /docs/postgres/indexes.md"`);
-    // --style=numbers shows line numbers; verify content is present
+  it("bat: reads files with line numbers", () => {
+    const out = run(`${SSH_CMD} "bat --decorations=always --paging=never --color=never --style=numbers /docs/postgres/indexes.md"`);
+    // --decorations=always forces line numbers even in SSH pipe mode
     expect(out).toContain("Indexes");
-    expect(out).toContain("Partial indexes");
+    expect(out).toMatch(/^\s*\d+/); // line number prefix
   });
 
   it("bat: supports --line-range for offset reads", () => {
@@ -278,8 +279,8 @@ describe("E2E smoke tests", () => {
 
   it("agents opencode: tells agent not to use raw SSH", () => {
     const out = run(`${SSH_CMD} "agents opencode"`);
-    expect(out).toContain("Do not use");
-    expect(out).toContain("custom docs tools installed");
+    expect(out).toContain("Always use custom");
+    expect(out).toContain("No raw");
   });
 
   it("agents claude: outputs CLAUDE.md with header and raw SSH", () => {
