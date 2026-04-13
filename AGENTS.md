@@ -69,7 +69,7 @@ Add a `case` entry in `log-cmd.sh:44-58` and a script in `commands/`. Human-faci
 - **CI** (every push/PR to main): lint → test:coverage.
 - **Release** (push tag `v*`): fetch-docs → Docker build with `DOCS_PREBUILT=true` → push to `ghcr.io/erfianugrah/docs-ssh` → deploy to Composer (self-hosted Docker compose manager via API).
 - **Daily cron** (02:00 UTC): same fetch+build+push, tags `latest` + date tag. Keeps docs fresh without code changes.
-- **Version**: git tag is the single source of truth. `pnpm release:patch` bumps `package.json`, commits, tags, and pushes in one command. Landing page fetches version from GitHub releases API at load time — no build-time injection.
+- **Version**: git tag is the single source of truth. `pnpm release:patch` bumps `package.json`, commits, tags, and pushes in one command. Landing page version injected from git tag at Docker build time; JS fallback fetches from GitHub tags API for self-hosted builds.
 
 ## Env vars
 
