@@ -59,9 +59,14 @@ RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint \
   /usr/local/lib/docs-ssh/*.sh /usr/local/lib/docs-ssh/lib/*.sh
 
 # Landing page — served by busybox httpd on port 8080
-# Version fetched from GitHub tags API; sources from build-time _sources.json
+# Version injected from git tag at build time; JS fallback for self-hosted builds.
+# Sources grid populated from build-time _sources.json.
+ARG VERSION=
 COPY public/ /usr/local/lib/docs-ssh/
-RUN cp /docs/_sources.json /usr/local/lib/docs-ssh/_sources.json
+RUN cp /docs/_sources.json /usr/local/lib/docs-ssh/_sources.json \
+ && if [ -n "$VERSION" ]; then \
+      sed -i "s/__VERSION__/$VERSION/g" /usr/local/lib/docs-ssh/index.html; \
+    fi
 
 EXPOSE 22 8080
 

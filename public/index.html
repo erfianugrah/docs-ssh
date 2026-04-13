@@ -399,16 +399,19 @@
     <footer>
       <a href="https://github.com/erfianugrah/docs-ssh">GitHub</a>
       &nbsp;&middot;&nbsp;
-      <span id="version">v0.0.0</span>
+      <span id="version">__VERSION__</span>
       &nbsp;&middot;&nbsp;
       Passwordless by design &mdash; serves public documentation
     </footer>
   </div>
   <script>
-    fetch("https://api.github.com/repos/erfianugrah/docs-ssh/tags?per_page=1")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.[0]?.name) document.getElementById("version").textContent = d[0].name; })
-      .catch(() => {});
+    // Fallback: fetch version from GitHub tags API if not injected at build time
+    if (document.getElementById("version").textContent === "__VERSION__") {
+      fetch("https://api.github.com/repos/erfianugrah/docs-ssh/tags?per_page=1")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.[0]?.name) document.getElementById("version").textContent = d[0].name; })
+        .catch(() => { document.getElementById("version").textContent = "dev"; });
+    }
     fetch("/_sources.json")
       .then(r => r.ok ? r.json() : null)
       .then(d => {

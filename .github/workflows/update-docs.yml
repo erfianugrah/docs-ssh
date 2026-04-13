@@ -60,5 +60,6 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.date }}
           build-args: |
             DOCS_PREBUILT=true
+            VERSION=daily-${{ steps.tag.outputs.date }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
