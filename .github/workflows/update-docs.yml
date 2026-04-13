@@ -70,10 +70,3 @@ jobs:
             "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy" \
             -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
             -H "X-Requested-With: XMLHttpRequest"
-
-      - name: Prune old images
-        run: |
-          curl -sf -X POST \
-            "${{ secrets.COMPOSER_URL }}/api/v1/images/prune" \
-            -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
-            -H "X-Requested-With: XMLHttpRequest" || true
