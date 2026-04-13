@@ -66,8 +66,7 @@ jobs:
 
       - name: Deploy to Composer
         run: |
-          COMPOSER_HEADERS=(-H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" -H "X-Requested-With: XMLHttpRequest")
-          curl -sf --retry 2 --retry-delay 5 -X POST "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/sync" "${COMPOSER_HEADERS[@]}"
-          curl -sf --retry 2 --retry-delay 5 -X POST "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/pull" "${COMPOSER_HEADERS[@]}"
-          sleep 5
-          curl -sf --retry 3 --retry-delay 10 -X POST "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/up" "${COMPOSER_HEADERS[@]}"
+          curl -sf --retry 3 --retry-delay 10 -X POST \
+            "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy" \
+            -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
+            -H "X-Requested-With: XMLHttpRequest"
