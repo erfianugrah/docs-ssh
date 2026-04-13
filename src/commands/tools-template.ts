@@ -61,8 +61,10 @@ async function ssh(command: string): Promise<string> {
   if (exitCode === 255) {
     return \`[error] SSH connection failed: \${errText.trim() || "connection refused or timed out"}\`
   }
-  // Remote command error (exit > 1 with stderr output; exit 1 is rg/grep "no matches")
-  if (exitCode > 1 && errText.trim()) {
+  // Remote command error: non-zero exit + empty stdout + stderr message.
+  // Catches: find on nonexistent dir, cat on directory, rg on missing path.
+  // Does NOT trigger for rg "no matches" (exit 1 but empty stderr).
+  if (exitCode !== 0 && !text.trim() && errText.trim()) {
     return \`[error] \${errText.trim()}\`
   }
   return text.trim()

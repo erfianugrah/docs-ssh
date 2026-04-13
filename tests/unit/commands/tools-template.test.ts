@@ -141,8 +141,8 @@ describe("tools-template", () => {
     expect(rendered).toContain("SSH connection failed");
   });
 
-  it("ssh() checks for remote command errors (exit > 1)", () => {
-    expect(rendered).toContain("exitCode > 1");
+  it("ssh() surfaces errors when exit non-zero + empty stdout + stderr", () => {
+    expect(rendered).toContain("exitCode !== 0 && !text.trim() && errText.trim()");
   });
 
   // ─── Search result count ──────────────────────────────────────

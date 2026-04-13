@@ -11,12 +11,13 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { execSync } from "node:child_process";
 
+const HOST = process.env.DOCS_SSH_HOST ?? "localhost";
 const PORT = process.env.DOCS_SSH_PORT ?? "2222";
 const SSH_OPTS = `-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p ${PORT}`;
 
 /** Run an SSH command. Uses single-quoted wrapping to prevent local shell expansion. */
 function ssh(cmd: string): string {
-  return execSync(`ssh ${SSH_OPTS} docs@localhost '${cmd.replace(/'/g, "'\\''")}'`, {
+  return execSync(`ssh ${SSH_OPTS} docs@${HOST} '${cmd.replace(/'/g, "'\\''")}'`, {
     timeout: 15_000,
     encoding: "utf-8",
   }).trim();
@@ -103,13 +104,17 @@ describe("search index", () => {
   });
 
   it("index has entries for every source", () => {
-    for (const source of allSources) {
-      const count = ssh(`rg -c '^${source.name}/' /docs/_index.tsv || echo 0`);
-      expect(
-        parseInt(count),
-        `${source.name} has no index entries`,
-      ).toBeGreaterThan(0);
+    // Single SSH call: count index entries per source in one pass
+    const raw = ssh(
+      'for src in $(ls -1 /docs/ | grep -v _index); do c=$(rg -c "^$src/" /docs/_index.tsv 2>/dev/null || echo 0); echo "$src:$c"; done',
+    );
+    const counts = new Map<string, number>();
+    for (const line of raw.split("\n")) {
+      const [name, count] = line.split(":");
+      if (name && count) counts.set(name.trim(), parseInt(count));
     }
+    const missing = allSources.filter((s) => (counts.get(s.name) ?? 0) === 0);
+    expect(missing, `Sources with no index entries: ${missing.map((s) => s.name).join(", ")}`).toHaveLength(0);
   });
 
   it("enriched index: headings in summary field", () => {
