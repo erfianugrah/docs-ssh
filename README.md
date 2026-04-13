@@ -180,7 +180,7 @@ fly deploy
 - **Runtime host keys** — ed25519 + RSA generated at startup, not baked into the image
 - **Content sanitised** — ANSI escapes, null bytes, control characters stripped at ingest
 - **Path traversal prevented** — `..` stripped from all paths during ingest
-- **Output capped** — 16K char limit prevents context window exhaustion
+- **Output capped** — 51K char limit with truncation hints prevents context window exhaustion
 - **Structured audit logging** — every command logged as JSON to Docker logs with cache status
 - **Passwordless by design** — serves public documentation, same model as supabase.sh
 
@@ -190,15 +190,21 @@ fly deploy
 |----------|---------|-------------|
 | `ci.yml` | push / PR | typecheck + unit tests with coverage |
 | `update-docs.yml` | daily 02:00 UTC + manual | fetch docs, build & push Docker image |
-| `release.yml` | tags `v*` | build & push with semver tags |
+| `release.yml` | tags `v*` | build & push with semver + latest tags, deploy to Composer |
 
 ## Development
 
 ```bash
 pnpm test           # unit tests (vitest)
 pnpm test:e2e       # Docker-based E2E tests (requires Docker)
+pnpm test:smoke     # smoke tests against live server (DOCS_SSH_HOST=docs.erfi.io)
 pnpm test:bench     # token efficiency benchmark (requires live server)
 pnpm test:coverage  # with coverage report
 pnpm lint           # typecheck only
 pnpm generate:tools # regenerate commands/tools.sh from TypeScript template
+
+# Release (bumps package.json, commits, tags, pushes — triggers release workflow)
+pnpm release:patch  # 0.8.3 → 0.8.4
+pnpm release:minor  # 0.8.4 → 0.9.0
+pnpm release:major  # 0.9.0 → 1.0.0
 ```

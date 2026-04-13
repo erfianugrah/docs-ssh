@@ -11,11 +11,15 @@ pnpm install              # Node 22+, pnpm 10
 pnpm lint                 # typecheck only (tsc --noEmit)
 pnpm test                 # unit tests (vitest, tests/unit/)
 pnpm test:e2e             # Docker-based E2E tests (requires Docker, 3-min timeout)
+pnpm test:smoke           # smoke tests against live container (DOCS_SSH_HOST=docs.erfi.io)
 pnpm test:coverage        # unit tests with v8 coverage
 pnpm generate:tools       # regenerate commands/tools.sh from TypeScript template
 pnpm fetch-docs           # fetch all 60 doc sources into ./docs/ (parallel, cached by default)
 pnpm docker:build         # fetch-docs (force refresh) + docker build
 pnpm docker:build:cached  # fetch-docs (use cache) + docker build — fastest for iterating
+pnpm release:patch        # bump version, commit, tag, push (triggers release workflow)
+pnpm release:minor        # same, minor bump
+pnpm release:major        # same, major bump
 ```
 
 Run a single test file: `npx vitest run tests/unit/path/to/test.ts` (not `pnpm test -- path` — that runs all tests).
@@ -29,7 +33,7 @@ CI runs `pnpm lint` then `pnpm test:coverage`. Match that order locally.
 - **`commands/tools.sh` is git-tracked but auto-generated**: never edit directly. Edit `src/commands/tools-template.ts`, run `pnpm generate:tools`, commit both. **CI does not verify sync** — stale `tools.sh` will ship silently if you forget `generate:tools`.
 - **`docs/` is gitignored**: generated at build time by `pnpm fetch-docs` or during Docker build. Don't commit docs.
 - **`tsconfig.json` excludes `tests/`**: vitest handles test TypeScript separately.
-- **Normaliser pipeline is 3-pass** (see `UpdateDocSets.ts:249-285`): Pass 1 picks ONE format converter via `supportsFormat()` (MdxNormaliser or HtmlNormaliser). Pass 2 tries extension-based fallback if pass 1 missed. Pass 3 runs all cleanup normalisers (`supportsFormat()` returns false) — currently MarkdownCleaner then ContentSanitiser. Array order in `src/index.ts:20` determines priority. When adding a normaliser, `supportsFormat()` return value decides which pass it runs in.
+- **Normaliser pipeline is 3-pass** (see `UpdateDocSets.ts:360-396`): Pass 1 picks ONE format converter via `supportsFormat()` (MdxNormaliser or HtmlNormaliser). Pass 2 tries extension-based fallback if pass 1 missed. Pass 3 runs all cleanup normalisers (`supportsFormat()` returns false) — currently MarkdownCleaner then ContentSanitiser. Array order in `src/index.ts:20` determines priority. When adding a normaliser, `supportsFormat()` return value decides which pass it runs in.
 
 ## Architecture
 
@@ -56,14 +60,16 @@ Add a `case` entry in `log-cmd.sh:44-58` and a script in `commands/`. Human-faci
 
 - **Unit tests** (`tests/unit/`): mirror `src/` structure. No network or Docker needed.
 - **E2E tests** (`tests/e2e/smoke.test.ts`): require Docker. 3-minute timeout. Build image with mock docs, start container, SSH against it.
+- **Smoke tests** (`tests/smoke/smoke.test.ts`): require a live SSH server. Test all sources, index, API specs, builtins, security. Set `DOCS_SSH_HOST=docs.erfi.io` for production.
 - **Benchmarks** (`tests/benchmark/`): token efficiency tests, require a live SSH server.
-- Three vitest configs: `vitest.config.ts` (unit), `vitest.e2e.config.ts`, `vitest.bench.config.ts`.
+- Four vitest configs: `vitest.config.ts` (unit), `vitest.e2e.config.ts`, `vitest.smoke.config.ts`, `vitest.bench.config.ts`.
 
 ## Release / Deploy
 
 - **CI** (every push/PR to main): lint → test:coverage.
-- **Release** (push tag `v*`): fetch-docs → Docker build with `DOCS_PREBUILT=true` → push to `ghcr.io/erfianugrah/docs-ssh` → deploy to Composer.
+- **Release** (push tag `v*`): fetch-docs → Docker build with `DOCS_PREBUILT=true` → push to `ghcr.io/erfianugrah/docs-ssh` → deploy to Composer (self-hosted Docker compose manager via API).
 - **Daily cron** (02:00 UTC): same fetch+build+push, tags `latest` + date tag. Keeps docs fresh without code changes.
+- **Version**: git tag is the single source of truth. `pnpm release:patch` bumps `package.json`, commits, tags, and pushes in one command. Landing page fetches version from GitHub releases API at load time — no build-time injection.
 
 ## Env vars
 
