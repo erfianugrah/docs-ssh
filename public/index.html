@@ -366,7 +366,7 @@
     <h2>Token efficiency</h2>
     <p>
       Custom tools use a <strong>search &rarr; summary &rarr; targeted read</strong>
-      workflow. Output capped at 16K chars (~4K tokens) with truncation pointers.
+      workflow. Output capped at 51K chars (~12K tokens) with truncation hints.
     </p>
     <div class="table-wrap">
       <table>
@@ -460,10 +460,16 @@
     <footer>
       <a href="https://github.com/erfianugrah/docs-ssh">GitHub</a>
       &nbsp;&middot;&nbsp;
-      v__VERSION__
+      <span id="version">v0.0.0</span>
       &nbsp;&middot;&nbsp;
       Passwordless by design &mdash; serves public documentation
     </footer>
   </div>
+  <script>
+    fetch("https://api.github.com/repos/erfianugrah/docs-ssh/releases/latest")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.tag_name) document.getElementById("version").textContent = d.tag_name; })
+      .catch(() => {});
+  </script>
 </body>
 </html>

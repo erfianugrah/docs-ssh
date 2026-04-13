@@ -15,9 +15,6 @@ ENV DOCS_OUT_DIR=/docs
 ENV DOCS_WORK_DIR=/tmp/docs-work
 ENV DOCS_MAX_AGE=0
 
-# Extract version from package.json for injection into static assets
-RUN node -e "process.stdout.write(require('./package.json').version)" > /tmp/version.txt
-
 COPY docs* /docs-ctx/
 RUN if [ "$DOCS_PREBUILT" = "true" ] && [ -d "/docs-ctx" ] && [ "$(ls -A /docs-ctx 2>/dev/null)" ]; then \
   mkdir -p /docs && cp -r /docs-ctx/* /docs/; \
@@ -60,12 +57,8 @@ RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint \
   /usr/local/lib/docs-ssh/*.sh /usr/local/lib/docs-ssh/lib/*.sh
 
 # Landing page — served by busybox httpd on port 8080
-# Version injected from package.json (single source of truth)
+# Version fetched client-side from GitHub releases API (git tag is source of truth)
 COPY public/ /usr/local/lib/docs-ssh/
-COPY --from=fetcher /tmp/version.txt /tmp/version.txt
-RUN VERSION=$(cat /tmp/version.txt) && \
-    sed -i "s/__VERSION__/$VERSION/g" /usr/local/lib/docs-ssh/index.html && \
-    rm /tmp/version.txt
 
 EXPOSE 22 8080
 
