@@ -746,5 +746,19 @@ export const SOURCES: readonly DocSource[] = [
     format: "markdown",
   }),
 
+  // ─── OpenCode ────────────────────────────────────────────────────
+
+  // Sitemap — English docs only (34 pages). Starlight/Astro site.
+  // urlPattern filters to single-segment paths after /docs/ (excludes locales like /docs/zh-cn/).
+  new DocSource({
+    name: "opencode",
+    type: "http",
+    url: "https://opencode.ai/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://opencode.ai/sitemap.xml",
+    urlPattern: "opencode\\.ai/docs/[^/]+$",
+  }),
+
   // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
 ];
