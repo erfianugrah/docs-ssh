@@ -1,6 +1,6 @@
 # docs-ssh
 
-Self-hosted SSH docs server for AI agents. Serves 60 documentation sources — Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, Bun, Hono, Zod, Drizzle, TypeScript, Python, Ansible, PostgreSQL, Astro, Fly.io, Traefik, Caddy, Neovim, Tailwind CSS, Rust, MCP, Mermaid, D2, Shadcn, K3s, Starlight, MDN, Gitea, Authentik, Keycloak, OpenID, Terraform, Zsh, Oh My Zsh, Zinit, Powerlevel10k, WezTerm, SOPS, age, tmux — plus blogs, changelogs, and OpenAPI specs for Cloudflare, Docker, Kubernetes, Supabase, Fly.io, Gitea, Authentik, and Keycloak — as a searchable markdown filesystem over SSH.
+Self-hosted SSH docs server for AI agents. Serves 60+ documentation sources — including Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, PostgreSQL, Terraform, MDN, OpenCode, and more — plus blogs, changelogs, and OpenAPI specs as a searchable markdown filesystem over SSH. See `src/application/sources.ts` for the full list.
 
 ## Get started
 

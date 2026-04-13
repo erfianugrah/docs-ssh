@@ -44,8 +44,10 @@ RUN find /docs -name '.stamp.json' -delete
 
 # Build search index: one line per file with path, title, and headings summary.
 # This lets agents search the index (~10-20MB) instead of grepping ~300MB of raw docs.
-COPY build-index.sh /tmp/build-index.sh
-RUN sh /tmp/build-index.sh /docs > /docs/_index.tsv && rm /tmp/build-index.sh
+COPY build-index.sh build-sources-json.sh /tmp/
+RUN sh /tmp/build-index.sh /docs > /docs/_index.tsv \
+ && sh /tmp/build-sources-json.sh /docs > /docs/_sources.json \
+ && rm /tmp/build-index.sh /tmp/build-sources-json.sh
 
 # sshd configuration + command logger + built-in commands + entrypoint
 RUN mkdir -p /var/run/sshd /var/log /usr/local/lib/docs-ssh/lib
@@ -57,8 +59,9 @@ RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint \
   /usr/local/lib/docs-ssh/*.sh /usr/local/lib/docs-ssh/lib/*.sh
 
 # Landing page — served by busybox httpd on port 8080
-# Version fetched client-side from GitHub releases API (git tag is source of truth)
+# Version fetched from GitHub tags API; sources from build-time _sources.json
 COPY public/ /usr/local/lib/docs-ssh/
+RUN cp /docs/_sources.json /usr/local/lib/docs-ssh/_sources.json
 
 EXPOSE 22 8080
 

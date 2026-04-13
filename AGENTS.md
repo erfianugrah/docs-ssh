@@ -2,7 +2,7 @@
 
 ## What this is
 
-SSH docs server — 60 documentation sources (docs + API specs) served as searchable markdown over SSH. TypeScript fetcher normalises and writes docs; Docker image serves them via OpenSSH with `ForceCommand` routing. The two halves are separate: `src/` is the fetcher (Node.js/TypeScript), the SSH server is pure shell scripts + Docker.
+SSH docs server — 61 documentation sources (docs + API specs) served as searchable markdown over SSH. The source count is dynamic — `agents.sh` reads from the container at runtime. TypeScript fetcher normalises and writes docs; Docker image serves them via OpenSSH with `ForceCommand` routing. The two halves are separate: `src/` is the fetcher (Node.js/TypeScript), the SSH server is pure shell scripts + Docker.
 
 ## Commands
 
@@ -14,7 +14,7 @@ pnpm test:e2e             # Docker-based E2E tests (requires Docker, 3-min timeo
 pnpm test:smoke           # smoke tests against live container (DOCS_SSH_HOST=docs.erfi.io)
 pnpm test:coverage        # unit tests with v8 coverage
 pnpm generate:tools       # regenerate commands/tools.sh from TypeScript template
-pnpm fetch-docs           # fetch all 60 doc sources into ./docs/ (parallel, cached by default)
+pnpm fetch-docs           # fetch all doc sources into ./docs/ (parallel, cached by default)
 pnpm docker:build         # fetch-docs (force refresh) + docker build
 pnpm docker:build:cached  # fetch-docs (use cache) + docker build — fastest for iterating
 pnpm release:patch        # bump version, commit, tag, push (triggers release workflow)
@@ -38,7 +38,7 @@ CI runs `pnpm lint` then `pnpm test:coverage`. Match that order locally.
 ## Architecture
 
 - `src/index.ts` — fetch-docs entrypoint. Not the SSH server.
-- `src/application/sources.ts` — canonical list of all 60 doc sources. Two source types: `git` (sparse clone) and `http` (uses a discovery method — see "Adding a new doc source" below).
+- `src/application/sources.ts` — canonical list of all doc sources. Two source types: `git` (sparse clone) and `http` (uses a discovery method — see "Adding a new doc source" below).
 - `src/domain/` — value objects + port interfaces (`DocSource`, `DocIngestor`, `DocNormaliser`). Ports-and-adapters: implementations in `ingestors/` and `normaliser/`.
 - `src/commands/tools-template.ts` — TypeScript source of truth for agent tools output. Generates `commands/tools.sh`.
 - `commands/` — shell scripts for SSH built-in commands. Note: `src/commands/` (TypeScript, build-time) vs `commands/` (shell, runtime) are different dirs.
