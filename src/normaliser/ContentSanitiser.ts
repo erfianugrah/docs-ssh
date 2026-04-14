@@ -57,11 +57,18 @@ export class ContentSanitiser implements DocNormaliser {
  * - Strips control characters from path
  */
 function sanitisePath(p: string): string {
-  return p
-    .replace(/\.\.\//g, "")     // strip ../
-    .replace(/\.\.\\/g, "")     // strip ..\
-    .replace(/^\/+/, "")        // strip leading /
-    .replace(/\/\/+/g, "/")     // collapse //
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x1f\x7f]/g, ""); // strip control chars from path
+  let result = p;
+  // Loop until stable — single pass of `....//` → `../` leaves traversal intact
+  let prev: string;
+  do {
+    prev = result;
+    result = result
+      .replace(/\.\.\//g, "")     // strip ../
+      .replace(/\.\.\\/g, "")     // strip ..\
+      .replace(/^\/+/, "")        // strip leading /
+      .replace(/\/\/+/g, "/")     // collapse //
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1f\x7f]/g, ""); // strip control chars from path
+  } while (result !== prev);
+  return result;
 }

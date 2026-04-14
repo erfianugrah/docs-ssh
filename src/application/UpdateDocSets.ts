@@ -1,7 +1,10 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { DocFile } from "../domain/DocFile.js";
+
+const execFileAsync = promisify(execFile);
 import { DocSet, type UpdateResult } from "../domain/DocSet.js";
 import { walkDir } from "../shared/walkDir.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
@@ -9,7 +12,7 @@ import type { DocNormaliser } from "../domain/DocNormaliser.js";
 import type { DocSource, DocFormat } from "../domain/DocSource.js";
 
 const FORMAT_VALUES: readonly DocFormat[] = ["html", "mdx", "markdown"];
-const UA = "docs-ssh/0.7 (freshness-check; +https://github.com/erfianugrah/docs-ssh)";
+const UA = "docs-ssh/0.8 (freshness-check; +https://github.com/erfianugrah/docs-ssh)";
 const HEAD_TIMEOUT = 10_000;
 const HEAD_RETRIES = 2;
 
@@ -259,7 +262,7 @@ export class UpdateDocSets {
   private async checkRemoteFreshness(source: DocSource, stamp: StampData): Promise<boolean> {
     try {
       if (source.type === "git") {
-        return this.checkGitFreshness(source, stamp);
+        return await this.checkGitFreshness(source, stamp);
       }
       return await this.checkHttpFreshness(source, stamp);
     } catch {
@@ -269,14 +272,13 @@ export class UpdateDocSets {
   }
 
   /** git ls-remote HEAD — compare SHA without cloning. */
-  private checkGitFreshness(source: DocSource, stamp: StampData): boolean {
+  private async checkGitFreshness(source: DocSource, stamp: StampData): Promise<boolean> {
     if (!stamp.gitSha) return false;
-    const output = execFileSync("git", ["ls-remote", source.url, "HEAD"], {
+    const { stdout } = await execFileAsync("git", ["ls-remote", source.url, "HEAD"], {
       timeout: 15_000,
-      stdio: "pipe",
-    }).toString().trim();
+    });
     // Output: "<full-sha>\tHEAD"
-    const remoteSha = output.split(/\s/)[0]?.slice(0, 7);
+    const remoteSha = stdout.trim().split(/\s/)[0]?.slice(0, 7);
     if (remoteSha === stamp.gitSha) return true;
     console.log(`[${source.name}] remote SHA changed: ${stamp.gitSha} → ${remoteSha}`);
     return false;

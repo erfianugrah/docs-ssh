@@ -11,7 +11,7 @@ import { walkDir } from "../shared/walkDir.js";
 
 const CONCURRENCY = 15;
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
-const UA = "docs-ssh/0.5 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
+const UA = "docs-ssh/0.8 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
 const MAX_RETRIES = 2;
 
 /** Fetch with User-Agent header and retry on transient/network errors. */
@@ -387,7 +387,7 @@ async function discoverFromRss(rssUrl: string): Promise<string[]> {
   // Extract <link> URLs from within <item> blocks only (skip channel <link>)
   const urls: string[] = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  const linkRegex = /<link>\s*(https?:\/\/[^\s<]+?)\s*<\/link>/;
+  const linkRegex = /<link>\s*(?:<!\[CDATA\[)?\s*(https?:\/\/[^\s<\]]+?)\s*(?:\]\]>)?\s*<\/link>/;
   let match;
   while ((match = itemRegex.exec(xml)) !== null) {
     const linkMatch = match[1].match(linkRegex);
@@ -402,11 +402,18 @@ async function discoverFromRss(rssUrl: string): Promise<string[]> {
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 function extractLocs(xml: string): string[] {
-  const locRegex = /<loc>\s*(.*?)\s*<\/loc>/g;
+  const locRegex = /<loc>\s*(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?\s*<\/loc>/g;
   const urls: string[] = [];
   let match;
   while ((match = locRegex.exec(xml)) !== null) {
-    urls.push(match[1]);
+    // Decode common XML entities
+    const url = match[1]
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'");
+    urls.push(url);
   }
   return urls;
 }

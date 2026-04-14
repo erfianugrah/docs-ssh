@@ -23,13 +23,16 @@ export class MdxNormaliser implements DocNormaliser {
   async normalise(file: DocFile): Promise<DocFile> {
     let content = file.content;
 
-    // Strip YAML frontmatter
-    content = content.replace(/^---[\s\S]*?---\n?/m, "");
+    // Strip YAML frontmatter (no `m` flag — `^` must match start of string,
+    // not start of any line, to avoid stripping content between --- HRs)
+    content = content.replace(/^---[\s\S]*?---\n?/, "");
 
-    // Strip import statements (single and multi-line)
+    // Strip import statements (single-line and multi-line with braces)
+    content = content.replace(/^import\s+\{[^}]*\}\s+from\s+[^\n]+(?:\n|$)/gm, "");
     content = content.replace(/^import\s+.*?(?:\n|$)/gm, "");
 
-    // Strip export statements
+    // Strip export statements (single-line and multi-line default/named)
+    content = content.replace(/^export\s+default\s+function[^{]*\{[\s\S]*?^\}/gm, "");
     content = content.replace(/^export\s+.*?(?:\n|$)/gm, "");
 
     // Strip self-closing JSX tags <Component ... />

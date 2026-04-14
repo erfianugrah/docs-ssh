@@ -15,7 +15,7 @@ PORT="${DOCS_SSH_PORT:-2222}"
 USER="docs"
 
 # Dynamic parts from what's actually in the container
-ALL_SOURCES=$(ls -1 /docs/ | grep -v '_index')
+ALL_SOURCES=$(ls -1 /docs/ | grep -v '^_')
 DOC_SOURCES=$(echo "$ALL_SOURCES" | grep -v '\-api$' | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
 API_SOURCES=$(echo "$ALL_SOURCES" | grep '\-api$' | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
 SOURCES=$(echo "$ALL_SOURCES" | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')

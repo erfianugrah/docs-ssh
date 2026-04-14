@@ -6,6 +6,10 @@ on:
     - cron: "0 2 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: docker-push
+  cancel-in-progress: false
+
 jobs:
   build-and-push:
     name: Fetch docs & publish image
@@ -61,6 +65,8 @@ jobs:
           build-args: |
             DOCS_PREBUILT=true
             VERSION=daily-${{ steps.tag.outputs.date }}
+            SSH_HOST=${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }}
+            SSH_PORT=${{ vars.DOCS_SSH_PORT || '2222' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

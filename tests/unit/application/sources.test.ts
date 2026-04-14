@@ -23,7 +23,7 @@ describe("SOURCES configuration", () => {
   it("has valid discovery methods", () => {
     const validMethods = new Set([
       "none", "tarball", "llms-full", "sitemap",
-      "sitemap-index", "toc", "llms-index", "llms-txt", "rss", "openapi",
+      "sitemap-index", "toc", "llms-index", "llms-txt", "rss", "openapi", "openapi-dir",
     ]);
     for (const source of SOURCES) {
       expect(validMethods.has(source.discovery)).toBe(true);

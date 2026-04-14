@@ -13,6 +13,7 @@ export type DocSourceType = "git" | "http";
  * - "llms-txt":     parses a llms.txt for page URLs and fetches each one directly
  * - "rss":          parses an RSS feed for <link> URLs within <item> elements
  * - "openapi":      downloads a single OpenAPI/Swagger spec and converts to per-tag markdown
+ * - "openapi-dir":  git repo containing multiple OpenAPI specs in a directory structure
  */
 export type DiscoveryMethod =
   | "none"
@@ -24,7 +25,8 @@ export type DiscoveryMethod =
   | "llms-index"
   | "llms-txt"
   | "rss"
-  | "openapi";
+  | "openapi"
+  | "openapi-dir";
 
 export interface DocSourceConfig {
   readonly name: string;

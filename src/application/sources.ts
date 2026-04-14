@@ -86,28 +86,26 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://vercel.com/docs/llms-full.txt",
   }),
 
-  // Blog — each page supports .md suffix for clean markdown
+  // Blog — HTML pages from sitemap (Vercel dropped .md suffix support for blog)
   new DocSource({
     name: "vercel-blog",
     type: "http",
     url: "https://vercel.com/blog/",
-    format: "markdown",
+    format: "html",
     discovery: "sitemap",
     discoveryUrl: "https://vercel.com/sitemap.xml",
     urlPattern: "vercel\\.com/blog/.+",
-    urlSuffix: ".md",
   }),
 
-  // Changelog — each page supports .md suffix for clean markdown
+  // Changelog — HTML pages from sitemap (Vercel dropped .md suffix support for changelog)
   new DocSource({
     name: "vercel-changelog",
     type: "http",
     url: "https://vercel.com/changelog/",
-    format: "markdown",
+    format: "html",
     discovery: "sitemap",
     discoveryUrl: "https://vercel.com/sitemap.xml",
     urlPattern: "vercel\\.com/changelog/.+",
-    urlSuffix: ".md",
   }),
 
   // ─── PostgreSQL ────────────────────────────────────────────────────
@@ -138,6 +136,21 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern:
       "(lambda|AmazonS3|AmazonCloudFront|IAM|amazondynamodb|AWSCloudFormation|vpc|AWSEC2|AmazonRDS|AWSSimpleQueueService|sns|AmazonECS|eks|secretsmanager|systems-manager|cognito|apigateway|eventbridge|step-functions|waf|elasticloadbalancing)",
     urlExclude: "(de_de|ja_jp|zh_cn|fr_fr|ko_kr|es_es|pt_br|it_it|id_id|/APIReference/)",
+  }),
+
+  // AWS API — multi-spec OpenAPI from APIs-guru/openapi-directory.
+  // Sparse-clones APIs/amazonaws.com, converts latest version of each
+  // core service spec to per-tag markdown.
+  new DocSource({
+    name: "aws-api",
+    type: "git",
+    url: "https://github.com/APIs-guru/openapi-directory",
+    format: "openapi",
+    paths: ["APIs/amazonaws.com"],
+    rootPath: "APIs/amazonaws.com",
+    discovery: "openapi-dir",
+    urlPattern:
+      "^(lambda|s3|cloudfront|iam|dynamodb|cloudformation|ec2|rds|sqs|sns|ecs|eks|secretsmanager|apigateway|apigatewayv2|eventbridge|stepfunctions|wafv2|elasticloadbalancingv2|cognito-idp|cognito-identity)$",
   }),
 
   // ─── Next.js ───────────────────────────────────────────────────────

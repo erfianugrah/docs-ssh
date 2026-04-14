@@ -5,6 +5,10 @@ on:
     tags:
       - "v*"
 
+concurrency:
+  group: docker-push
+  cancel-in-progress: false
+
 jobs:
   build-and-push:
     name: Build & push Docker image (tagged release)
@@ -65,6 +69,8 @@ jobs:
           build-args: |
             DOCS_PREBUILT=true
             VERSION=${{ github.ref_name }}
+            SSH_HOST=${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }}
+            SSH_PORT=${{ vars.DOCS_SSH_PORT || '2222' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -74,4 +80,3 @@ jobs:
             "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy" \
             -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
             -H "X-Requested-With: XMLHttpRequest"
-

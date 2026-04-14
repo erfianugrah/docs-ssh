@@ -136,7 +136,9 @@ function resolveRefs(
 
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
-    result[key] = resolveRefs(value, root, depth + 1, seen);
+    // Each property gets its own copy of `seen` so sibling branches
+    // don't incorrectly mark shared $refs (e.g. Error schema) as circular.
+    result[key] = resolveRefs(value, root, depth + 1, new Set(seen));
   }
   return result;
 }

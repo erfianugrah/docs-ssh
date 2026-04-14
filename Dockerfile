@@ -59,16 +59,22 @@ RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint \
   /usr/local/lib/docs-ssh/*.sh /usr/local/lib/docs-ssh/lib/*.sh
 
 # Landing page — served by busybox httpd on port 8080
-# Version injected from git tag at build time; JS fallback for self-hosted builds.
+# Placeholders injected at build time; JS fallback for self-hosted builds.
 # Sources grid populated from build-time _sources.json.
 ARG VERSION=
+ARG SSH_HOST=localhost
+ARG SSH_PORT=2222
 COPY public/ /usr/local/lib/docs-ssh/
 RUN cp /docs/_sources.json /usr/local/lib/docs-ssh/_sources.json \
- && if [ -n "$VERSION" ]; then \
-      sed -i "s/__VERSION__/$VERSION/g" /usr/local/lib/docs-ssh/index.html; \
-    fi
+ && SOURCE_COUNT=$(jq '((.docs // []) | length) + ((.api // []) | length)' /docs/_sources.json) \
+ && PAGE=/usr/local/lib/docs-ssh/index.html \
+ && sed -i "s/__SOURCE_COUNT__/${SOURCE_COUNT}/g" "$PAGE" \
+ && if [ -n "$VERSION" ]; then sed -i "s/__VERSION__/$VERSION/g" "$PAGE"; fi \
+ && if [ "$SSH_HOST" != "localhost" ]; then sed -i "s/__HOST__/$SSH_HOST/g" "$PAGE"; fi \
+ && if [ "$SSH_PORT" != "2222" ]; then sed -i "s/__PORT__/$SSH_PORT/g" "$PAGE"; fi \
+ && sed -i "s/__HOST__/localhost/g; s/__PORT__/2222/g" "$PAGE"
 
-EXPOSE 22 8080
+EXPOSE 2222 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 2222 docs@localhost "echo ok" || exit 1

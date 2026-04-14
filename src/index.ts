@@ -11,8 +11,8 @@ import { SOURCES } from "./application/sources.js";
 
 const OUT_DIR = process.env.DOCS_OUT_DIR ?? path.join(process.cwd(), "docs");
 const WORK_DIR = process.env.DOCS_WORK_DIR ?? path.join(os.tmpdir(), "docs-ssh-work");
-const CONCURRENCY = parseInt(process.env.DOCS_CONCURRENCY ?? "6", 10);
-const MAX_AGE = parseInt(process.env.DOCS_MAX_AGE ?? "86400", 10);
+const CONCURRENCY = parseInt(process.env.DOCS_CONCURRENCY ?? "6", 10) || 6;
+const MAX_AGE = parseInt(process.env.DOCS_MAX_AGE ?? "86400", 10) || 0;
 
 const update = new UpdateDocSets({
   sources: SOURCES,

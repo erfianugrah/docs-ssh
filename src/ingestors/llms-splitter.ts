@@ -166,7 +166,11 @@ export function splitFrontmatterStyle(content: string, _baseUrl: string): Map<st
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
-    const filePath = slug ? `${slug}.md` : `page-${idx}.md`;
+    let filePath = slug ? `${slug}.md` : `page-${idx}.md`;
+    // Deduplicate: if slug already exists, append a suffix (same as splitHeadingStyle)
+    if (pages.has(filePath)) {
+      filePath = slug ? `${slug}-${pages.size}.md` : `page-${idx}-${pages.size}.md`;
+    }
     pages.set(filePath, pageContent);
   }
 

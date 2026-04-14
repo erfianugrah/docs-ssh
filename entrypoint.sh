@@ -11,11 +11,12 @@ fi
 
 # Persist env vars for SSH commands. sshd drops the container environment
 # when running ForceCommand, so log-cmd.sh sources this file to recover them.
+# Sanitise values to prevent shell injection via attacker-controlled env vars.
 ENV_FILE="/run/sshd/docs-ssh.env"
-cat > "$ENV_FILE" << EOF
-DOCS_SSH_HOST="${DOCS_SSH_HOST:-localhost}"
-DOCS_SSH_PORT="${DOCS_SSH_PORT:-2222}"
-EOF
+_safe_host=$(printf '%s' "${DOCS_SSH_HOST:-localhost}" | tr -cd 'a-zA-Z0-9._-')
+_safe_port=$(printf '%s' "${DOCS_SSH_PORT:-2222}" | tr -cd '0-9')
+: "${_safe_port:=2222}"
+printf 'DOCS_SSH_HOST=%s\nDOCS_SSH_PORT=%s\n' "$_safe_host" "$_safe_port" > "$ENV_FILE"
 
 # Audit log — owned by root, group-writable by docs user (append only via jq >>).
 # The docs user can append but not truncate (sshd runs ForceCommand as docs).

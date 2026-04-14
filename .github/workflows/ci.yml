@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify tools.sh is in sync
+        run: pnpm generate:tools && git diff --exit-code commands/tools.sh
+
       - name: Typecheck
         run: pnpm lint
 
