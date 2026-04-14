@@ -99,6 +99,21 @@ ${API_SOURCES}
 - \`docs_grep\` with source path: \`docs_grep(query="RLS", path="/docs/postgres/")\` faster than searching all
 - \`source\` param: \`docs_search(query="auth", source="supabase")\` filters to one source
 - API specs: \`docs_read(path="/docs/{source}-api/api/overview.md")\` for endpoint index
+
+### Related source groups
+
+When searching one source, check related sources for cross-referencing:
+
+- **Auth & identity**: supabase, keycloak, authentik, openid, saml
+- **Databases**: postgres, supabase, drizzle
+- **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio
+- **Reverse proxy & networking**: cloudflare, caddy, traefik
+- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn
+- **Languages & runtimes**: typescript, python, rust-book, bun, zod
+- **Cloud platforms**: aws, cloudflare, vercel, flyio
+- **Secrets & encryption**: age, sops
+- **Terminal & editor**: neovim, tmux, wezterm, zsh, ohmyzsh
+- **Docs & diagrams**: mdn, d2, mermaid, starlight, mcp
 EOF
 }
 
@@ -232,6 +247,21 @@ $SSH "rg -il 'cron' /docs/ | head -5 | while read f; do echo \"--- \\\$f ---\"; 
 - **Use \`--line-range\`**: Read specific sections instead of entire files (30 lines ~120 tokens vs 500 lines ~2K tokens).
 - **Use \`-l\` for file lists**: \`rg -il 'pattern'\` returns only filenames, not content.
 - **Get structure first**: \`rg -n '^#' /docs/file.md\` shows headings with line numbers before reading full file.
+
+### Related source groups
+
+When searching one source, check related sources for cross-referencing:
+
+- **Auth & identity**: supabase, keycloak, authentik, openid, saml
+- **Databases**: postgres, supabase, drizzle
+- **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio
+- **Reverse proxy & networking**: cloudflare, caddy, traefik
+- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn
+- **Languages & runtimes**: typescript, python, rust-book, bun, zod
+- **Cloud platforms**: aws, cloudflare, vercel, flyio
+- **Secrets & encryption**: age, sops
+- **Terminal & editor**: neovim, tmux, wezterm, zsh, ohmyzsh
+- **Docs & diagrams**: mdn, d2, mermaid, starlight, mcp
 EOF
 }
 

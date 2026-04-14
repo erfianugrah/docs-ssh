@@ -9,6 +9,8 @@ const PORT = "22222";
 const SSH_CMD = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p ${PORT} docs@localhost`;
 
 describe("E2E smoke tests", () => {
+  let buildOutput = "";
+
   beforeAll(async () => {
     const projectRoot = path.resolve(import.meta.dirname, "../..");
 
@@ -40,11 +42,51 @@ describe("E2E smoke tests", () => {
       "# Row Level Security\n\nRLS policies restrict row access per user.\n\n## CREATE POLICY\n\nUse CREATE POLICY to add row-level policies.",
     );
 
-    // Build Docker image
+    // Frontmatter test fixtures
+    await fs.mkdir(path.join(docsDir, "traefik"), { recursive: true });
+    await fs.mkdir(path.join(docsDir, "kubernetes"), { recursive: true });
+    await fs.mkdir(path.join(docsDir, "typescript"), { recursive: true });
+    await fs.mkdir(path.join(docsDir, "mdn"), { recursive: true });
+
+    // Frontmatter with title + description (traefik style)
+    await fs.writeFile(
+      path.join(docsDir, "traefik", "migrate.md"),
+      '---\ntitle: "Migrate from v2 to v3"\ndescription: "Learn the steps needed to migrate to Traefik Proxy v3."\n---\n\n# Migrate from v2 to v3\n\nThis guide covers migration.\n\n## Breaking Changes\n## New Features',
+    );
+
+    // Frontmatter with multi-line description (kubernetes style)
+    await fs.writeFile(
+      path.join(docsDir, "kubernetes", "pods.md"),
+      '---\ntitle: Pods\ndescription: >\n  A Pod is the smallest deployable unit in Kubernetes.\nweight: 10\n---\n\n# Pods\n\nPods run containers.\n\n## Lifecycle\n## Configuration',
+    );
+
+    // Frontmatter with oneline (typescript style)
+    await fs.writeFile(
+      path.join(docsDir, "typescript", "declarations.md"),
+      '---\ntitle: Declaration Files\noneline: How to write a high-quality TypeScript Declaration (d.ts) file\npermalink: /docs/handbook/declaration-files/introduction.html\n---\n\n# Declaration Files\n\n## Overview\n## Publishing',
+    );
+
+    // Frontmatter with title only, no description (mdn style)
+    await fs.writeFile(
+      path.join(docsDir, "mdn", "css.md"),
+      '---\ntitle: "CSS: Cascading Style Sheets"\nslug: Web/CSS\npage-type: landing-page\n---\n\n# CSS: Cascading Style Sheets\n\nCSS describes how elements are rendered.\n\n## Tutorials\n## Reference',
+    );
+
+    // Frontmatter with trailing whitespace on closing --- (traefik edge case)
+    await fs.writeFile(
+      path.join(docsDir, "traefik", "service.md"),
+      '---\ntitle: "UDP Services"\ndescription: "Configure UDP load balancing in Traefik."\n--- \n\n## Servers Load Balancer\n\nBalances requests between servers.',
+    );
+
+    // Health check test fixture: empty file (should trigger warning)
+    await fs.writeFile(path.join(docsDir, "postgres", "empty.md"), "");
+
+    // Build Docker image (capture output for health check verification)
+    // 2>&1 merges stderr into stdout — BuildKit sends build log to stderr.
     console.log("Building Docker image…");
-    execSync(
-      `docker build --build-arg DOCS_PREBUILT=true -t ${IMAGE} .`,
-      { cwd: projectRoot, stdio: "pipe", timeout: 300_000 },
+    buildOutput = execSync(
+      `docker build --build-arg DOCS_PREBUILT=true -t ${IMAGE} . 2>&1`,
+      { cwd: projectRoot, encoding: "utf-8", timeout: 300_000 },
     );
 
     // Start container with security hardening (same as prod)
@@ -193,6 +235,62 @@ describe("E2E smoke tests", () => {
     expect(out).toContain("supabase/guides/auth.md");
   });
 
+  // ─── Frontmatter extraction in index ────────────────────────────
+
+  it("index: frontmatter title used when present", () => {
+    const out = run(`${SSH_CMD} "rg 'traefik/migrate.md' /docs/_index.tsv"`);
+    // Title from frontmatter, not heading
+    expect(out).toContain("Migrate from v2 to v3");
+  });
+
+  it("index: frontmatter description in summary", () => {
+    const out = run(`${SSH_CMD} "rg 'traefik/migrate.md' /docs/_index.tsv"`);
+    expect(out).toContain("Learn the steps needed to migrate to Traefik Proxy v3");
+  });
+
+  it("index: multi-line YAML description extracted", () => {
+    const out = run(`${SSH_CMD} "rg 'kubernetes/pods.md' /docs/_index.tsv"`);
+    expect(out).toContain("smallest deployable unit in Kubernetes");
+  });
+
+  it("index: oneline field used as summary", () => {
+    const out = run(`${SSH_CMD} "rg 'typescript/declarations.md' /docs/_index.tsv"`);
+    expect(out).toContain("high-quality TypeScript Declaration");
+  });
+
+  it("index: title-only frontmatter does not leak fields into summary", () => {
+    const out = run(`${SSH_CMD} "rg 'mdn/css.md' /docs/_index.tsv"`);
+    expect(out).toContain("CSS: Cascading Style Sheets");
+    // Frontmatter fields should not appear in summary
+    expect(out).not.toContain("slug:");
+    expect(out).not.toContain("page-type:");
+  });
+
+  it("index: trailing whitespace on closing --- still closes frontmatter", () => {
+    const out = run(`${SSH_CMD} "rg 'traefik/service.md' /docs/_index.tsv"`);
+    expect(out).toContain("UDP Services");
+    expect(out).toContain("Configure UDP load balancing");
+  });
+
+  it("index: files without frontmatter still indexed correctly", () => {
+    const out = run(`${SSH_CMD} "rg 'postgres/rls.md' /docs/_index.tsv"`);
+    expect(out).toContain("Row Level Security");
+    expect(out).toContain("RLS policies restrict");
+  });
+
+  // ─── Build-time health check ────────────────────────────────────
+
+  it("health check: runs during Docker build", () => {
+    expect(buildOutput).toContain("[health]");
+    expect(buildOutput).toContain("files indexed across");
+  });
+
+  it("health check: detects empty files", () => {
+    // The empty postgres/empty.md fixture should trigger a warning
+    expect(buildOutput).toContain("WARN");
+    expect(buildOutput).toContain("empty");
+  });
+
   // ─── Built-in commands ───────────────────────────────────────────
 
   it("help: shows usage and available commands", () => {
@@ -281,6 +379,19 @@ describe("E2E smoke tests", () => {
     const out = run(`${SSH_CMD} "agents opencode"`);
     expect(out).toContain("Always use custom");
     expect(out).toContain("No raw");
+  });
+
+  it("agents opencode: includes related source groups", () => {
+    const out = run(`${SSH_CMD} "agents opencode"`);
+    expect(out).toContain("Related source groups");
+    expect(out).toContain("Auth & identity");
+    expect(out).toContain("Databases");
+  });
+
+  it("agents (default): includes related source groups", () => {
+    const out = run(`${SSH_CMD} agents`);
+    expect(out).toContain("Related source groups");
+    expect(out).toContain("Reverse proxy");
   });
 
   it("agents claude: outputs CLAUDE.md with header and raw SSH", () => {

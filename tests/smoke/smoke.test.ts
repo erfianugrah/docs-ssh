@@ -137,6 +137,38 @@ describe("search index", () => {
     const results = ssh("rg -i 'workers' /docs/_index.tsv | rg '^cloudflare/' | head -5");
     expect(results).toContain("cloudflare/");
   });
+
+  // ─── Frontmatter extraction ─────────────────────────────────────
+
+  it("frontmatter: traefik descriptions in index", () => {
+    const out = ssh("rg '^traefik/' /docs/_index.tsv | rg -i 'migrate' | head -3");
+    expect(out).toContain("migrate");
+    // Should have description text, not just headings
+    expect(out.length).toBeGreaterThan(80);
+  });
+
+  it("frontmatter: kubernetes descriptions in index", () => {
+    // kubernetes home _index.md has a multi-line description
+    const out = ssh("rg '^kubernetes/home/_index.md' /docs/_index.tsv");
+    expect(out).toContain("Kubernetes");
+    expect(out).toContain("container");
+  });
+
+  it("frontmatter: mdn titles from frontmatter", () => {
+    const out = ssh("rg '^mdn/web/css/index.md' /docs/_index.tsv");
+    expect(out).toContain("CSS");
+    // Should not leak frontmatter fields into summary
+    expect(out).not.toContain("slug:");
+    expect(out).not.toContain("page-type:");
+  });
+
+  it("frontmatter: no YAML field leakage in summary", () => {
+    // Count index entries where summary column starts with "title:" (field leakage)
+    const out = ssh("awk -F'\\t' '$3 ~ /^title:/' /docs/_index.tsv | wc -l");
+    const count = parseInt(out.trim());
+    // Allow very few (edge cases) but not widespread leakage
+    expect(count, "title: field leaking into summary column").toBeLessThan(10);
+  });
 });
 
 // ─── API specs ($ref resolution) ────────────────────────────────────
@@ -251,6 +283,21 @@ describe("builtins", () => {
     expect(out).toContain("docs_search");
     expect(out).toContain("docs_read");
     expect(out).toContain("Always use custom");
+  });
+
+  it("agents opencode includes related source groups", () => {
+    const out = ssh("agents opencode");
+    expect(out).toContain("Related source groups");
+    expect(out).toContain("Auth & identity");
+    expect(out).toContain("Databases");
+    expect(out).toContain("Infrastructure");
+  });
+
+  it("agents (default) includes related source groups", () => {
+    const out = ssh("agents");
+    expect(out).toContain("Related source groups");
+    expect(out).toContain("Reverse proxy");
+    expect(out).toContain("Frontend frameworks");
   });
 
   it("agents claude outputs CLAUDE.md format", () => {

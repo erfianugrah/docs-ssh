@@ -44,10 +44,12 @@ RUN find /docs -name '.stamp.json' -delete
 
 # Build search index: one line per file with path, title, and headings summary.
 # This lets agents search the index (~10-20MB) instead of grepping ~300MB of raw docs.
-COPY build-index.sh build-sources-json.sh /tmp/
+# Health check reports quality warnings but never fails the build.
+COPY build-index.sh build-sources-json.sh build-health-check.sh /tmp/
 RUN sh /tmp/build-index.sh /docs > /docs/_index.tsv \
  && sh /tmp/build-sources-json.sh /docs > /docs/_sources.json \
- && rm /tmp/build-index.sh /tmp/build-sources-json.sh
+ && sh /tmp/build-health-check.sh /docs /docs/_index.tsv \
+ && rm /tmp/build-index.sh /tmp/build-sources-json.sh /tmp/build-health-check.sh
 
 # sshd configuration + command logger + built-in commands + entrypoint
 RUN mkdir -p /var/run/sshd /var/log /usr/local/lib/docs-ssh/lib
