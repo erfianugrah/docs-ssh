@@ -23,6 +23,27 @@ SOURCE_COUNT=$(echo "$ALL_SOURCES" | wc -l | tr -d ' ')
 FILE_COUNT=$(find /docs -type f | wc -l | tr -d ' ')
 SSH="ssh -p $PORT $USER@$HOST"
 
+# ─── Dynamic example data ───────────────────────────────────────────
+# File paths, line numbers, and grep patterns resolved from the live
+# index + actual files.  Search queries use stable concepts ("row
+# security", "dns record") — the underlying file paths are what
+# changes between doc refreshes.
+
+# Doc workflow: postgres "row security" (universal, always present)
+_eg_doc=$(rg -i 'row security' /docs/_index.tsv 2>/dev/null | grep '^postgres/' | head -1 | cut -f1)
+: "${_eg_doc:=postgres/ddl-rowsecurity.md}"
+EG_DOC="/docs/$_eg_doc"
+EG_DOC_H2=$(rg -n '^## ' "$EG_DOC" 2>/dev/null | head -1 | cut -d: -f1)
+: "${EG_DOC_H2:=1}"
+EG_DOC_END=$((EG_DOC_H2 + 34))
+
+# API lookup: cloudflare-api "dns record" (stable, well-known endpoint)
+_eg_api=$(rg -i 'dns.record' /docs/_index.tsv 2>/dev/null | grep '^cloudflare-api/' | head -1 | cut -f1)
+: "${_eg_api:=cloudflare-api/api/dns-records-for-a-zone.md}"
+EG_API="/docs/$_eg_api"
+EG_API_GREP=$(rg '^## POST ' "$EG_API" 2>/dev/null | head -1 | sed 's|.*/||; s/ .*//')
+: "${EG_API_GREP:=dns_records}"
+
 # Parse subcommand from SSH_ORIGINAL_COMMAND (e.g. "agents claude" → "claude")
 FORMAT="${SSH_ORIGINAL_COMMAND#agents}"
 FORMAT=$(echo "$FORMAT" | sed 's/^ *//' | tr '[:upper:]' '[:lower:]')
@@ -65,20 +86,20 @@ OpenAPI specs converted to per-endpoint-group markdown. Each has \`api/overview.
 ${API_SOURCES}
 
 **API lookup pattern:**
-1. \`docs_search(query="create zone", source="cloudflare-api")\` — find endpoint group
-2. \`docs_grep(query="POST /zones", path="/docs/cloudflare-api/")\` — find exact endpoint
-3. \`docs_read(path="/docs/cloudflare-api/api/zones.md")\` — read full endpoint group
+1. \`docs_search(query="dns record", source="cloudflare-api")\` — find endpoint group
+2. \`docs_grep(query="POST.*${EG_API_GREP}", path="/docs/cloudflare-api/")\` — find exact endpoint
+3. \`docs_read(path="${EG_API}")\` — read full endpoint group
 
 ### Workflow: search -> summary -> targeted read
 
 1. **Search** index for relevant files:
-   \`docs_search(query="RLS policies", source="postgres")\`
+   \`docs_search(query="row security", source="postgres")\`
 
 2. **Outline** promising file:
-   \`docs_summary(path="/docs/postgres/row-security.md")\`
+   \`docs_summary(path="${EG_DOC}")\`
 
-3. **Read only needed section** (e.g. lines 45-80):
-   \`docs_read(path="/docs/postgres/row-security.md", offset=45, lines=35)\`
+3. **Read only needed section** (e.g. lines ${EG_DOC_H2}-${EG_DOC_END}):
+   \`docs_read(path="${EG_DOC}", offset=${EG_DOC_H2}, lines=35)\`
 
 ### Tools
 
@@ -160,11 +181,11 @@ ${API_SOURCES}
 **API lookup pattern:**
 \`\`\`bash
 # Find endpoint group
-$SSH "rg -i 'create zone' /docs/cloudflare-api/api/overview.md"
+$SSH "rg -i 'dns record' /docs/cloudflare-api/api/overview.md"
 # Find exact endpoint
-$SSH "rg 'POST /zones' /docs/cloudflare-api/"
+$SSH "rg 'POST.*${EG_API_GREP}' /docs/cloudflare-api/"
 # Read full endpoint group
-$SSH "bat --plain --paging=never --color=never /docs/cloudflare-api/api/zones.md"
+$SSH "bat --plain --paging=never --color=never ${EG_API}"
 \`\`\`
 
 ### Recommended workflow
@@ -173,17 +194,17 @@ Use a **search → summary → targeted read** pattern to minimise token usage:
 
 1. **Search** the index to find relevant files:
    \`\`\`bash
-   $SSH "rg -i 'RLS policies' /docs/_index.tsv"
+   $SSH "rg -i 'row security' /docs/_index.tsv"
    \`\`\`
 
 2. **Get the outline** of a promising file:
    \`\`\`bash
-   $SSH "rg -n '^#' /docs/supabase/guides/auth.md"
+   $SSH "rg -n '^#' ${EG_DOC}"
    \`\`\`
 
-3. **Read only the section you need** (e.g. lines 45-80):
+3. **Read only the section you need** (e.g. lines ${EG_DOC_H2}-${EG_DOC_END}):
    \`\`\`bash
-   $SSH "bat --plain --paging=never --color=never --line-range=45:80 /docs/supabase/guides/auth.md"
+   $SSH "bat --plain --paging=never --color=never --line-range=${EG_DOC_H2}:${EG_DOC_END} ${EG_DOC}"
    \`\`\`
 
 ### Available tools
@@ -221,10 +242,10 @@ $SSH "rg --json 'partial index' /docs/postgres/"
 $SSH "tree /docs/nextjs/ -L 2"
 
 # Read a file with line numbers for precise references
-$SSH "bat --plain --paging=never --color=never /docs/postgres/indexes.md"
+$SSH "bat --plain --paging=never --color=never ${EG_DOC}"
 
 # Read only lines 10-40 of a file
-$SSH "bat --plain --paging=never --color=never --line-range=10:40 /docs/postgres/indexes.md"
+$SSH "bat --plain --paging=never --color=never --line-range=10:40 ${EG_DOC}"
 
 # Search the pre-built index (fastest — searches titles and summaries)
 $SSH "rg -i 'authentication' /docs/_index.tsv | head -10"
@@ -233,7 +254,7 @@ $SSH "rg -i 'authentication' /docs/_index.tsv | head -10"
 $SSH "rg -i 'auth' /docs/_index.tsv | rg '^supabase/'"
 
 # Get all headings in a file (document outline)
-$SSH "rg -n '^#' /docs/supabase/guides/auth.md"
+$SSH "rg -n '^#' ${EG_DOC}"
 
 # Pipe and combine commands
 $SSH "rg -il 'cron' /docs/ | head -5 | while read f; do echo \"--- \\\$f ---\"; head -3 \"\\\$f\"; done"
