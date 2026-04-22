@@ -1359,5 +1359,17 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "src/pages",
   }),
 
+  // ─── Excalidraw ─────────────────────────────────────────────────
+
+  // MDX dev docs from the excalidraw monorepo (Docusaurus, 36 files)
+  new DocSource({
+    name: "excalidraw",
+    type: "git",
+    url: "https://github.com/excalidraw/excalidraw",
+    format: "mdx",
+    paths: ["dev-docs/docs"],
+    rootPath: "dev-docs/docs",
+  }),
+
   // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
 ];
