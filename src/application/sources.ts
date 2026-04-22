@@ -1054,6 +1054,7 @@ export const SOURCES: readonly DocSource[] = [
   // ─── GitLab ────────────────────────────────────────────────────
 
   // Sitemap-index — DevSecOps platform docs (English sub-sitemap)
+  // URLs at docs.gitlab.com/{section}/ (no /ee/ prefix since 2025 restructure)
   new DocSource({
     name: "gitlab",
     type: "http",
@@ -1061,8 +1062,8 @@ export const SOURCES: readonly DocSource[] = [
     format: "html",
     discovery: "sitemap-index",
     discoveryUrl: "https://docs.gitlab.com/sitemap.xml",
-    urlPattern: "docs\\.gitlab\\.com/ee/",
-    urlExclude: "docs\\.gitlab\\.com/ee/api/",
+    urlPattern: "docs\\.gitlab\\.com/",
+    urlExclude: "(docs\\.gitlab\\.com/(ja-jp|releases)/)",
   }),
 
   // ─── GitHub Docs ───────────────────────────────────────────────

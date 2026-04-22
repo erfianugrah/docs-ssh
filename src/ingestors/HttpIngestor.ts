@@ -363,17 +363,38 @@ async function discoverFromLlmsIndex(
  * Parses a llms.txt file for page URLs and returns them directly.
  * Unlike llms-index (which looks for child llms.txt files), this treats
  * all extracted URLs as pages to fetch.
+ *
+ * Supports both absolute URLs (https://...) and relative paths in markdown
+ * links like [Title](/path.md) or [Title](relative.md), resolving them
+ * against the llms.txt URL's origin.
  */
 async function discoverFromLlmsTxt(llmsTxtUrl: string): Promise<string[]> {
   const res = await fetchWithRetry(llmsTxtUrl);
   if (!res.ok) throw new Error(`Failed to fetch llms.txt ${llmsTxtUrl}: HTTP ${res.status}`);
   const text = await res.text();
 
-  const urlRegex = /https?:\/\/[^\s)>\]]+/g;
-  const allLinks = text.match(urlRegex) ?? [];
+  const urls = new Set<string>();
+
+  // Extract absolute URLs
+  const absRegex = /https?:\/\/[^\s)>\]]+/g;
+  let match;
+  while ((match = absRegex.exec(text)) !== null) {
+    urls.add(match[0]);
+  }
+
+  // Extract relative paths from markdown links: [text](path)
+  const mdLinkRegex = /\]\(([^)]+)\)/g;
+  const base = new URL(llmsTxtUrl);
+  while ((match = mdLinkRegex.exec(text)) !== null) {
+    const href = match[1];
+    if (href.startsWith("http") || href.startsWith("#") || href.startsWith("mailto:")) continue;
+    try {
+      urls.add(new URL(href, base).href);
+    } catch { /* skip malformed */ }
+  }
 
   // Return all page URLs (exclude the llms.txt URL itself and other llms*.txt files)
-  return allLinks.filter((u) => !u.endsWith("/llms.txt") && !u.endsWith("/llms-full.txt") && u !== llmsTxtUrl);
+  return [...urls].filter((u) => !u.endsWith("/llms.txt") && !u.endsWith("/llms-full.txt") && u !== llmsTxtUrl);
 }
 
 /**

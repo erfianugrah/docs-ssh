@@ -242,6 +242,44 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("resolves relative paths in llms.txt", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // Some llms.txt files use relative markdown links instead of absolute URLs
+    const llmsTxt = `# Turborepo
+
+## Docs
+- [Introduction](index.md): Welcome to Turborepo
+- [Installation](/getting-started/installation.md): Install guide
+- [Caching](https://turbo.build/docs/caching): Cache docs
+`;
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith("llms.txt")) {
+        return { ok: true, text: async () => llmsTxt };
+      }
+      return { ok: true, text: async () => `# Content for ${url}` };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "relative-llms-test",
+      type: "http",
+      format: "html",
+      url: "https://turbo.build/",
+      discovery: "llms-txt",
+      discoveryUrl: "https://turbo.build/llms.txt",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    // index.md → https://turbo.build/index.md
+    // /getting-started/installation.md → https://turbo.build/getting-started/installation.md
+    // https://turbo.build/docs/caching → absolute, kept as-is
+    expect(set.size).toBe(3);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   // ─── Discovery: TOC ────────────────────────────────────────────────
 
   it("discovers URLs from an HTML table-of-contents page", async () => {
