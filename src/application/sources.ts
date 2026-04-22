@@ -773,5 +773,590 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern: "opencode\\.ai/docs/[^/]+$",
   }),
 
+  // ─── Vitest ────────────────────────────────────────────────────
+
+  // llms-full.txt — complete testing framework docs (~1.1MB)
+  new DocSource({
+    name: "vitest",
+    type: "http",
+    url: "https://vitest.dev/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://vitest.dev/llms-full.txt",
+  }),
+
+  // ─── Vite ──────────────────────────────────────────────────────
+
+  // llms-full.txt — build tool docs (~350KB)
+  new DocSource({
+    name: "vite",
+    type: "http",
+    url: "https://vitejs.dev/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://vitejs.dev/llms-full.txt",
+  }),
+
+  // ─── Turborepo ─────────────────────────────────────────────────
+
+  // llms.txt — monorepo build system (~130 entries)
+  new DocSource({
+    name: "turborepo",
+    type: "http",
+    url: "https://turbo.build/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://turbo.build/llms.txt",
+  }),
+
+  // ─── Deno ──────────────────────────────────────────────────────
+
+  // llms-full.txt — complete runtime docs (~2MB)
+  new DocSource({
+    name: "deno",
+    type: "http",
+    url: "https://docs.deno.com/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://docs.deno.com/llms-full.txt",
+  }),
+
+  // ─── Svelte / SvelteKit ────────────────────────────────────────
+
+  // llms-full.txt — both Svelte + SvelteKit in one dump (~1MB)
+  new DocSource({
+    name: "svelte",
+    type: "http",
+    url: "https://svelte.dev/docs/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://svelte.dev/llms-full.txt",
+  }),
+
+  // ─── TanStack ──────────────────────────────────────────────────
+
+  // llms.txt — Query, Router, Table, Form, and more
+  new DocSource({
+    name: "tanstack",
+    type: "http",
+    url: "https://tanstack.com/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://tanstack.com/llms.txt",
+  }),
+
+  // ─── Prettier ──────────────────────────────────────────────────
+
+  // llms.txt — code formatter docs (~23 pages)
+  new DocSource({
+    name: "prettier",
+    type: "http",
+    url: "https://prettier.io/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://prettier.io/llms.txt",
+  }),
+
+  // ─── ESLint ────────────────────────────────────────────────────
+
+  // Sitemap — linting rules, config, plugins (filter to current docs)
+  new DocSource({
+    name: "eslint",
+    type: "http",
+    url: "https://eslint.org/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://eslint.org/docs/latest/sitemap.xml",
+    urlPattern: "eslint\\.org/docs/latest/",
+    urlExclude: "eslint\\.org/docs/latest/(blog|team)",
+  }),
+
+  // ─── SQLite ────────────────────────────────────────────────────
+
+  // TOC-based — all docs from the table of contents page
+  new DocSource({
+    name: "sqlite",
+    type: "http",
+    url: "https://www.sqlite.org/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://www.sqlite.org/docs.html",
+    urlPattern: "sqlite\\.org/",
+    urlExclude: "(chronology|changes|session|capi3ref|c3ref|src/|docsrc/|download)",
+  }),
+
+  // ─── Prometheus ────────────────────────────────────────────────
+
+  // Sitemap — monitoring system docs (filter to /docs/)
+  new DocSource({
+    name: "prometheus",
+    type: "http",
+    url: "https://prometheus.io/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://prometheus.io/sitemap.xml",
+    urlPattern: "prometheus\\.io/docs/",
+  }),
+
+  // ─── OpenTelemetry ─────────────────────────────────────────────
+
+  // llms.txt — observability standard (concepts, SDK guides, collector)
+  new DocSource({
+    name: "opentelemetry",
+    type: "http",
+    url: "https://opentelemetry.io/docs/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://opentelemetry.io/llms.txt",
+    urlPattern: "opentelemetry\\.io/docs/",
+  }),
+
+  // ─── Rspack ────────────────────────────────────────────────────
+
+  // llms.txt — Rust-based bundler (~100 entries)
+  new DocSource({
+    name: "rspack",
+    type: "http",
+    url: "https://rspack.dev/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://rspack.dev/llms.txt",
+    urlExclude: "/blog/",
+  }),
+
+  // ─── Effect ────────────────────────────────────────────────────
+
+  // llms.txt — TypeScript effect system (concurrency, streams, schema)
+  new DocSource({
+    name: "effect",
+    type: "http",
+    url: "https://effect.website/docs/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://effect.website/llms.txt",
+  }),
+
+  // ─── Argo CD ───────────────────────────────────────────────────
+
+  // Sitemap — GitOps CD for Kubernetes (~180 pages)
+  new DocSource({
+    name: "argocd",
+    type: "http",
+    url: "https://argo-cd.readthedocs.io/en/stable/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://argo-cd.readthedocs.io/en/stable/sitemap.xml",
+  }),
+
+  // ─── Helm ──────────────────────────────────────────────────────
+
+  // Sitemap — Kubernetes package manager (filter to /docs/)
+  new DocSource({
+    name: "helm",
+    type: "http",
+    url: "https://helm.sh/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://helm.sh/sitemap.xml",
+    urlPattern: "helm\\.sh/docs/",
+  }),
+
+  // ─── mise ──────────────────────────────────────────────────────
+
+  // Sitemap — polyglot dev tool manager (asdf successor, ~170 pages)
+  new DocSource({
+    name: "mise",
+    type: "http",
+    url: "https://mise.jdx.dev/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://mise.jdx.dev/sitemap.xml",
+  }),
+
+  // ─── pnpm ──────────────────────────────────────────────────────
+
+  // Sitemap — fast, disk-efficient package manager (filter to current version)
+  // Docs live at top-level (/installation) and under /cli/ (/cli/add, /cli/install)
+  new DocSource({
+    name: "pnpm",
+    type: "http",
+    url: "https://pnpm.io/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://pnpm.io/sitemap.xml",
+    urlExclude: "(/blog|/\\d+\\.x/|/next/|/benchmarks|/crypto-donations|/users|/logos|/search)",
+  }),
+
+  // ─── Resend ────────────────────────────────────────────────────
+
+  // llms.txt — email API for developers (~200 entries)
+  new DocSource({
+    name: "resend",
+    type: "http",
+    url: "https://resend.com/docs/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://resend.com/docs/llms.txt",
+  }),
+
+  // ─── Let's Encrypt ─────────────────────────────────────────────
+
+  // Sitemap-index — TLS CA docs (English sub-sitemap)
+  new DocSource({
+    name: "letsencrypt",
+    type: "http",
+    url: "https://letsencrypt.org/",
+    format: "html",
+    discovery: "sitemap-index",
+    discoveryUrl: "https://letsencrypt.org/sitemap.xml",
+    urlPattern: "letsencrypt\\.org/(docs|getting-started|how-it-works|about|donate|stats|contact|repository|privacy|trademarks)/",
+    urlExclude: "letsencrypt\\.org/(de|fr|es|pt|ja|zh|ko|ru|he|uk|sr|vi|id)/",
+  }),
+
+  // ─── rclone ────────────────────────────────────────────────────
+
+  // Sitemap — cloud storage sync tool (~130 pages)
+  new DocSource({
+    name: "rclone",
+    type: "http",
+    url: "https://rclone.org/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://rclone.org/sitemap.xml",
+  }),
+
+  // ─── Redis ─────────────────────────────────────────────────────
+
+  // Sitemap — in-memory data store (docs-only sitemap, not marketing)
+  new DocSource({
+    name: "redis",
+    type: "http",
+    url: "https://redis.io/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://redis.io/docs/latest/sitemap.xml",
+    urlPattern: "redis\\.io/docs/latest/",
+  }),
+
+  // ─── Grafana ───────────────────────────────────────────────────
+
+  // Sitemap — observability platform (filter to docs paths from English sitemap)
+  new DocSource({
+    name: "grafana",
+    type: "http",
+    url: "https://grafana.com/docs/grafana/latest/",
+    format: "html",
+    discovery: "sitemap-index",
+    discoveryUrl: "https://grafana.com/sitemap.xml",
+    urlPattern: "grafana\\.com/docs/grafana/latest/",
+  }),
+
+  // ─── GitLab ────────────────────────────────────────────────────
+
+  // Sitemap-index — DevSecOps platform docs (English sub-sitemap)
+  new DocSource({
+    name: "gitlab",
+    type: "http",
+    url: "https://docs.gitlab.com/",
+    format: "html",
+    discovery: "sitemap-index",
+    discoveryUrl: "https://docs.gitlab.com/sitemap.xml",
+    urlPattern: "docs\\.gitlab\\.com/ee/",
+    urlExclude: "docs\\.gitlab\\.com/ee/api/",
+  }),
+
+  // ─── GitHub Docs ───────────────────────────────────────────────
+
+  // Git sparse clone — markdown content from the github/docs repo
+  new DocSource({
+    name: "github",
+    type: "git",
+    url: "https://github.com/github/docs",
+    format: "markdown",
+    paths: ["content"],
+    rootPath: "content",
+  }),
+
+  // ─── Playwright ────────────────────────────────────────────────
+
+  // Sitemap — browser testing framework (filter to current docs)
+  new DocSource({
+    name: "playwright",
+    type: "http",
+    url: "https://playwright.dev/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://playwright.dev/sitemap.xml",
+    urlPattern: "playwright\\.dev/docs/",
+    urlExclude: "/docs/next/",
+  }),
+
+  // ─── FastAPI ───────────────────────────────────────────────────
+
+  // Sitemap — modern Python web framework (~130 pages)
+  new DocSource({
+    name: "fastapi",
+    type: "http",
+    url: "https://fastapi.tiangolo.com/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://fastapi.tiangolo.com/sitemap.xml",
+    urlPattern: "fastapi\\.tiangolo\\.com/(tutorial|advanced|deployment|how-to|reference|about|features|alternatives|help|learn|project-generation|external-links|fastapi-cli|environment-variables)",
+    urlExclude: "(de/|fr/|es/|pt/|ja/|zh/|ko/|ru/|tr/|vi/|uk/|bn/|az/|em/|fa/|he/|hy/|id/|pl/|nl/|yo/)",
+  }),
+
+  // ─── Go ────────────────────────────────────────────────────────
+
+  // TOC-based — core Go docs from /doc/ (tutorials, effective go, modules, etc.)
+  new DocSource({
+    name: "go",
+    type: "http",
+    url: "https://go.dev/doc/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://go.dev/doc/",
+    urlPattern: "go\\.dev/(doc|ref|blog)/",
+    urlExclude: "(devel/release|codereview|contribute|play)",
+  }),
+
+  // ─── WireGuard ─────────────────────────────────────────────────
+
+  // Sitemap — fast VPN tunnel docs (~18 pages, dense content)
+  new DocSource({
+    name: "wireguard",
+    type: "http",
+    url: "https://www.wireguard.com/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://www.wireguard.com/sitemap.xml",
+  }),
+
+  // ─── Nix ───────────────────────────────────────────────────────
+
+  // Sitemap — nix.dev community docs (tutorials, guides, recipes, ~57 pages)
+  new DocSource({
+    name: "nix",
+    type: "http",
+    url: "https://nix.dev/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://nix.dev/sitemap.xml",
+  }),
+
+  // ─── React Native ──────────────────────────────────────────────
+
+  // llms-full.txt — complete mobile framework docs (~2MB)
+  new DocSource({
+    name: "react-native",
+    type: "http",
+    url: "https://reactnative.dev/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://reactnative.dev/llms-full.txt",
+  }),
+
+  // ─── Flutter ───────────────────────────────────────────────────
+
+  // llms.txt — cross-platform UI toolkit (~100 curated pages)
+  new DocSource({
+    name: "flutter",
+    type: "http",
+    url: "https://docs.flutter.dev/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://docs.flutter.dev/llms.txt",
+  }),
+
+  // ─── Expo ──────────────────────────────────────────────────────
+
+  // llms.txt — React Native framework (EAS, Router, modules, ~200+ pages)
+  new DocSource({
+    name: "expo",
+    type: "http",
+    url: "https://docs.expo.dev/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://docs.expo.dev/llms.txt",
+  }),
+
+  // ─── Tauri ─────────────────────────────────────────────────────
+
+  // llms.txt — Rust+Web desktop/mobile app framework (~80 pages)
+  new DocSource({
+    name: "tauri",
+    type: "http",
+    url: "https://v2.tauri.app/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://tauri.app/llms.txt",
+  }),
+
+  // ─── htmx ──────────────────────────────────────────────────────
+
+  // Sitemap — HTML-driven interactivity (attributes, headers, events, examples)
+  new DocSource({
+    name: "htmx",
+    type: "http",
+    url: "https://htmx.org/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://htmx.org/sitemap.xml",
+    urlPattern: "htmx\\.org/(docs|attributes|headers|events|examples|extensions)/",
+    urlExclude: "/posts/",
+  }),
+
+  // ─── Jest ──────────────────────────────────────────────────────
+
+  // Sitemap — JavaScript testing framework (filter to current docs)
+  new DocSource({
+    name: "jest",
+    type: "http",
+    url: "https://jestjs.io/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://jestjs.io/sitemap.xml",
+    urlPattern: "jestjs\\.io/docs/[^/]+$",
+    urlExclude: "(blog|/next/|/\\d+\\.)",
+  }),
+
+  // ─── Cypress ───────────────────────────────────────────────────
+
+  // Sitemap — E2E testing framework (comprehensive docs)
+  new DocSource({
+    name: "cypress",
+    type: "http",
+    url: "https://docs.cypress.io/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://docs.cypress.io/sitemap.xml",
+  }),
+
+  // ─── Wails ─────────────────────────────────────────────────────
+
+  // Sitemap — Go+Web desktop apps (filter to latest docs)
+  new DocSource({
+    name: "wails",
+    type: "http",
+    url: "https://wails.io/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://wails.io/sitemap.xml",
+    urlPattern: "wails\\.io/docs/(introduction|getting-started|guides|reference|tutorials|community)",
+    urlExclude: "(/next/|/v2\\.|/category/)",
+  }),
+
+  // ─── Prisma ────────────────────────────────────────────────────
+
+  // llms.txt — TypeScript ORM (Postgres, MySQL, SQLite, MongoDB, ~300+ entries)
+  new DocSource({
+    name: "prisma",
+    type: "http",
+    url: "https://www.prisma.io/docs/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://www.prisma.io/docs/llms.txt",
+  }),
+
+  // ─── SST ───────────────────────────────────────────────────────
+
+  // llms.txt — infrastructure framework (AWS, Cloudflare, Vercel, ~200+ entries)
+  new DocSource({
+    name: "sst",
+    type: "http",
+    url: "https://sst.dev/docs/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://sst.dev/llms.txt",
+  }),
+
+  // ─── Valkey ──────────────────────────────────────────────────────
+
+  // Git repo — Redis fork docs (topics + command reference)
+  new DocSource({
+    name: "valkey",
+    type: "git",
+    url: "https://github.com/valkey-io/valkey-doc",
+    format: "markdown",
+    paths: ["topics", "commands"],
+  }),
+
+  // ─── Bitwarden ─────────────────────────────────────────────────
+
+  // Sitemap — user-facing help docs (~350 pages, each serves .md variant)
+  new DocSource({
+    name: "bitwarden",
+    type: "http",
+    url: "https://bitwarden.com/help/",
+    format: "markdown",
+    discovery: "sitemap",
+    discoveryUrl: "https://bitwarden.com/sitemap.xml",
+    urlPattern: "bitwarden\\.com/help/.+",
+    urlSuffix: ".md",
+  }),
+
+  // ─── Vaultwarden ───────────────────────────────────────────────
+
+  // GitHub wiki — self-hosted Bitwarden-compatible server (65 pages)
+  new DocSource({
+    name: "vaultwarden",
+    type: "git",
+    url: "https://github.com/dani-garcia/vaultwarden.wiki",
+    format: "markdown",
+  }),
+
+  // ─── curl ────────────────────────────────────────────────────────
+
+  // "Everything curl" — comprehensive book covering CLI, libcurl, HTTP, TLS, proxies (~170 files)
+  new DocSource({
+    name: "curl",
+    type: "git",
+    url: "https://github.com/bagder/everything-curl",
+    format: "markdown",
+  }),
+
+  // ─── ripgrep ───────────────────────────────────────────────────
+
+  // GUIDE.md + FAQ.md — complete user guide and FAQ (~100KB total)
+  new DocSource({
+    name: "ripgrep",
+    type: "git",
+    url: "https://github.com/BurntSushi/ripgrep",
+    format: "markdown",
+  }),
+
+  // ─── HTTPie ────────────────────────────────────────────────────
+
+  // CLI docs from the httpie/cli repo (canonical single-file reference)
+  new DocSource({
+    name: "httpie",
+    type: "git",
+    url: "https://github.com/httpie/cli",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── GraphQL ───────────────────────────────────────────────────
+
+  // Official spec — 12 markdown files covering language, type system, execution, etc.
+  new DocSource({
+    name: "graphql-spec",
+    type: "git",
+    url: "https://github.com/graphql/graphql-spec",
+    format: "markdown",
+    paths: ["spec"],
+    rootPath: "spec",
+  }),
+
+  // Website docs — learn guides, FAQ, graphql-js reference (MDX)
+  new DocSource({
+    name: "graphql",
+    type: "git",
+    url: "https://github.com/graphql/graphql.github.io",
+    format: "mdx",
+    paths: ["src/pages"],
+    rootPath: "src/pages",
+  }),
+
   // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
 ];

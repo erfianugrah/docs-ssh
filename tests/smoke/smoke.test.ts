@@ -57,8 +57,8 @@ beforeAll(() => {
 // ─── Every source has files ─────────────────────────────────────────
 
 describe("source file counts", () => {
-  it("has at least 50 sources", () => {
-    expect(allSources.length).toBeGreaterThanOrEqual(50);
+  it("has at least 90 sources", () => {
+    expect(allSources.length).toBeGreaterThanOrEqual(90);
   });
 
   it("no source has 0 files", () => {

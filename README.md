@@ -1,6 +1,6 @@
 # docs-ssh
 
-Self-hosted SSH docs server for AI agents. Serves 60+ documentation sources — including Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, PostgreSQL, Terraform, MDN, OpenCode, and more — plus blogs, changelogs, and OpenAPI specs as a searchable markdown filesystem over SSH. See `src/application/sources.ts` for the full list.
+Self-hosted SSH docs server for AI agents. Serves 100+ documentation sources — including Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, PostgreSQL, Terraform, MDN, OpenCode, and more — plus blogs, changelogs, and OpenAPI specs as a searchable markdown filesystem over SSH. See `src/application/sources.ts` for the full list.
 
 ## Get started
 
@@ -114,7 +114,7 @@ Each source uses the best available fetch method — no hardcoded URL lists.
 | Gitea | sitemap | html → md | Self-hosted Git forge docs (unversioned latest) |
 | Authentik | git sparse | mdx → md | Identity provider docs from `goauthentik/authentik` |
 | Keycloak | sitemap | html → md | OIDC/SAML IdP guides (server, HA, securing apps) |
-| OpenID | sitemap | html → md | OIDC specs and developer docs from `openid.net` |
+| OpenID | explicit | html → md | OIDC specs and developer docs from `openid.net` |
 | Terraform | git sparse | mdx → md | IaC docs from `hashicorp/web-unified-docs` (all versions) |
 | Zsh | toc | html → md | Full manual (28 chapters) from `zsh.sourceforge.io` |
 | Oh My Zsh | git | markdown | Curated wiki (FAQ, plugins, themes, customization) |
@@ -124,6 +124,54 @@ Each source uses the best available fetch method — no hardcoded URL lists.
 | SOPS | sitemap | html → md | Secrets management docs from `getsops.io` |
 | age | git | markdown | File encryption tool from `FiloSottile/age` |
 | tmux | git (wiki) | markdown | Terminal multiplexer guides from `tmux/tmux` wiki |
+| OpenCode | sitemap | html → md | AI coding agent docs from `opencode.ai` |
+| Vitest | llms-full | markdown | Testing framework docs (~1.1MB) |
+| Vite | llms-full | markdown | Build tool docs (~350KB) |
+| Turborepo | llms-txt | html → md | Monorepo build system (~130 entries) |
+| Deno | llms-full | markdown | Runtime docs (~2MB) |
+| Svelte/SvelteKit | llms-full | markdown | Both frameworks in one dump (~1MB) |
+| TanStack | llms-txt | html → md | Query, Router, Table, Form, and more |
+| Prettier | llms-txt | html → md | Code formatter docs (~23 pages) |
+| ESLint | sitemap | html → md | Linting rules, config, plugins |
+| SQLite | toc | html → md | All docs from table-of-contents page |
+| Prometheus | sitemap | html → md | Monitoring system docs |
+| OpenTelemetry | llms-txt | html → md | Observability standard (concepts, SDK guides) |
+| Rspack | llms-txt | html → md | Rust-based bundler (~100 entries) |
+| Effect | llms-txt | html → md | TypeScript effect system |
+| Argo CD | sitemap | html → md | GitOps CD for Kubernetes (~180 pages) |
+| Helm | sitemap | html → md | Kubernetes package manager |
+| mise | sitemap | html → md | Polyglot dev tool manager (~170 pages) |
+| pnpm | sitemap | html → md | Package manager (CLI + config reference) |
+| Resend | llms-txt | html → md | Email API for developers (~200 entries) |
+| Let's Encrypt | sitemap-index | html → md | TLS CA docs (English) |
+| rclone | sitemap | html → md | Cloud storage sync tool (~130 pages) |
+| Redis | sitemap | html → md | In-memory data store docs |
+| Grafana | sitemap-index | html → md | Observability platform docs |
+| GitLab | sitemap-index | html → md | DevSecOps platform docs |
+| GitHub Docs | git sparse | markdown | Full docs from `github/docs` repo |
+| Playwright | sitemap | html → md | Browser testing framework |
+| FastAPI | sitemap | html → md | Python web framework (~130 pages) |
+| Go | toc | html → md | Core docs (tutorials, effective go, modules) |
+| WireGuard | sitemap | html → md | VPN tunnel docs (~18 pages, dense) |
+| Nix | sitemap | html → md | nix.dev community docs (~57 pages) |
+| React Native | llms-full | markdown | Mobile framework docs (~2MB) |
+| Flutter | llms-txt | html → md | Cross-platform UI toolkit (~100 pages) |
+| Expo | llms-txt | html → md | React Native framework (EAS, Router, modules) |
+| Tauri | llms-txt | html → md | Rust+Web desktop/mobile app framework |
+| htmx | sitemap | html → md | HTML-driven interactivity |
+| Jest | sitemap | html → md | JavaScript testing framework |
+| Cypress | sitemap | html → md | E2E testing framework |
+| Wails | sitemap | html → md | Go+Web desktop apps |
+| Prisma | llms-txt | html → md | TypeScript ORM (~300+ entries) |
+| SST | llms-txt | html → md | Infrastructure framework (AWS, CF, Vercel) |
+| Valkey | git sparse | markdown | Redis fork docs (topics + commands) |
+| Bitwarden | sitemap | markdown | Help docs (~350 pages, `.md` suffix) |
+| Vaultwarden | git (wiki) | markdown | Self-hosted Bitwarden server (65 pages) |
+| curl | git | markdown | "Everything curl" book (~170 files) |
+| ripgrep | git | markdown | GUIDE.md + FAQ.md (~100KB) |
+| HTTPie | git sparse | markdown | CLI docs from `httpie/cli` repo |
+| GraphQL Spec | git sparse | markdown | Official spec (12 files) |
+| GraphQL Docs | git sparse | mdx → md | Learn guides, FAQ, graphql-js reference |
 
 ### OpenAPI specs
 

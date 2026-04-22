@@ -6,12 +6,13 @@ import { UpdateDocSets } from "../../../src/application/UpdateDocSets.js";
 import { HtmlNormaliser } from "../../../src/normaliser/HtmlNormaliser.js";
 import { MdxNormaliser } from "../../../src/normaliser/MdxNormaliser.js";
 import { MarkdownCleaner } from "../../../src/normaliser/MarkdownCleaner.js";
+import { ContentSanitiser } from "../../../src/normaliser/ContentSanitiser.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 
 describe("format-based normaliser routing", () => {
-  const normalisers = [new MdxNormaliser(), new HtmlNormaliser(), new MarkdownCleaner()];
+  const normalisers = [new MdxNormaliser(), new HtmlNormaliser(), new MarkdownCleaner(), new ContentSanitiser()];
   const ingestors = []; // not needed — we test normalise directly
 
   it("applies HtmlNormaliser to .md files when source format is html", async () => {
@@ -180,6 +181,141 @@ describe("format-based normaliser routing", () => {
     expect(file!.content.length).toBeGreaterThan(100);
     // Content should still contain the RSC payload (not be converted to near-empty MD)
     expect(file!.content).toContain("self.__next_f");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Pass 1: MdxNormaliser ──────────────────────────────────────────
+
+  it("applies MdxNormaliser to .md files when source format is mdx", async () => {
+    const source = new DocSource({
+      name: "test-mdx",
+      type: "git",
+      url: "https://github.com/example/docs",
+      format: "mdx",
+    });
+
+    const mdx = `import { Card } from '@components/Card'
+
+---
+title: Guide
+---
+
+# Guide
+
+<Card title="Setup">Follow these steps.</Card>
+
+Regular paragraph.`;
+
+    const files = new Map([["guide.md", new DocFile("guide.md", mdx)]]);
+    const set = new DocSet(source, files);
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "fmt-test-"));
+
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors,
+      normalisers,
+      outDir: tmpDir,
+      workDir: tmpDir,
+    });
+
+    const normalised = await (updater as any).normalise(set);
+    const file = normalised.getFile("guide.md");
+    expect(file).toBeDefined();
+    // Import should be stripped
+    expect(file!.content).not.toContain("import");
+    // JSX tags should be stripped
+    expect(file!.content).not.toContain("<Card");
+    // Regular content preserved
+    expect(file!.content).toContain("# Guide");
+    expect(file!.content).toContain("Regular paragraph");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Pass 3: MarkdownCleaner runs after format conversion ──────────
+
+  it("runs MarkdownCleaner after HtmlNormaliser (pass 3)", async () => {
+    const source = new DocSource({
+      name: "test-pass3",
+      type: "http",
+      url: "https://example.com/docs/",
+      format: "html",
+    });
+
+    // HTML with skip-to-content link and feedback block that MarkdownCleaner removes
+    const html = `<html><body>
+<a class="skip-to-content" href="#main">Skip to content</a>
+<main>
+<h1>API Guide</h1>
+<p>This is useful content.</p>
+</main>
+<div class="feedback">Was this helpful?</div>
+<script type="application/ld+json">{"@type":"Article"}</script>
+</body></html>`;
+
+    const files = new Map([["api-guide.md", new DocFile("api-guide.md", html)]]);
+    const set = new DocSet(source, files);
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "fmt-test-"));
+
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors,
+      normalisers,
+      outDir: tmpDir,
+      workDir: tmpDir,
+    });
+
+    const normalised = await (updater as any).normalise(set);
+    const file = normalised.getFile("api-guide.md");
+    expect(file).toBeDefined();
+    // HtmlNormaliser converted HTML → markdown
+    expect(file!.content).toContain("# API Guide");
+    expect(file!.content).not.toContain("<script>");
+    // MarkdownCleaner should have stripped skip-to-content and feedback
+    expect(file!.content).not.toContain("skip-to-content");
+    expect(file!.content).not.toContain("Was this helpful");
+    expect(file!.content).not.toContain("ld+json");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Pass 3: ContentSanitiser runs after cleanup ────────────────────
+
+  it("runs ContentSanitiser in pass 3 (strips ANSI, null bytes)", async () => {
+    const source = new DocSource({
+      name: "test-sanitise",
+      type: "http",
+      url: "https://example.com/",
+      format: "markdown",
+    });
+
+    // Markdown with ANSI escape codes and null bytes
+    const content = "# Title\n\nSome \x1b[31mred\x1b[0m text with a \x00null byte.";
+    const files = new Map([["dirty.md", new DocFile("dirty.md", content)]]);
+    const set = new DocSet(source, files);
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "fmt-test-"));
+
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors,
+      normalisers,
+      outDir: tmpDir,
+      workDir: tmpDir,
+    });
+
+    const normalised = await (updater as any).normalise(set);
+    const file = normalised.getFile("dirty.md");
+    expect(file).toBeDefined();
+    // ANSI codes stripped
+    expect(file!.content).not.toContain("\x1b[");
+    expect(file!.content).toContain("red");
+    // Null bytes stripped
+    expect(file!.content).not.toContain("\x00");
+    expect(file!.content).toContain("null byte");
 
     await fs.rm(tmpDir, { recursive: true });
   });

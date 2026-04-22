@@ -125,16 +125,24 @@ ${API_SOURCES}
 
 When searching one source, check related sources for cross-referencing:
 
-- **Auth & identity**: supabase, keycloak, authentik, openid, saml
-- **Databases**: postgres, supabase, drizzle
-- **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio
-- **Reverse proxy & networking**: cloudflare, caddy, traefik
-- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn
-- **Languages & runtimes**: typescript, python, rust-book, bun, zod
+- **Auth & identity**: supabase, keycloak, authentik, openid, saml, bitwarden, vaultwarden
+- **Databases**: postgres, supabase, drizzle, prisma, sqlite, redis, valkey
+- **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio, helm, argocd, sst
+- **Reverse proxy & networking**: cloudflare, caddy, traefik, wireguard
+- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn, svelte, htmx, tanstack, effect
+- **Languages & runtimes**: typescript, python, rust-book, bun, deno, go, zod, nix
 - **Cloud platforms**: aws, cloudflare, vercel, flyio
-- **Secrets & encryption**: age, sops
-- **Terminal & editor**: neovim, tmux, wezterm, zsh, ohmyzsh
+- **Build tools**: vite, vitest, turborepo, rspack, eslint, prettier, pnpm
+- **Testing**: vitest, jest, playwright, cypress
+- **Mobile & desktop**: react-native, flutter, expo, tauri, wails
+- **Monitoring & observability**: prometheus, opentelemetry, grafana
+- **Secrets & encryption**: age, sops, bitwarden, vaultwarden
+- **Terminal & editor**: neovim, tmux, wezterm, zsh, ohmyzsh, mise
+- **CLI tools**: curl, ripgrep, httpie, rclone
+- **Git forges**: github, gitlab, gitea
+- **APIs & specs**: graphql, graphql-spec, openid, saml, mcp
 - **Docs & diagrams**: mdn, d2, mermaid, starlight, mcp
+- **Email & services**: resend, letsencrypt
 EOF
 }
 
@@ -273,16 +281,24 @@ $SSH "rg -il 'cron' /docs/ | head -5 | while read f; do echo \"--- \\\$f ---\"; 
 
 When searching one source, check related sources for cross-referencing:
 
-- **Auth & identity**: supabase, keycloak, authentik, openid, saml
-- **Databases**: postgres, supabase, drizzle
-- **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio
-- **Reverse proxy & networking**: cloudflare, caddy, traefik
-- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn
-- **Languages & runtimes**: typescript, python, rust-book, bun, zod
+- **Auth & identity**: supabase, keycloak, authentik, openid, saml, bitwarden, vaultwarden
+- **Databases**: postgres, supabase, drizzle, prisma, sqlite, redis, valkey
+- **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio, helm, argocd, sst
+- **Reverse proxy & networking**: cloudflare, caddy, traefik, wireguard
+- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn, svelte, htmx, tanstack, effect
+- **Languages & runtimes**: typescript, python, rust-book, bun, deno, go, zod, nix
 - **Cloud platforms**: aws, cloudflare, vercel, flyio
-- **Secrets & encryption**: age, sops
-- **Terminal & editor**: neovim, tmux, wezterm, zsh, ohmyzsh
+- **Build tools**: vite, vitest, turborepo, rspack, eslint, prettier, pnpm
+- **Testing**: vitest, jest, playwright, cypress
+- **Mobile & desktop**: react-native, flutter, expo, tauri, wails
+- **Monitoring & observability**: prometheus, opentelemetry, grafana
+- **Secrets & encryption**: age, sops, bitwarden, vaultwarden
+- **Terminal & editor**: neovim, tmux, wezterm, zsh, ohmyzsh, mise
+- **CLI tools**: curl, ripgrep, httpie, rclone
+- **Git forges**: github, gitlab, gitea
+- **APIs & specs**: graphql, graphql-spec, openid, saml, mcp
 - **Docs & diagrams**: mdn, d2, mermaid, starlight, mcp
+- **Email & services**: resend, letsencrypt
 EOF
 }
 

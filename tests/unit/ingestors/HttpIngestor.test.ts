@@ -557,4 +557,242 @@ describe("HttpIngestor", () => {
 
     await fs.rm(tmpDir, { recursive: true });
   });
+
+  // ─── Discovery: llms-full ───────────────────────────────────────────
+
+  it("discovers pages from llms-full.txt by splitting", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // Vercel-style llms-full.txt with two pages separated by --- blocks
+    const llmsFullContent = [
+      "--------------------------------------------------------------------------------",
+      'title: "Getting Started"',
+      'source: "https://example.com/docs/getting-started"',
+      "--------------------------------------------------------------------------------",
+      "",
+      "# Getting Started",
+      "",
+      "Welcome to the docs.",
+      "",
+      "--------------------------------------------------------------------------------",
+      'title: "Auth"',
+      'source: "https://example.com/docs/auth"',
+      "--------------------------------------------------------------------------------",
+      "",
+      "# Auth",
+      "",
+      "Learn about authentication.",
+    ].join("\n");
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => llmsFullContent,
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "llms-full-test",
+      type: "http",
+      format: "markdown",
+      url: "https://example.com/docs/",
+      discovery: "llms-full",
+      discoveryUrl: "https://example.com/docs/llms-full.txt",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    expect(set.size).toBe(2);
+    // Fetch only called once — the llms-full.txt itself
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("applies urlExclude filter to llms-full pages", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // The splitter strips baseUrl from source, producing relative file paths.
+    // urlPattern/urlExclude match against those file paths, not original URLs.
+    // With baseUrl "https://example.com/docs/", source "https://example.com/docs/getting-started"
+    // becomes "getting-started.md", and "https://example.com/docs/changelog"
+    // becomes "changelog.md".
+    const llmsFullContent = [
+      "--------------------------------------------------------------------------------",
+      'title: "Getting Started"',
+      'source: "https://example.com/docs/getting-started"',
+      "--------------------------------------------------------------------------------",
+      "",
+      "# Getting Started",
+      "",
+      "--------------------------------------------------------------------------------",
+      'title: "Changelog"',
+      'source: "https://example.com/docs/changelog"',
+      "--------------------------------------------------------------------------------",
+      "",
+      "# Changelog",
+    ].join("\n");
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => llmsFullContent,
+    }));
+
+    const src = new DocSource({
+      name: "llms-full-filter-test",
+      type: "http",
+      format: "markdown",
+      url: "https://example.com/docs/",
+      discovery: "llms-full",
+      discoveryUrl: "https://example.com/docs/llms-full.txt",
+      urlExclude: "changelog",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    // "getting-started.md" passes, "changelog.md" excluded
+    expect(set.size).toBe(1);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Discovery: tarball ─────────────────────────────────────────────
+
+  it("discovers pages from a tarball", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // Create a real .tar.gz with two markdown files
+    const tarDir = path.join(tmpDir, "tar-source");
+    await fs.mkdir(path.join(tarDir, "docs"), { recursive: true });
+    await fs.writeFile(path.join(tarDir, "docs", "intro.md"), "# Intro\n\nWelcome.");
+    await fs.writeFile(path.join(tarDir, "docs", "guide.md"), "# Guide\n\nStep by step.");
+    await fs.writeFile(path.join(tarDir, "docs", "image.png"), "not-markdown");
+
+    // Create tarball using tar
+    const tarballPath = path.join(tmpDir, "docs.tar.gz");
+    const { execFileSync } = await import("node:child_process");
+    execFileSync("tar", ["-czf", tarballPath, "-C", tarDir, "."], { stdio: "pipe" });
+
+    const tarballBuffer = await fs.readFile(tarballPath);
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => tarballBuffer.buffer.slice(
+        tarballBuffer.byteOffset,
+        tarballBuffer.byteOffset + tarballBuffer.byteLength,
+      ),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "tarball-test",
+      type: "http",
+      format: "markdown",
+      url: "https://example.com/docs/",
+      discovery: "tarball",
+      discoveryUrl: "https://example.com/docs/docs.tar.gz",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    // Only .md files extracted, not .png
+    expect(set.size).toBe(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Discovery: openapi ─────────────────────────────────────────────
+
+  it("discovers pages from an OpenAPI spec", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const openApiSpec = JSON.stringify({
+      openapi: "3.0.0",
+      info: { title: "Test API", version: "1.0.0" },
+      paths: {
+        "/users": {
+          get: { tags: ["users"], summary: "List users", responses: { "200": { description: "OK" } } },
+        },
+        "/items": {
+          get: { tags: ["items"], summary: "List items", responses: { "200": { description: "OK" } } },
+          post: { tags: ["items"], summary: "Create item", responses: { "201": { description: "Created" } } },
+        },
+      },
+    });
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => openApiSpec,
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "openapi-test",
+      type: "http",
+      format: "openapi",
+      url: "https://example.com/api/",
+      discovery: "openapi",
+      discoveryUrl: "https://example.com/api/spec.json",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    // overview.md + users.md + items.md = 3 files
+    expect(set.size).toBe(3);
+    expect(set.hasFile("api/overview.md")).toBe(true);
+    expect(set.hasFile("api/users.md")).toBe(true);
+    expect(set.hasFile("api/items.md")).toBe(true);
+    // Only 1 fetch — the spec itself
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Discovery: none (explicit urls) ────────────────────────────────
+
+  it("fetches explicit urls when discovery is none", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => ({
+      ok: true,
+      text: async () => `<h1>Spec Page</h1><p>Content for ${url}</p>`,
+    }));
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "explicit-urls-test",
+      type: "http",
+      format: "html",
+      url: "https://specs.example.org/",
+      urls: [
+        "https://specs.example.org/core-1_0.html",
+        "https://specs.example.org/discovery-1_0.html",
+      ],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    expect(set.size).toBe(2);
+    // Fetch called once per explicit URL
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Max retries exhausted ──────────────────────────────────────────
+
+  it("throws after exhausting all retries on 500", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "exhaust-retry-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/page.html"],
+    });
+
+    await expect(ingestor.ingest(src, tmpDir)).rejects.toThrow("500");
+    // initial + 2 retries = 3 total
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
 });
