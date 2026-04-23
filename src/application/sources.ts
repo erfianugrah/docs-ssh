@@ -836,15 +836,44 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── TanStack ──────────────────────────────────────────────────
 
-  // llms.txt — Query, Router, Table, Form, and more (filter to /docs/ paths)
+  // Git sparse — TanStack Query (React/Vue/Solid/Angular data fetching, 438 files)
   new DocSource({
-    name: "tanstack",
-    type: "http",
-    url: "https://tanstack.com/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://tanstack.com/llms.txt",
-    urlPattern: "/docs/",
+    name: "tanstack-query",
+    type: "git",
+    url: "https://github.com/TanStack/query",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // Git sparse — TanStack Router + Start (type-safe routing + SSR, 237 files)
+  new DocSource({
+    name: "tanstack-router",
+    type: "git",
+    url: "https://github.com/TanStack/router",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // Git sparse — TanStack Table (headless table/grid, 75 files)
+  new DocSource({
+    name: "tanstack-table",
+    type: "git",
+    url: "https://github.com/TanStack/table",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // Git sparse — TanStack Form (type-safe forms, 213 files)
+  new DocSource({
+    name: "tanstack-form",
+    type: "git",
+    url: "https://github.com/TanStack/form",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── Prettier ──────────────────────────────────────────────────
@@ -861,16 +890,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── ESLint ────────────────────────────────────────────────────
 
-  // Sitemap — linting rules, config, plugins (filter to current docs)
+  // Git sparse — rules, config, extension, integration docs (408 files)
   new DocSource({
     name: "eslint",
-    type: "http",
-    url: "https://eslint.org/docs/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://eslint.org/docs/latest/sitemap.xml",
-    urlPattern: "eslint\\.org/docs/latest/(rules|use|extend|integrate)",
-    urlExclude: "(component-library|contribute|maintain|blog|team)",
+    type: "git",
+    url: "https://github.com/eslint/eslint",
+    format: "markdown",
+    paths: ["docs/src/rules", "docs/src/use", "docs/src/extend", "docs/src/integrate"],
+    rootPath: "docs/src",
   }),
 
   // ─── SQLite ────────────────────────────────────────────────────

@@ -132,7 +132,7 @@ When searching one source, check related sources for cross-referencing:
 - **Postgres HA & ops**: patroni, pgpool
 - **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio, helm, argocd, sst
 - **Reverse proxy & networking**: cloudflare, caddy, traefik, wireguard
-- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn, svelte, htmx, tanstack, effect
+- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn, svelte, htmx, tanstack-query, tanstack-router, tanstack-table, tanstack-form, effect
 - **Languages & runtimes**: typescript, python, rust-book, bun, deno, go, zod, nix
 - **Cloud platforms**: aws, cloudflare, vercel, flyio
 - **Build tools**: vite, vitest, turborepo, rspack, eslint, prettier, pnpm
@@ -291,7 +291,7 @@ When searching one source, check related sources for cross-referencing:
 - **Postgres HA & ops**: patroni, pgpool
 - **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio, helm, argocd, sst
 - **Reverse proxy & networking**: cloudflare, caddy, traefik, wireguard
-- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn, svelte, htmx, tanstack, effect
+- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn, svelte, htmx, tanstack-query, tanstack-router, tanstack-table, tanstack-form, effect
 - **Languages & runtimes**: typescript, python, rust-book, bun, deno, go, zod, nix
 - **Cloud platforms**: aws, cloudflare, vercel, flyio
 - **Build tools**: vite, vitest, turborepo, rspack, eslint, prettier, pnpm
