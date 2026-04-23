@@ -1359,6 +1359,20 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "src/pages",
   }),
 
+  // ─── Multigres ──────────────────────────────────────────────────
+
+  // Sitemap — Vitess for Postgres (docs + blog + consensus tutorial)
+  new DocSource({
+    name: "multigres",
+    type: "http",
+    url: "https://multigres.com/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://multigres.com/sitemap.xml",
+    urlPattern: "multigres\\.com/(docs|blog|consensus)/",
+    urlExclude: "(/tags/|/page/|/archive)",
+  }),
+
   // ─── Excalidraw ─────────────────────────────────────────────────
 
   // MDX dev docs from the excalidraw monorepo (Docusaurus, 36 files)
