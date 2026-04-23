@@ -1373,6 +1373,16 @@ export const SOURCES: readonly DocSource[] = [
     urlExclude: "(/tags/|/page/|/archive)",
   }),
 
+  // Git repo — developer docs (architecture, HA decision log, query serving internals)
+  new DocSource({
+    name: "multigres-dev",
+    type: "git",
+    url: "https://github.com/multigres/multigres",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
   // ─── Excalidraw ─────────────────────────────────────────────────
 
   // MDX dev docs from the excalidraw monorepo (Docusaurus, 36 files)

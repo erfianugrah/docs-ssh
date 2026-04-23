@@ -9,7 +9,7 @@ describe("SOURCES configuration", () => {
 
   it("has the expected number of sources", () => {
     // Bump this when adding/removing sources to catch accidental deletions
-    expect(SOURCES.length).toBe(111);
+    expect(SOURCES.length).toBe(112);
   });
 
   it("has unique source names", () => {
