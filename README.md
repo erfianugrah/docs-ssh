@@ -172,6 +172,34 @@ Each source uses the best available fetch method — no hardcoded URL lists.
 | HTTPie | git sparse | markdown | CLI docs from `httpie/cli` repo |
 | GraphQL Spec | git sparse | markdown | Official spec (12 files) |
 | GraphQL Docs | git sparse | mdx → md | Learn guides, FAQ, graphql-js reference |
+| Multigres | sitemap | html → md | Vitess for Postgres (docs + blog + consensus) |
+| Multigres Dev | git sparse | markdown | Developer docs (architecture, HA, query serving) |
+| Excalidraw | git sparse | mdx → md | Dev docs from `excalidraw/excalidraw` monorepo |
+| PostgreSQL Wiki | mediawiki | html → md | 1,177 community wiki articles via API enumeration |
+| pgvector | git | markdown | Vector similarity search for Postgres |
+| PostGIS | toc | html → md | Spatial database reference manual |
+| PgBouncer | git | markdown | Connection pooler docs from `pgbouncer.github.io` |
+| TimescaleDB | llms-full | markdown | Time-series database docs (~4.6MB, TigerData) |
+| pg_cron | git | markdown | Job scheduler for Postgres |
+| pgrx | git sparse | markdown | Rust framework for Postgres extensions |
+| Citus | git | markdown | Distributed Postgres extension |
+| Neon | llms-full | markdown | Serverless Postgres platform (~5MB) |
+| Electric SQL | llms-txt | markdown | Postgres sync engine |
+| ParadeDB | llms-full | markdown | Postgres for search and analytics (~450KB) |
+| CockroachDB | sitemap | html → md | Distributed SQL database (stable docs, ~607 pages) |
+| YugabyteDB | sitemap | html → md | Distributed Postgres-compatible (~1,641 pages) |
+| Supavisor | git sparse | markdown | Postgres connection pooler by Supabase |
+| pg_graphql | git sparse | markdown | GraphQL for Postgres by Supabase |
+| pg_net | git sparse | markdown | Async HTTP client for Postgres |
+| index_advisor | git | markdown | Postgres index recommendation extension |
+| supabase-grafana | git sparse | markdown | Grafana dashboards for Supabase (~110KB metrics ref) |
+| Modern SQL | sitemap | html → md | SQL standard features reference (421 pages) |
+| Use The Index, Luke | sitemap | html → md | SQL indexing and performance tutorial |
+| Patroni | sitemap | html → md | Postgres HA template (ReadTheDocs) |
+| pgpool | toc | html → md | Postgres connection pooler + HA (Sphinx) |
+| pglocks | explicit | html → md | Single-page Postgres lock reference |
+| SQL Style Guide | git | markdown | SQL formatting conventions |
+| SAML 2.0 | explicit | html → md | OASIS SAML 2.0 specs |
 
 ### OpenAPI specs
 
@@ -188,6 +216,7 @@ Converted to per-endpoint-group markdown at ingestion time (4-8x compression vs 
 | Gitea API | Swagger 2.0 | 819 KB | 10 files |
 | Authentik API | OpenAPI 3.0 | 1.6 MB | 26 files |
 | Keycloak Admin API | OpenAPI 3.0 | 360 KB | 23 files |
+| AWS APIs | OpenAPI (multi-spec) | varies | 20 core services from `APIs-guru/openapi-directory` |
 
 ## Build from source
 
