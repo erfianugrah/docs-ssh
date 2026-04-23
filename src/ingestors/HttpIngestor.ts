@@ -293,13 +293,13 @@ async function discoverFromToc(tocUrl: string, baseUrl: string): Promise<string[
   if (!res.ok) throw new Error(`Failed to fetch TOC ${tocUrl}: HTTP ${res.status}`);
   const html = await res.text();
 
-  // Match all hrefs — urlPattern + baseUrl check handle filtering
-  const hrefRegex = /href="([^"#\s]+)"/g;
+  // Match all hrefs (case-insensitive for XHTML/DocBook), strip #fragments
+  const hrefRegex = /href="([^"\s]+)"/gi;
   const urls = new Set<string>();
   let match;
   while ((match = hrefRegex.exec(html)) !== null) {
-    let href = match[1];
-    if (SKIP_EXTENSIONS.test(href)) continue;
+    let href = match[1].split("#")[0];
+    if (!href || SKIP_EXTENSIONS.test(href)) continue;
     if (!href.startsWith("http")) {
       try { href = new URL(href, tocUrl).href; } catch { continue; }
     }

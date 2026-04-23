@@ -167,14 +167,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Astro ─────────────────────────────────────────────────────────
 
-  // llms-full.txt — complete documentation
+  // Git sparse — Astro docs from withastro/docs repo (llms-full.txt removed)
   new DocSource({
     name: "astro",
-    type: "http",
-    url: "https://docs.astro.build/",
-    format: "markdown",
-    discovery: "llms-full",
-    discoveryUrl: "https://docs.astro.build/llms-full.txt",
+    type: "git",
+    url: "https://github.com/withastro/docs",
+    format: "mdx",
+    paths: ["src/content/docs/en"],
+    rootPath: "src/content/docs/en",
   }),
 
   // ─── MCP (Model Context Protocol) ─────────────────────────────────
@@ -799,14 +799,15 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Turborepo ─────────────────────────────────────────────────
 
-  // llms.txt — monorepo build system (~130 entries)
+  // Sitemap — monorepo build system (moved to turborepo.dev)
   new DocSource({
     name: "turborepo",
     type: "http",
-    url: "https://turbo.build/",
+    url: "https://turborepo.dev/docs/",
     format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://turbo.build/llms.txt",
+    discovery: "sitemap",
+    discoveryUrl: "https://turborepo.dev/sitemap.xml",
+    urlPattern: "turborepo\\.dev/docs/",
   }),
 
   // ─── Deno ──────────────────────────────────────────────────────
@@ -835,7 +836,7 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── TanStack ──────────────────────────────────────────────────
 
-  // llms.txt — Query, Router, Table, Form, and more
+  // llms.txt — Query, Router, Table, Form, and more (filter to /docs/ paths)
   new DocSource({
     name: "tanstack",
     type: "http",
@@ -843,6 +844,7 @@ export const SOURCES: readonly DocSource[] = [
     format: "html",
     discovery: "llms-txt",
     discoveryUrl: "https://tanstack.com/llms.txt",
+    urlPattern: "/docs/",
   }),
 
   // ─── Prettier ──────────────────────────────────────────────────
@@ -867,8 +869,8 @@ export const SOURCES: readonly DocSource[] = [
     format: "html",
     discovery: "sitemap",
     discoveryUrl: "https://eslint.org/docs/latest/sitemap.xml",
-    urlPattern: "eslint\\.org/docs/latest/",
-    urlExclude: "eslint\\.org/docs/latest/(blog|team)",
+    urlPattern: "eslint\\.org/docs/latest/(rules|use|extend|integrate)",
+    urlExclude: "(component-library|contribute|maintain|blog|team)",
   }),
 
   // ─── SQLite ────────────────────────────────────────────────────
@@ -900,14 +902,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── OpenTelemetry ─────────────────────────────────────────────
 
-  // llms.txt — observability standard (concepts, SDK guides, collector)
+  // Sitemap-index — observability standard (English child sitemap → /docs/ pages)
   new DocSource({
     name: "opentelemetry",
     type: "http",
     url: "https://opentelemetry.io/docs/",
     format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://opentelemetry.io/llms.txt",
+    discovery: "sitemap-index",
+    discoveryUrl: "https://opentelemetry.io/sitemap.xml",
     urlPattern: "opentelemetry\\.io/docs/",
   }),
 
@@ -950,7 +952,7 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Helm ──────────────────────────────────────────────────────
 
-  // Sitemap — Kubernetes package manager (filter to /docs/)
+  // Sitemap — Kubernetes package manager (filter to current docs, skip v2)
   new DocSource({
     name: "helm",
     type: "http",
@@ -959,6 +961,7 @@ export const SOURCES: readonly DocSource[] = [
     discovery: "sitemap",
     discoveryUrl: "https://helm.sh/sitemap.xml",
     urlPattern: "helm\\.sh/docs/",
+    urlExclude: "helm\\.sh/docs/v2/",
   }),
 
   // ─── mise ──────────────────────────────────────────────────────
@@ -1500,14 +1503,15 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Electric SQL ──────────────────────────────────────────────
 
-  // llms.txt — Postgres sync engine (.md URLs)
+  // Sitemap — Postgres sync engine (llms.txt only has .md URLs that 500)
   new DocSource({
     name: "electric",
     type: "http",
     url: "https://electric-sql.com/",
-    format: "markdown",
-    discovery: "llms-txt",
-    discoveryUrl: "https://electric-sql.com/llms.txt",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://electric-sql.com/sitemap.xml",
+    urlPattern: "electric-sql\\.com/(docs|primitives)/",
   }),
 
   // ─── ParadeDB ──────────────────────────────────────────────────
@@ -1633,14 +1637,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Patroni ───────────────────────────────────────────────────
 
-  // Sitemap — Postgres HA template (ReadTheDocs)
+  // TOC-based — Postgres HA template (RTD sitemap only has version roots)
   new DocSource({
     name: "patroni",
     type: "http",
     url: "https://patroni.readthedocs.io/en/latest/",
     format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://patroni.readthedocs.io/sitemap.xml",
+    discovery: "toc",
+    discoveryUrl: "https://patroni.readthedocs.io/en/latest/",
     urlPattern: "patroni\\.readthedocs\\.io/en/latest/",
   }),
 
