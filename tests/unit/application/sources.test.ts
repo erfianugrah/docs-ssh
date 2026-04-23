@@ -9,7 +9,7 @@ describe("SOURCES configuration", () => {
 
   it("has the expected number of sources", () => {
     // Bump this when adding/removing sources to catch accidental deletions
-    expect(SOURCES.length).toBe(112);
+    expect(SOURCES.length).toBe(136);
   });
 
   it("has unique source names", () => {
@@ -28,7 +28,7 @@ describe("SOURCES configuration", () => {
   it("has valid discovery methods", () => {
     const validMethods = new Set([
       "none", "tarball", "llms-full", "sitemap",
-      "sitemap-index", "toc", "llms-index", "llms-txt", "rss", "openapi", "openapi-dir",
+      "sitemap-index", "toc", "llms-index", "llms-txt", "rss", "openapi", "openapi-dir", "mediawiki",
     ]);
     for (const source of SOURCES) {
       expect(validMethods.has(source.discovery)).toBe(true);
@@ -75,6 +75,13 @@ describe("SOURCES configuration", () => {
       } else {
         expect(source.format).toBe("html");
       }
+    }
+  });
+
+  it("mediawiki sources use html format", () => {
+    const mwSources = SOURCES.filter((s) => s.discovery === "mediawiki");
+    for (const source of mwSources) {
+      expect(source.format).toBe("html");
     }
   });
 

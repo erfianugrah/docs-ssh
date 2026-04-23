@@ -223,6 +223,8 @@ async function discover(source: DocSource): Promise<string[]> {
       return discoverFromSitemapIndex(discoveryUrl, source.urlPattern);
     case "toc":
       return discoverFromToc(discoveryUrl, baseUrl);
+    case "mediawiki":
+      return discoverFromMediaWiki(discoveryUrl, baseUrl);
     case "llms-index":
       return discoverFromLlmsIndex(discoveryUrl, source.urlPattern);
     case "llms-txt":
@@ -284,18 +286,22 @@ async function discoverFromSitemapIndex(
   return allUrls;
 }
 
+const SKIP_EXTENSIONS = /\.(css|js|json|xml|png|jpe?g|gif|svg|ico|woff2?|ttf|eot|zip|tar|gz|pdf)$/i;
+
 async function discoverFromToc(tocUrl: string, baseUrl: string): Promise<string[]> {
   const res = await fetchWithRetry(tocUrl);
   if (!res.ok) throw new Error(`Failed to fetch TOC ${tocUrl}: HTTP ${res.status}`);
   const html = await res.text();
 
-  const hrefRegex = /href="([^"#]*\.html)[^"]*"/g;
+  // Match all hrefs — urlPattern + baseUrl check handle filtering
+  const hrefRegex = /href="([^"#\s]+)"/g;
   const urls = new Set<string>();
   let match;
   while ((match = hrefRegex.exec(html)) !== null) {
     let href = match[1];
+    if (SKIP_EXTENSIONS.test(href)) continue;
     if (!href.startsWith("http")) {
-      href = new URL(href, tocUrl).href;
+      try { href = new URL(href, tocUrl).href; } catch { continue; }
     }
     if (href.startsWith(baseUrl)) {
       urls.add(href);
@@ -303,6 +309,46 @@ async function discoverFromToc(tocUrl: string, baseUrl: string): Promise<string[
   }
 
   return [...urls];
+}
+
+/**
+ * Enumerates all pages from a MediaWiki API (action=query&list=allpages).
+ * Paginates automatically via `apcontinue` tokens.
+ * Returns full page URLs like https://wiki.example.org/wiki/PageName.
+ */
+async function discoverFromMediaWiki(apiUrl: string, baseUrl: string): Promise<string[]> {
+  const urls: string[] = [];
+  let continueFrom = "";
+
+  for (let i = 0; i < 20; i++) {
+    const params = new URLSearchParams({
+      action: "query",
+      list: "allpages",
+      apnamespace: "0",
+      aplimit: "500",
+      apfilterredir: "nonredirects",
+      format: "json",
+    });
+    if (continueFrom) params.set("apcontinue", continueFrom);
+
+    const url = `${apiUrl}?${params}`;
+    const res = await fetchWithRetry(url);
+    if (!res.ok) throw new Error(`MediaWiki API error: HTTP ${res.status}`);
+    const data = JSON.parse(await res.text());
+
+    for (const page of data.query?.allpages ?? []) {
+      const title = page.title.replace(/ /g, "_");
+      urls.push(`${baseUrl}${encodeURIComponent(title)}`);
+    }
+
+    if (data.continue?.apcontinue) {
+      continueFrom = data.continue.apcontinue;
+    } else {
+      break;
+    }
+  }
+
+  return urls;
 }
 
 /**

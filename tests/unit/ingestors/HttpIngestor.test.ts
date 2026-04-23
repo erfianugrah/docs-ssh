@@ -316,6 +316,87 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("discovers non-.html URLs from a TOC page (wiki-style)", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const tocHtml = `<html><body>
+<a href="/wiki/Replication">Replication</a>
+<a href="/wiki/Performance_Tips">Performance</a>
+<a href="/wiki/Special:AllPages">All Pages</a>
+<a href="/static/logo.png">Logo</a>
+</body></html>`;
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("AllPages")) {
+        return { ok: true, text: async () => tocHtml };
+      }
+      return { ok: true, text: async () => `<h1>Wiki Page</h1>` };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "wiki-toc-test",
+      type: "http",
+      format: "html",
+      url: "https://wiki.example.org/wiki/",
+      discovery: "toc",
+      discoveryUrl: "https://wiki.example.org/wiki/Special:AllPages",
+      urlPattern: "wiki\\.example\\.org/wiki/",
+      urlExclude: "Special:",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    // Replication + Performance matched; Special:AllPages excluded; logo.png skipped
+    expect(set.size).toBe(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Discovery: mediawiki ──────────────────────────────────────────
+
+  it("discovers pages from MediaWiki API with pagination", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const page1 = JSON.stringify({
+      query: { allpages: [
+        { pageid: 1, title: "Replication" },
+        { pageid: 2, title: "Performance Tips" },
+      ]},
+      continue: { apcontinue: "Q" },
+    });
+    const page2 = JSON.stringify({
+      query: { allpages: [
+        { pageid: 3, title: "Query Planning" },
+      ]},
+    });
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("api.php") && url.includes("apcontinue=Q")) {
+        return { ok: true, text: async () => page2 };
+      }
+      if (url.includes("api.php")) {
+        return { ok: true, text: async () => page1 };
+      }
+      return { ok: true, text: async () => `<h1>Wiki Page</h1>` };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "mediawiki-test",
+      type: "http",
+      format: "html",
+      url: "https://wiki.example.org/wiki/",
+      discovery: "mediawiki",
+      discoveryUrl: "https://wiki.example.org/api.php",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    // 2 pages from first batch + 1 from second = 3
+    expect(set.size).toBe(3);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   // ─── URL filtering ─────────────────────────────────────────────────
 
   it("applies urlExclude filter", async () => {

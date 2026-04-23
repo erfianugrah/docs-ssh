@@ -26,7 +26,8 @@ export type DiscoveryMethod =
   | "llms-txt"
   | "rss"
   | "openapi"
-  | "openapi-dir";
+  | "openapi-dir"
+  | "mediawiki";
 
 export interface DocSourceConfig {
   readonly name: string;

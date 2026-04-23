@@ -126,7 +126,10 @@ ${API_SOURCES}
 When searching one source, check related sources for cross-referencing:
 
 - **Auth & identity**: supabase, keycloak, authentik, openid, saml, bitwarden, vaultwarden
-- **Databases**: postgres, supabase, drizzle, prisma, sqlite, redis, valkey
+- **Databases & SQL**: postgres, postgres-wiki, supabase, drizzle, prisma, sqlite, redis, valkey, modern-sql, use-the-index-luke, sqlstyle, pglocks
+- **Postgres ecosystem**: pgvector, postgis, pgbouncer, pg-cron, pgrx, citus, pg-graphql, pg-net, index-advisor, supavisor, supabase-grafana, multigres
+- **Postgres-compatible**: neon, cockroachdb, yugabytedb, paradedb, timescaledb, electric
+- **Postgres HA & ops**: patroni, pgpool
 - **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio, helm, argocd, sst
 - **Reverse proxy & networking**: cloudflare, caddy, traefik, wireguard
 - **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn, svelte, htmx, tanstack, effect
@@ -141,7 +144,7 @@ When searching one source, check related sources for cross-referencing:
 - **CLI tools**: curl, ripgrep, httpie, rclone
 - **Git forges**: github, gitlab, gitea
 - **APIs & specs**: graphql, graphql-spec, openid, saml, mcp
-- **Docs & diagrams**: mdn, d2, mermaid, starlight, mcp
+- **Docs & diagrams**: mdn, d2, mermaid, starlight, mcp, excalidraw
 - **Email & services**: resend, letsencrypt
 EOF
 }
@@ -282,7 +285,10 @@ $SSH "rg -il 'cron' /docs/ | head -5 | while read f; do echo \"--- \\\$f ---\"; 
 When searching one source, check related sources for cross-referencing:
 
 - **Auth & identity**: supabase, keycloak, authentik, openid, saml, bitwarden, vaultwarden
-- **Databases**: postgres, supabase, drizzle, prisma, sqlite, redis, valkey
+- **Databases & SQL**: postgres, postgres-wiki, supabase, drizzle, prisma, sqlite, redis, valkey, modern-sql, use-the-index-luke, sqlstyle, pglocks
+- **Postgres ecosystem**: pgvector, postgis, pgbouncer, pg-cron, pgrx, citus, pg-graphql, pg-net, index-advisor, supavisor, supabase-grafana, multigres
+- **Postgres-compatible**: neon, cockroachdb, yugabytedb, paradedb, timescaledb, electric
+- **Postgres HA & ops**: patroni, pgpool
 - **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio, helm, argocd, sst
 - **Reverse proxy & networking**: cloudflare, caddy, traefik, wireguard
 - **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn, svelte, htmx, tanstack, effect
@@ -297,7 +303,7 @@ When searching one source, check related sources for cross-referencing:
 - **CLI tools**: curl, ripgrep, httpie, rclone
 - **Git forges**: github, gitlab, gitea
 - **APIs & specs**: graphql, graphql-spec, openid, saml, mcp
-- **Docs & diagrams**: mdn, d2, mermaid, starlight, mcp
+- **Docs & diagrams**: mdn, d2, mermaid, starlight, mcp, excalidraw
 - **Email & services**: resend, letsencrypt
 EOF
 }

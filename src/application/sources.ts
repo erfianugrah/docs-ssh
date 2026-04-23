@@ -1395,5 +1395,288 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "dev-docs/docs",
   }),
 
+  // ─── PostgreSQL Wiki ────────────────────────────────────────────
+
+  // MediaWiki API enumeration — all 1,177 main-namespace articles
+  new DocSource({
+    name: "postgres-wiki",
+    type: "http",
+    url: "https://wiki.postgresql.org/wiki/",
+    format: "html",
+    discovery: "mediawiki",
+    discoveryUrl: "https://wiki.postgresql.org/api.php",
+    urlPattern: "wiki\\.postgresql\\.org/wiki/",
+    urlExclude: "(Special:|Talk:|User:|File:|Template:|Category:|Help:|MediaWiki:)",
+  }),
+
+  // ─── pgvector ──────────────────────────────────────────────────
+
+  // Vector similarity search for Postgres (README + CHANGELOG)
+  new DocSource({
+    name: "pgvector",
+    type: "git",
+    url: "https://github.com/pgvector/pgvector",
+    format: "markdown",
+  }),
+
+  // ─── PostGIS ───────────────────────────────────────────────────
+
+  // TOC-based — spatial database reference manual (~600 function pages)
+  new DocSource({
+    name: "postgis",
+    type: "http",
+    url: "https://postgis.net/docs/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://postgis.net/docs/",
+    urlPattern: "postgis\\.net/docs/",
+    urlExclude: "(postgis\\.net/docs/$|#)",
+  }),
+
+  // ─── PgBouncer ─────────────────────────────────────────────────
+
+  // Connection pooler docs from the pgbouncer.github.io site
+  new DocSource({
+    name: "pgbouncer",
+    type: "git",
+    url: "https://github.com/pgbouncer/pgbouncer.github.io",
+    format: "markdown",
+  }),
+
+  // ─── TimescaleDB ───────────────────────────────────────────────
+
+  // llms-full.txt — time-series database for Postgres (~4.6MB, rebranded to TigerData)
+  new DocSource({
+    name: "timescaledb",
+    type: "http",
+    url: "https://www.tigerdata.com/docs/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://www.tigerdata.com/docs/llms-full.txt",
+  }),
+
+  // ─── pg_cron ───────────────────────────────────────────────────
+
+  // Job scheduler for Postgres (README + CHANGELOG)
+  new DocSource({
+    name: "pg-cron",
+    type: "git",
+    url: "https://github.com/citusdata/pg_cron",
+    format: "markdown",
+  }),
+
+  // ─── pgrx ──────────────────────────────────────────────────────
+
+  // Rust framework for Postgres extensions (mdbook + articles)
+  new DocSource({
+    name: "pgrx",
+    type: "git",
+    url: "https://github.com/pgcentralfoundation/pgrx",
+    format: "markdown",
+    paths: ["docs/src", "articles"],
+  }),
+
+  // ─── Citus ─────────────────────────────────────────────────────
+
+  // Distributed Postgres extension (README)
+  new DocSource({
+    name: "citus",
+    type: "git",
+    url: "https://github.com/citusdata/citus",
+    format: "markdown",
+  }),
+
+  // ─── Neon ──────────────────────────────────────────────────────
+
+  // llms-full.txt — serverless Postgres platform (~5MB)
+  new DocSource({
+    name: "neon",
+    type: "http",
+    url: "https://neon.com/docs/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://neon.com/docs/llms-full.txt",
+  }),
+
+  // ─── Electric SQL ──────────────────────────────────────────────
+
+  // llms.txt — Postgres sync engine (.md URLs)
+  new DocSource({
+    name: "electric",
+    type: "http",
+    url: "https://electric-sql.com/",
+    format: "markdown",
+    discovery: "llms-txt",
+    discoveryUrl: "https://electric-sql.com/llms.txt",
+  }),
+
+  // ─── ParadeDB ──────────────────────────────────────────────────
+
+  // llms-full.txt — Postgres for search and analytics (~450KB)
+  new DocSource({
+    name: "paradedb",
+    type: "http",
+    url: "https://docs.paradedb.com/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://docs.paradedb.com/llms-full.txt",
+  }),
+
+  // ─── CockroachDB ──────────────────────────────────────────────
+
+  // Sitemap — distributed SQL database (filter to stable docs)
+  new DocSource({
+    name: "cockroachdb",
+    type: "http",
+    url: "https://www.cockroachlabs.com/docs/stable/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://www.cockroachlabs.com/docs/sitemap.xml",
+    urlPattern: "cockroachlabs\\.com/docs/stable/",
+  }),
+
+  // ─── YugabyteDB ───────────────────────────────────────────────
+
+  // Sitemap — distributed Postgres-compatible database (filter to stable)
+  new DocSource({
+    name: "yugabytedb",
+    type: "http",
+    url: "https://docs.yugabyte.com/stable/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://docs.yugabyte.com/sitemap.xml",
+    urlPattern: "docs\\.yugabyte\\.com/stable/",
+  }),
+
+  // ─── Supavisor ─────────────────────────────────────────────────
+
+  // Postgres connection pooler by Supabase (mkdocs)
+  new DocSource({
+    name: "supavisor",
+    type: "git",
+    url: "https://github.com/supabase/supavisor",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── pg_graphql ────────────────────────────────────────────────
+
+  // GraphQL for Postgres by Supabase (mkdocs, ~120KB)
+  new DocSource({
+    name: "pg-graphql",
+    type: "git",
+    url: "https://github.com/supabase/pg_graphql",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── pg_net ────────────────────────────────────────────────────
+
+  // Async HTTP client for Postgres by Supabase
+  new DocSource({
+    name: "pg-net",
+    type: "git",
+    url: "https://github.com/supabase/pg_net",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── index_advisor ─────────────────────────────────────────────
+
+  // Postgres index recommendation extension by Supabase
+  new DocSource({
+    name: "index-advisor",
+    type: "git",
+    url: "https://github.com/supabase/index_advisor",
+    format: "markdown",
+  }),
+
+  // ─── supabase-grafana ──────────────────────────────────────────
+
+  // Grafana dashboards for Supabase Postgres (metrics reference ~110KB)
+  new DocSource({
+    name: "supabase-grafana",
+    type: "git",
+    url: "https://github.com/supabase/supabase-grafana",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── Modern SQL ────────────────────────────────────────────────
+
+  // Sitemap — SQL standard features reference (421 pages)
+  new DocSource({
+    name: "modern-sql",
+    type: "http",
+    url: "https://modern-sql.com/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://modern-sql.com/sitemap.xml",
+  }),
+
+  // ─── Use The Index, Luke ───────────────────────────────────────
+
+  // Sitemap — SQL indexing and performance tutorial (filter to English)
+  new DocSource({
+    name: "use-the-index-luke",
+    type: "http",
+    url: "https://use-the-index-luke.com/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://use-the-index-luke.com/sitemap.xml",
+    urlExclude: "use-the-index-luke\\.com/(de|fr|ja|es)/",
+  }),
+
+  // ─── Patroni ───────────────────────────────────────────────────
+
+  // Sitemap — Postgres HA template (ReadTheDocs)
+  new DocSource({
+    name: "patroni",
+    type: "http",
+    url: "https://patroni.readthedocs.io/en/latest/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://patroni.readthedocs.io/sitemap.xml",
+    urlPattern: "patroni\\.readthedocs\\.io/en/latest/",
+  }),
+
+  // ─── pgpool ────────────────────────────────────────────────────
+
+  // TOC-based — Postgres connection pooler + HA (Sphinx docs)
+  new DocSource({
+    name: "pgpool",
+    type: "http",
+    url: "https://www.pgpool.net/docs/latest/en/html/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://www.pgpool.net/docs/latest/en/html/index.html",
+    urlPattern: "pgpool\\.net/docs/latest/en/html/",
+  }),
+
+  // ─── pglocks ───────────────────────────────────────────────────
+
+  // Single-page Postgres lock reference
+  new DocSource({
+    name: "pglocks",
+    type: "http",
+    url: "https://pglocks.org/",
+    format: "html",
+    urls: ["https://pglocks.org/"],
+  }),
+
+  // ─── SQL Style Guide ───────────────────────────────────────────
+
+  // SQL formatting conventions (single canonical markdown file)
+  new DocSource({
+    name: "sqlstyle",
+    type: "git",
+    url: "https://github.com/treffynnon/sqlstyle.guide",
+    format: "markdown",
+  }),
+
   // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
 ];
