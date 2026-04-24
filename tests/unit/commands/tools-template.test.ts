@@ -145,6 +145,44 @@ describe("tools-template", () => {
     expect(rendered).toContain("exitCode !== 0 && !text.trim() && errText.trim()");
   });
 
+  it("ssh() surfaces timeout (exit 124) even when stderr is empty", () => {
+    // DOCS_CMD_TIMEOUT kills commands with exit 124 and usually writes
+    // no stderr. Without an explicit check the agent would see an empty
+    // string and not know why the command returned nothing.
+    expect(rendered).toContain("exitCode === 124");
+    expect(rendered).toMatch(/timed out|timeout/i);
+  });
+
+  it("ssh() also handles exit 143 (timeout + SIGTERM passthrough)", () => {
+    // When timeout(1) kills the child with SIGTERM, and the child exits
+    // with 128+15=143, timeout propagates that code instead of 124.
+    // Both codes must be treated as "killed by timeout".
+    expect(rendered).toContain("exitCode === 143");
+  });
+
+  it("read tool handles offset without lines via open-ended range", () => {
+    // If the agent passes { offset: 50 } without `lines`, the previous
+    // implementation silently ignored offset and returned the full file.
+    // bat supports open-ended ranges via "--line-range=N:" which reads
+    // from N to end of file — preserve offset semantics.
+    const readSection = REMAINING_TOOLS.slice(REMAINING_TOOLS.indexOf("export const read"));
+    const endIdx = readSection.indexOf("export const find");
+    const readBody = readSection.slice(0, endIdx);
+    // Open-ended range: "--line-range=${start}: " (space after colon).
+    expect(readBody).toContain("--line-range=${start}: ");
+    // sed fallback for open-ended range reads to end of file: "${start},$p"
+    expect(readBody).toContain("${start},$p");
+  });
+
+  it("summary tool runs heading + line-count SSH calls in parallel", () => {
+    // Two serial ssh() calls add a full round-trip latency for no reason.
+    // Use Promise.all to dispatch both concurrently.
+    const summarySection = REMAINING_TOOLS.slice(REMAINING_TOOLS.indexOf("export const summary"));
+    const endIdx = summarySection.indexOf("export const sources");
+    const summaryBody = summarySection.slice(0, endIdx);
+    expect(summaryBody).toContain("Promise.all");
+  });
+
   // ─── Search result count ──────────────────────────────────────
 
   it("search tool reports total result count when truncated", () => {

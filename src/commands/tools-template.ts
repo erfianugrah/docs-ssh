@@ -72,6 +72,13 @@ async function ssh(command: string): Promise<string> {
   if (exitCode === 255) {
     return \`[error] SSH connection failed: \${errText.trim() || "connection refused or timed out"}\`
   }
+  // Server-side DOCS_CMD_TIMEOUT kill: timeout(1) exits 124 (or 143 when
+  // the child inherits the SIGTERM status). timeout writes no stderr, so
+  // without this branch the agent would see an empty string and not know
+  // the command was killed.
+  if (exitCode === 124 || exitCode === 143) {
+    return \`[error] command timed out on the docs server (DOCS_CMD_TIMEOUT). Narrow the query or split into smaller reads.\`
+  }
   // Remote command error: non-zero exit + empty stdout + stderr message.
   // Catches: find on nonexistent dir, cat on directory, rg on missing path.
   // Does NOT trigger for rg "no matches" (exit 1 but empty stderr).
@@ -187,18 +194,24 @@ export const read = {
     "Read a documentation file. For large files, use docs_summary first to see the headings, then read with offset/limit to get only the section you need.",
   args: {
     path: z.string().describe("File path (e.g. /docs/supabase/guides/auth.md)"),
-    lines: z.number().optional().describe("Read N lines. Omit for full file."),
+    lines: z.number().optional().describe("Read N lines. Omit to read to end of file."),
     offset: z.number().optional().describe("Start line (1-indexed)."),
   },
   async execute(args: { path: string; lines?: number; offset?: number }) {
     const p = safePath(args.path)
     let cmd: string
 
-    if (args.offset && args.lines) {
-      // bat --line-range is cleaner than sed -n for offset+limit reads
+    if (args.offset) {
+      // offset set (with or without lines). bat's open-ended range
+      // "--line-range=N:" reads from N to end of file; if lines is set
+      // we compute an explicit end. sed fallback uses the same bounds.
       const start = Math.max(1, Math.floor(args.offset))
-      const end = start + Math.floor(args.lines) - 1
-      cmd = \`bat --plain --paging=never --color=never --line-range=\${start}:\${end} '\${sq(p)}' 2>/dev/null || sed -n '\${start},\${end}p' '\${sq(p)}'\`
+      if (args.lines) {
+        const end = start + Math.floor(args.lines) - 1
+        cmd = \`bat --plain --paging=never --color=never --line-range=\${start}:\${end} '\${sq(p)}' 2>/dev/null || sed -n '\${start},\${end}p' '\${sq(p)}'\`
+      } else {
+        cmd = \`bat --plain --paging=never --color=never --line-range=\${start}: '\${sq(p)}' 2>/dev/null || sed -n '\${start},$p' '\${sq(p)}'\`
+      }
     } else if (args.lines) {
       cmd = \`head -\${Math.abs(Math.floor(args.lines))} '\${sq(p)}'\`
     } else {
@@ -275,8 +288,12 @@ export const summary = {
   },
   async execute(args: { path: string }) {
     const p = safePath(args.path)
-    const headings = await ssh(\`rg -n '^#' '\${sq(p)}'\`)
-    const lineCount = await ssh(\`wc -l < '\${sq(p)}'\`)
+    // Dispatch both SSH calls concurrently — each is one round-trip,
+    // and they're independent. Saves one RTT vs serial execution.
+    const [headings, lineCount] = await Promise.all([
+      ssh(\`rg -n '^#' '\${sq(p)}'\`),
+      ssh(\`wc -l < '\${sq(p)}'\`),
+    ])
     return \`\${lineCount.trim()} lines\\n\\n\${headings}\`
   },
 }
