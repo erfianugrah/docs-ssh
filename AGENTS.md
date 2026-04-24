@@ -43,6 +43,7 @@ CI runs two parallel jobs on every push/PR: `test` (verify tools.sh sync → lin
 - `src/application/sources.ts` — canonical list of all doc sources. Two source types: `git` (sparse clone) and `http` (uses a discovery method — see "Adding a new doc source" below).
 - `src/domain/` — value objects + port interfaces (`DocSource`, `DocIngestor`, `DocNormaliser`). Ports-and-adapters: implementations in `ingestors/` and `normaliser/`.
 - `src/commands/tools-template.ts` — TypeScript source of truth for agent tools output. Generates `commands/tools.sh`.
+- `src/shared/retry.ts` — `retryWithBackoff` + `backoffDelay` used by every network-dependent code path (HTTP fetches in `HttpIngestor`, HEAD freshness checks in `UpdateDocSets`, git clone/pull/ls-remote in `GitIngestor`). Jittered exponential backoff; `shouldRetry` predicate lets callers short-circuit on non-retryable errors.
 - `commands/` — shell scripts for SSH built-in commands. Note: `src/commands/` (TypeScript, build-time) vs `commands/` (shell, runtime) are different dirs.
 - `commands/lib/` — shared shell libraries: `colors.sh` (TTY detection), `log.sh` (JSONL audit logging), `cache.sh` (md5-keyed result caching in tmpfs).
 - `commands/agents.sh` — dynamically generates agent instructions using live container data (source list, file counts). Supports formats: claude/cursor/gemini/skill/opencode.
@@ -84,6 +85,7 @@ Add a `case` entry in `log-cmd.sh:44-59` and a script in `commands/`. Human-faci
 | `DOCS_MAX_AGE` | fetch-docs | `86400` (seconds; 0 = always refresh) |
 | `DOCS_SSH_HOST` | commands/*.sh | `localhost` |
 | `DOCS_SSH_PORT` | commands/*.sh | `2222` |
+| `DOCS_CMD_TIMEOUT` | log-cmd.sh | `60` (seconds per SSH-executed command; timeout exits 124) |
 
 ## Adding a new doc source
 
