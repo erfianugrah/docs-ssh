@@ -14,16 +14,17 @@ const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
 const UA = "docs-ssh/0.8 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
 const MAX_RETRIES = 2;
 
-const REQUEST_TIMEOUT = 30_000; // 30s per request — prevents hanging on stalled connections
+const REQUEST_TIMEOUT = 30_000; // 30s per page fetch
+const BULK_TIMEOUT = 120_000;   // 120s for large single-file downloads (llms-full, tarball, specs)
 
 /** Fetch with User-Agent header, timeout, and retry on transient/network errors. */
-async function fetchWithRetry(url: string, retries = MAX_RETRIES): Promise<Response> {
+async function fetchWithRetry(url: string, retries = MAX_RETRIES, timeout = REQUEST_TIMEOUT): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url, {
         headers: { "User-Agent": UA },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+        signal: AbortSignal.timeout(timeout),
       });
       if (res.ok || attempt === retries) return res;
       // Retry on 5xx and 413/429 (CDN rate-limit), not on 404 etc.
@@ -146,7 +147,7 @@ export class HttpIngestor implements DocIngestor {
     // Download to a temp file first, then extract — avoids shell injection
     // from interpolating URLs into a shell pipeline.
     const tarballPath = path.join(workDir, `${source.name}.tar.gz`);
-    const res = await fetchWithRetry(source.discoveryUrl!);
+    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT);
     if (!res.ok) {
       throw new Error(`Failed to fetch tarball: HTTP ${res.status}`);
     }
@@ -172,7 +173,7 @@ export class HttpIngestor implements DocIngestor {
 
   private async ingestFromLlmsFull(source: DocSource): Promise<DocSet> {
     console.log(`  [${source.name}] downloading llms-full.txt…`);
-    const res = await fetchWithRetry(source.discoveryUrl!);
+    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT);
     if (!res.ok) {
       throw new Error(`Failed to fetch llms-full.txt: HTTP ${res.status}`);
     }
@@ -197,7 +198,7 @@ export class HttpIngestor implements DocIngestor {
 
   private async ingestFromOpenApi(source: DocSource): Promise<DocSet> {
     console.log(`  [${source.name}] downloading OpenAPI spec…`);
-    const res = await fetchWithRetry(source.discoveryUrl!);
+    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT);
     if (!res.ok) {
       throw new Error(`Failed to fetch OpenAPI spec: HTTP ${res.status}`);
     }
