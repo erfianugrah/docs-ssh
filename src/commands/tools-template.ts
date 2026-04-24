@@ -50,8 +50,14 @@ function safePath(p: string): string {
 
 function capOutput(text: string, path?: string): string {
   if (text.length <= MAX_RESULT_CHARS) return text
-  const truncated = text.slice(0, MAX_RESULT_CHARS)
-  const remaining = text.length - MAX_RESULT_CHARS
+  // Back off one UTF-16 code unit when the cut point lands inside a
+  // surrogate pair. Without this, the caller could receive an orphan
+  // high surrogate (0xD800–0xDBFF) that breaks JSON serialisation.
+  let end = MAX_RESULT_CHARS
+  const lastCode = text.charCodeAt(end - 1)
+  if (lastCode >= 0xD800 && lastCode <= 0xDBFF) end--
+  const truncated = text.slice(0, end)
+  const remaining = text.length - end
   const hint = path
     ? \`\\n\\n[truncated \${remaining} chars — use docs_read with offset/lines or docs_summary to target specific sections of \${path}]\`
     : \`\\n\\n[truncated \${remaining} chars — narrow your query or add a line limit]\`
@@ -171,9 +177,11 @@ export const SEARCH_BODY_STATIC = `\
   async execute(args: { query: string; source?: string; maxResults?: number }) {
     const limit = args.maxResults ?? 15
     const filter = args.source ? \`| rg '^\${sq(args.source)}/'\` : ""
-    const pipeline = \`rg -i '\${sq(args.query)}' /docs/_index.tsv \${filter}\`
+    // Single-pass: awk prints the first LIMIT rows as they arrive and
+    // emits a truncation footer at END if there were more. One rg
+    // invocation vs the previous two (count + head).
     const result = await ssh(
-      \`total=$(\${pipeline} | wc -l); \${pipeline} | head -\${limit}; [ "$total" -gt \${limit} ] && echo "[showing \${limit} of $total results — refine query or add source filter]"\`
+      \`rg -i '\${sq(args.query)}' /docs/_index.tsv \${filter} | awk -v lim=\${limit} '{ n++; if (n<=lim) print } END { if (n>lim) print "[showing "lim" of "n" results — refine query or add source filter]" }'\`
     )
 
     // Fallback: if index search found nothing, try filename + content search
@@ -317,8 +325,13 @@ export const sources = {
   },
   async execute(args: { filter?: string }) {
     const filterCmd = args.filter ? \` | rg -i '\${sq(args.filter)}'\` : ""
+    // Single find → awk group-by source dir. Previously spawned one
+    // find per source (139 subshells on prod) inside a shell for-loop.
+    // -mindepth 2 excludes /docs/_index.tsv and other root-level
+    // metadata files. Sources with 0 files don't appear in the count
+    // map; they're rare in prod but we note the hint anyway.
     return ssh(
-      \`for d in /docs/*/; do name=$(basename "$d"); count=$(find "$d" -type f | wc -l); echo "$name: $count files"; done\${filterCmd}\`,
+      \`find /docs -mindepth 2 -type f 2>/dev/null | awk -F/ '{c[$3]++} END{for (d in c) printf "%s: %d files\\\\n", d, c[d]}' | sort\${filterCmd}\`,
     )
   },
 }

@@ -225,10 +225,50 @@ describe("tools-template", () => {
     expect(readBody).toMatch(/lines,.*(KB|bytes)/);
   });
 
+  it("sources tool uses a single find call (not N find-per-source)", () => {
+    // Previously ran `find "$d" -type f | wc -l` inside a for loop over
+    // every source dir — 139 subshells per invocation. A single find
+    // + awk grouping collapses this to one pass.
+    const srcSection = REMAINING_TOOLS.slice(REMAINING_TOOLS.indexOf("export const sources"));
+    const body = srcSection;
+    // Should have awk for grouping and should NOT nest find inside a loop.
+    expect(body).toContain("awk");
+    // Detect the anti-pattern: a for-loop whose body runs find per iteration.
+    expect(body).not.toMatch(/for d in \/docs\/\*\/.*find.*wc -l/s);
+  });
+
+  it("search tool runs the index pipeline exactly once", () => {
+    // Previously ran rg twice: once piped to wc -l for a total count,
+    // once piped to head -N for the result rows. Fold both into a single
+    // awk pass that prints rows as they arrive and emits a trailing
+    // "[showing X of Y]" when the truncation actually happened.
+    const searchBody = SEARCH_BODY_STATIC;
+    // Count occurrences of the literal pipeline construction — it's
+    // built via `rg -i '${...}'` once; the previous double-run ran
+    // `${pipeline}` twice inside a single shell command.
+    const dollarPipelineCount = (searchBody.match(/\$\{pipeline\}/g) ?? []).length;
+    expect(dollarPipelineCount).toBeLessThanOrEqual(1);
+    // awk is used to count+truncate inline.
+    expect(searchBody).toContain("awk");
+  });
+
+  it("capOutput truncates at a safe boundary (no mid-surrogate slice)", () => {
+    // String.prototype.slice operates on UTF-16 code units. If
+    // MAX_RESULT_CHARS lands inside a surrogate pair, the result is an
+    // orphan surrogate that may break JSON serialisation in the caller.
+    // The helper must back off one code unit when the last char is a
+    // high surrogate.
+    expect(STATIC_BODY).toContain("charCodeAt");
+    // The sentinel check for high-surrogate range is 0xD800..0xDBFF.
+    expect(STATIC_BODY).toMatch(/0xD800|55296/);
+  });
+
   // ─── Search result count ──────────────────────────────────────
 
   it("search tool reports total result count when truncated", () => {
-    expect(SEARCH_BODY_STATIC).toContain("wc -l");
+    // Implementation no longer uses wc -l (folded into awk's END
+    // block with the row printer). The truncation footer text is the
+    // stable contract we check.
     expect(SEARCH_BODY_STATIC).toContain("showing");
   });
 
