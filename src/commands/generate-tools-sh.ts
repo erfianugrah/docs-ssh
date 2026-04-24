@@ -35,13 +35,27 @@ PORT="\${DOCS_SSH_PORT:-2222}"
 
 /**
  * Escapes a TypeScript string for embedding in a shell heredoc.
- * In a quoted heredoc ('EOF'), backslashes are literal. But we still
- * need to ensure the heredoc delimiter doesn't appear in the content.
+ * In a quoted heredoc ('EOF'), backslashes are literal. The only
+ * correctness concern is that the delimiter ('TOOLS_STATIC') must not
+ * appear on its own line inside the content — if it did, the shell
+ * would close the heredoc early and the rest of the template would
+ * execute as shell commands. This guard throws at build time so the
+ * footgun fails the CI "Verify tools.sh is in sync" step instead of
+ * silently corrupting the generated script.
  */
-function forQuotedHeredoc(ts: string): string {
-  // The template already handles its own escaping since it's written
-  // as template literal strings. We just need to make sure the
-  // TOOLS_STATIC delimiter doesn't appear in the content.
+export function forQuotedHeredoc(ts: string): string {
+  if (
+    ts.includes("\nTOOLS_STATIC\n") ||
+    ts.startsWith("TOOLS_STATIC\n") ||
+    ts.endsWith("\nTOOLS_STATIC") ||
+    ts === "TOOLS_STATIC"
+  ) {
+    throw new Error(
+      "tools-template content contains heredoc delimiter 'TOOLS_STATIC' on its own line — " +
+        "this would prematurely close the generated shell heredoc. Rename the delimiter in " +
+        "generate-tools-sh.ts or rewrite the template content.",
+    );
+  }
   return ts;
 }
 
@@ -55,7 +69,7 @@ function toDynamicShell(template: string): string {
     .replace("{{SSH_PORT}}", "${PORT}");
 }
 
-function generate(): string {
+export function generate(): string {
   const parts: string[] = [HEADER];
 
   // Dynamic header (shell expands HOST/PORT)
@@ -91,14 +105,20 @@ function generate(): string {
 }
 
 // ─── Main ──────────────────────────────────────────────────────────
+// Only runs when invoked as a script (pnpm generate:tools), not on import.
+// argv[1] is the entry script; compare against import.meta.url.
 
-const outPath = path.resolve(
-  import.meta.dirname,
-  "../../commands/tools.sh",
-);
+const invokedAsScript = import.meta.url === `file://${process.argv[1]}`;
 
-const content = generate();
-fs.writeFileSync(outPath, content, { mode: 0o755 });
+if (invokedAsScript) {
+  const outPath = path.resolve(
+    import.meta.dirname,
+    "../../commands/tools.sh",
+  );
 
-const lines = content.split("\n").length;
-console.log(`Generated ${outPath} (${lines} lines)`);
+  const content = generate();
+  fs.writeFileSync(outPath, content, { mode: 0o755 });
+
+  const lines = content.split("\n").length;
+  console.log(`Generated ${outPath} (${lines} lines)`);
+}
