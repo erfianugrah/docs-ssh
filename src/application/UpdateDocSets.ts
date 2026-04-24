@@ -7,6 +7,7 @@ import { DocFile } from "../domain/DocFile.js";
 const execFileAsync = promisify(execFile);
 import { DocSet, type UpdateResult } from "../domain/DocSet.js";
 import { walkDir } from "../shared/walkDir.js";
+import { retryWithBackoff } from "../shared/retry.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
 import type { DocSource, DocFormat } from "../domain/DocSource.js";
@@ -16,24 +17,17 @@ const UA = "docs-ssh/0.8 (freshness-check; +https://github.com/erfianugrah/docs-
 const HEAD_TIMEOUT = 10_000;
 const HEAD_RETRIES = 2;
 
-/** HEAD request with retry on network errors. */
+/** HEAD request with retry on network errors. Jittered exponential backoff. */
 async function fetchHead(url: string): Promise<Response> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= HEAD_RETRIES; attempt++) {
-    try {
-      return await fetch(url, {
+  return retryWithBackoff(
+    () =>
+      fetch(url, {
         method: "HEAD",
         headers: { "User-Agent": UA },
         signal: AbortSignal.timeout(HEAD_TIMEOUT),
-      });
-    } catch (err) {
-      lastError = err;
-      if (attempt < HEAD_RETRIES) {
-        await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
-      }
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+      }),
+    { retries: HEAD_RETRIES },
+  );
 }
 
 /** Returns true if the normaliser is a format converter (HTML→MD, MDX→MD) */

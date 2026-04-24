@@ -8,6 +8,7 @@ import type { DocSource, DiscoveryMethod } from "../domain/DocSource.js";
 import { splitLlmsFull } from "./llms-splitter.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { walkDir } from "../shared/walkDir.js";
+import { retryWithBackoff } from "../shared/retry.js";
 
 const CONCURRENCY = 15;
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
@@ -17,30 +18,62 @@ const MAX_RETRIES = 2;
 const REQUEST_TIMEOUT = 30_000; // 30s per page fetch
 const BULK_TIMEOUT = 120_000;   // 120s for large single-file downloads (llms-full, tarball, specs)
 
-/** Fetch with User-Agent header, timeout, and retry on transient/network errors. */
-async function fetchWithRetry(url: string, retries = MAX_RETRIES, timeout = REQUEST_TIMEOUT): Promise<Response> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
+/**
+ * Fetch with User-Agent header, per-attempt timeout, and retry on
+ * transient failures (network errors, 5xx, 413, 429). Uses exponential
+ * backoff with jitter so concurrent failures don't retry in lockstep.
+ *
+ * A thrown Response (on non-retryable status codes like 404) escapes
+ * the retry loop via shouldRetry=false. All other throws and retryable
+ * responses are retried.
+ */
+async function fetchWithRetry(
+  url: string,
+  retries = MAX_RETRIES,
+  timeout = REQUEST_TIMEOUT,
+): Promise<Response> {
+  return retryWithBackoff(
+    async () => {
       const res = await fetch(url, {
         headers: { "User-Agent": UA },
         signal: AbortSignal.timeout(timeout),
       });
-      if (res.ok || attempt === retries) return res;
-      // Retry on 5xx and 413/429 (CDN rate-limit), not on 404 etc.
-      if (res.status < 500 && res.status !== 413 && res.status !== 429) return res;
-      const delay = 1000 * 2 ** attempt;
-      console.warn(`  [retry] ${url} → HTTP ${res.status}, waiting ${delay}ms…`);
-      await new Promise((r) => setTimeout(r, delay));
-    } catch (err) {
-      lastError = err;
-      if (attempt === retries) break;
-      const delay = 1000 * 2 ** attempt;
-      console.warn(`  [retry] ${url} → ${err instanceof Error ? err.message : err}, waiting ${delay}ms…`);
-      await new Promise((r) => setTimeout(r, delay));
-    }
+      // OK responses return directly.
+      if (res.ok) return res;
+      // Non-retryable 4xx (404, 403, etc.) — return so caller can
+      // inspect status. Throwing a special marker so retryWithBackoff
+      // doesn't retry, then rethrowing to the caller is overkill;
+      // instead we use a sentinel error whose shouldRetry returns false.
+      if (res.status < 500 && res.status !== 413 && res.status !== 429) {
+        return res;
+      }
+      // Retryable status — throw so retryWithBackoff can retry.
+      throw new RetryableHttpError(`HTTP ${res.status} for ${url}`, res);
+    },
+    {
+      retries,
+      onRetry: (_attempt, err, delay) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`  [retry] ${url} → ${msg}, waiting ${Math.round(delay)}ms…`);
+      },
+    },
+  ).catch((err: unknown) => {
+    // If the last error was a RetryableHttpError (status code), return
+    // its Response so the caller can still inspect it. Otherwise rethrow.
+    if (err instanceof RetryableHttpError) return err.response;
+    throw err;
+  });
+}
+
+/** Thrown to signal a retryable HTTP status; caller unwraps on final attempt. */
+class RetryableHttpError extends Error {
+  constructor(
+    message: string,
+    public readonly response: Response,
+  ) {
+    super(message);
+    this.name = "RetryableHttpError";
   }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 /**
