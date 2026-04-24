@@ -118,9 +118,21 @@ xargs -0 awk -v root="$DOCS_ROOT/" '
     heading_count++
   }
 
-  # Collect first non-heading content line (outside code blocks)
+  # Collect first non-heading content line (outside code blocks).
+  # Skip noise: CSS selectors, HTML tags, nav chrome, short fragments.
   /^[^#]/ && !in_fence && !got_content && /[A-Za-z]/ {
-    content = substr($0, 1, 200)
+    line = $0
+    # Skip lines that look like CSS (".class {" / "#id:hover {")
+    if (line ~ /^[.#@][-_A-Za-z].*\{/) next
+    # Skip raw HTML tags (<!DOCTYPE, <html, <div, etc.)
+    if (line ~ /^<[!A-Za-z]/) next
+    # Skip MediaWiki/site nav chrome
+    if (line ~ /^(Navigation menu|Page actions|Personal tools|Jump to |Views$|Toolbox$|Search$)/) next
+    # Skip lines with fewer than 3 word chars (pure symbols/punctuation)
+    if (line !~ /[A-Za-z].*[A-Za-z].*[A-Za-z]/) next
+    # Skip common boilerplate
+    if (line ~ /^(Submit correction|Was this helpful|Edit page|Copy page)/) next
+    content = substr(line, 1, 200)
     got_content = 1
   }
 
@@ -156,6 +168,17 @@ xargs -0 awk -v root="$DOCS_ROOT/" '
     gsub(/\033\[[0-9;]*[A-Za-z]/, "", summary)
     gsub(/\t/, " ", summary)
     gsub(/[\001-\010\013\014\016-\037\177]/, "", summary)
+
+    # Strip common trailing boilerplate from title and summary
+    gsub(/ - PostgreSQL wiki *$/, "", final_title)
+    gsub(/ \| Docker Docs *$/, "", final_title)
+    gsub(/ - PostgreSQL wiki *$/, "", summary)
+    gsub(/ \| Docker Docs *$/, "", summary)
+    gsub(/Submit correction *$/, "", summary)
+    # Strip MediaWiki chrome fragments from summary
+    gsub(/Navigation menu */, "", summary)
+    gsub(/Page actions? */, "", summary)
+    gsub(/Personal tools */, "", summary)
 
     printf "%s\t%s\t%s\n", relpath, final_title, summary
   }

@@ -1264,16 +1264,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Wails ─────────────────────────────────────────────────────
 
-  // Sitemap — Go+Web desktop apps (filter to latest docs)
+  // Git sparse — Go+Web desktop apps (sitemap 403 from CDN; Docusaurus MDX)
   new DocSource({
     name: "wails",
-    type: "http",
-    url: "https://wails.io/docs/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://wails.io/sitemap.xml",
-    urlPattern: "wails\\.io/docs/(introduction|getting-started|guides|reference|tutorials|community)",
-    urlExclude: "(/next/|/v2\\.|/category/)",
+    type: "git",
+    url: "https://github.com/wailsapp/wails",
+    format: "mdx",
+    paths: ["website/docs"],
+    rootPath: "website/docs",
   }),
 
   // ─── Prisma ────────────────────────────────────────────────────

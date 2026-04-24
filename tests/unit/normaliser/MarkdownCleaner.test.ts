@@ -7,14 +7,14 @@ describe("MarkdownCleaner", () => {
 
   // ─── supports() ────────────────────────────────────────────────────
 
-  it("supports .md files containing [Skip to content]", () => {
+  it("supports all .md files", () => {
     const file = new DocFile("page.md", "[Skip to content](#main)\n# Title");
     expect(cleaner.supports(file)).toBe(true);
   });
 
-  it("does not support .md files without [Skip to content]", () => {
+  it("supports .md files without boilerplate", () => {
     const file = new DocFile("clean.md", "# Clean Page\nNo boilerplate.");
-    expect(cleaner.supports(file)).toBe(false);
+    expect(cleaner.supports(file)).toBe(true);
   });
 
   it("does not support .html files even with [Skip to content]", () => {
