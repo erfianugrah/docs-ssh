@@ -45,6 +45,28 @@ describe("MdxNormaliser", () => {
     expect(result.content).toContain("# Auth Guide");
   });
 
+  it("preserves frontmatter title as H1 when content has no heading", async () => {
+    const file = new DocFile(
+      "x.mdx",
+      `---\ntitle: Hypnagogia\n---\n\nThe perception of time has changed.`,
+    );
+    const result = await normaliser.normalise(file);
+    expect(result.content).toContain("# Hypnagogia");
+    expect(result.content).toContain("The perception of time has changed.");
+    expect(result.content).not.toContain("title:");
+  });
+
+  it("does not duplicate H1 when content already has one matching frontmatter", async () => {
+    const file = new DocFile(
+      "x.mdx",
+      `---\ntitle: Auth Guide\n---\n\n# Auth Guide\n\nContent.`,
+    );
+    const result = await normaliser.normalise(file);
+    // Should have exactly one H1, not two
+    const h1Count = (result.content.match(/^# /gm) ?? []).length;
+    expect(h1Count).toBe(1);
+  });
+
   it("changes extension from .mdx to .md", async () => {
     const file = new DocFile("guides/auth.mdx", "# Auth");
     const result = await normaliser.normalise(file);

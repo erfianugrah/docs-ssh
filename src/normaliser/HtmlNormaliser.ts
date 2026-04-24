@@ -41,7 +41,12 @@ export class HtmlNormaliser implements DocNormaliser {
     let html = file.content;
     const originalSize = html.length;
 
+    // Extract <title> before stripping — inject as H1 if Turndown misses it
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const htmlTitle = titleMatch?.[1]?.trim().replace(/\s*[|–—-]\s*.*$/, "") ?? "";
+
     // Strip elements that add noise for agents
+    html = html.replace(/<head[\s\S]*?<\/head>/gi, "");
     html = html.replace(/<nav[\s\S]*?<\/nav>/gi, "");
     html = html.replace(/<header[\s\S]*?<\/header>/gi, "");
     html = html.replace(/<footer[\s\S]*?<\/footer>/gi, "");
@@ -54,7 +59,12 @@ export class HtmlNormaliser implements DocNormaliser {
       html = mainMatch[1];
     }
 
-    const markdown = this.td.turndown(html).trim();
+    let markdown = this.td.turndown(html).trim();
+
+    // Inject HTML <title> as H1 if markdown doesn't already have one
+    if (htmlTitle && !markdown.startsWith("# ")) {
+      markdown = `# ${htmlTitle}\n\n${markdown}`;
+    }
 
     // Safety guard: if conversion produced almost nothing from a large input,
     // the page is likely RSC/SPA rendered. Keep original to avoid data loss.

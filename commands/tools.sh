@@ -143,14 +143,17 @@ cat << 'TOOLS_STATIC'
       `total=$(${pipeline} | wc -l); ${pipeline} | head -${limit}; [ "$total" -gt ${limit} ] && echo "[showing ${limit} of $total results — refine query or add source filter]"`
     )
 
-    // Fallback: if index search found nothing, search file contents directly
+    // Fallback: if index search found nothing, try filename + content search
     if (!result.trim()) {
       const dir = args.source ? safePath(`/docs/${sq(args.source)}/`) : "/docs/"
-      const fallback = await ssh(
-        `rg -il '${sq(args.query)}' '${dir}' 2>/dev/null | head -${limit}`
-      )
-      if (fallback.trim()) {
-        return `[no index matches — found in file content]\n${fallback}`
+      // Search filenames first (fast), then content
+      const [fileMatch, contentMatch] = await Promise.all([
+        ssh(`find '${dir}' -type f -iname '*${sq(args.query)}*' | head -${limit}`),
+        ssh(`rg -il '${sq(args.query)}' '${dir}' 2>/dev/null | head -${limit}`),
+      ])
+      const combined = [...new Set([...fileMatch.split("\n"), ...contentMatch.split("\n")].filter(Boolean))]
+      if (combined.length) {
+        return `[no index matches — found via filename/content search]\n${combined.slice(0, limit).join("\n")}`
       }
       return `[no results for "${args.query}"${args.source ? ` in ${args.source}` : ""}]`
     }

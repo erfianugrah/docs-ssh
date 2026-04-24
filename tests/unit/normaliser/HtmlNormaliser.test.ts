@@ -120,4 +120,26 @@ describe("HtmlNormaliser", () => {
     expect(normaliser.supportsFormat("mdx")).toBe(false);
     expect(normaliser.supportsFormat("markdown")).toBe(false);
   });
+
+  it("injects HTML <title> as H1 when content has no heading", async () => {
+    const file = new DocFile(
+      "page.html",
+      `<html><head><title>Replication Guide | PostgreSQL wiki</title></head><body><p>Content about replication.</p></body></html>`,
+    );
+    const result = await normaliser.normalise(file);
+    // Title should be injected with site suffix stripped
+    expect(result.content).toContain("# Replication Guide");
+    expect(result.content).not.toContain("PostgreSQL wiki");
+    expect(result.content).toContain("Content about replication.");
+  });
+
+  it("does not duplicate H1 when content already has a heading", async () => {
+    const file = new DocFile(
+      "page.html",
+      `<html><head><title>Guide</title></head><body><h1>Guide</h1><p>Content.</p></body></html>`,
+    );
+    const result = await normaliser.normalise(file);
+    const h1Count = (result.content.match(/^# /gm) ?? []).length;
+    expect(h1Count).toBe(1);
+  });
 });

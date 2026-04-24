@@ -23,9 +23,22 @@ export class MdxNormaliser implements DocNormaliser {
   async normalise(file: DocFile): Promise<DocFile> {
     let content = file.content;
 
+    // Extract title from frontmatter before stripping it — preserve as H1
+    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+    let fmTitle = "";
+    if (fmMatch) {
+      const titleMatch = fmMatch[1].match(/^title:\s*["']?([^"'\n]+)["']?\s*$/m);
+      if (titleMatch) fmTitle = titleMatch[1].trim();
+    }
+
     // Strip YAML frontmatter (no `m` flag — `^` must match start of string,
     // not start of any line, to avoid stripping content between --- HRs)
     content = content.replace(/^---[\s\S]*?---\n?/, "");
+
+    // Inject frontmatter title as H1 if content doesn't already start with one
+    if (fmTitle && !content.trimStart().startsWith("# ")) {
+      content = `# ${fmTitle}\n\n${content}`;
+    }
 
     // Strip import statements (single-line and multi-line with braces)
     content = content.replace(/^import\s+\{[^}]*\}\s+from\s+[^\n]+(?:\n|$)/gm, "");
