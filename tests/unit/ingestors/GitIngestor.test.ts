@@ -8,6 +8,9 @@ import { execSync } from "node:child_process";
 
 describe("GitIngestor", () => {
   const ingestor = new GitIngestor();
+  // Fast-retry ingestor for tests that exercise the retry path without
+  // waiting real exponential-backoff seconds.
+  const fastIngestor = new GitIngestor({ retries: 2, base: 10, jitter: 0 });
 
   it("supports git sources", () => {
     const src = new DocSource({ name: "x", type: "git", format: "markdown", url: "https://x.com" });
@@ -58,6 +61,32 @@ describe("GitIngestor", () => {
 
     await fs.rm(tmpDir, { recursive: true });
   }, 30_000);
+
+  it("retries transient clone failures with backoff", async () => {
+    // A bogus URL — git will fail immediately on each attempt. We just
+    // check that the attempt count reflects retry behaviour by measuring
+    // elapsed time (2 retries * 10ms base = ~30ms total, vs ~0ms without).
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-retry-"));
+    const workDir = path.join(tmpDir, "work");
+    await fs.mkdir(workDir);
+
+    const src = new DocSource({
+      name: "bogus",
+      type: "git",
+      format: "markdown",
+      url: "/nonexistent/path/to/repo.git",
+    });
+
+    const start = Date.now();
+    await expect(fastIngestor.ingest(src, workDir)).rejects.toThrow();
+    const elapsed = Date.now() - start;
+
+    // With base=10ms and retries=2: delays are 10ms + 20ms = 30ms minimum.
+    // Allow up to a few seconds for git process overhead (fork+exec x3).
+    expect(elapsed).toBeGreaterThanOrEqual(25);
+
+    await fs.rm(tmpDir, { recursive: true });
+  }, 10_000);
 
   it("re-applies sparse-checkout when source.paths changes between runs", async () => {
     // On first ingest, sparse-checkout restricts to ["a"]. On a second

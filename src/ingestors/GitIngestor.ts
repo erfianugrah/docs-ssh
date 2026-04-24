@@ -9,6 +9,7 @@ import { DocSet } from "../domain/DocSet.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocSource } from "../domain/DocSource.js";
 import { walkDir } from "../shared/walkDir.js";
+import { retryWithBackoff, type RetryOptions } from "../shared/retry.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
@@ -19,13 +20,22 @@ const GIT_CLONE_TIMEOUT = 120_000;
 /** Timeout for lightweight git operations (checkout, sparse-checkout, rev-parse) */
 const GIT_FAST_TIMEOUT = 30_000;
 
+/** Default retry options for network-dependent git commands (clone, pull). */
+const DEFAULT_RETRY_OPTS: RetryOptions = { retries: 2, base: 1000 };
+
 /**
  * Ingestor for git-based doc sources.
  * Uses sparse-checkout to fetch only the required paths,
- * keeping clone size small.
+ * keeping clone size small. Network-dependent operations (clone, pull)
+ * are wrapped in retryWithBackoff to tolerate transient failures.
  */
 export class GitIngestor implements DocIngestor {
   readonly name = "GitIngestor";
+  private readonly retryOpts: RetryOptions;
+
+  constructor(retryOpts: RetryOptions = DEFAULT_RETRY_OPTS) {
+    this.retryOpts = retryOpts;
+  }
 
   supports(source: DocSource): boolean {
     return source.type === "git";
@@ -44,15 +54,35 @@ export class GitIngestor implements DocIngestor {
         source.paths.length > 0
           ? ["--no-checkout", "--filter=blob:none"]
           : ["--depth", "1"];
-      await execFileAsync("git", ["clone", ...sparseArgs, source.url, cloneDir], {
-        timeout: GIT_CLONE_TIMEOUT,
-      });
+      await retryWithBackoff(
+        () =>
+          execFileAsync("git", ["clone", ...sparseArgs, source.url, cloneDir], {
+            timeout: GIT_CLONE_TIMEOUT,
+          }),
+        {
+          ...this.retryOpts,
+          onRetry: (_a, err, delay) => {
+            const msg = err instanceof Error ? err.message.split("\n")[0] : String(err);
+            console.warn(`  [retry] git clone ${source.url} → ${msg}, waiting ${Math.round(delay)}ms…`);
+          },
+        },
+      );
     } else {
       // Pull latest
-      await execFileAsync("git", ["pull", "--rebase"], {
-        cwd: cloneDir,
-        timeout: GIT_CLONE_TIMEOUT,
-      });
+      await retryWithBackoff(
+        () =>
+          execFileAsync("git", ["pull", "--rebase"], {
+            cwd: cloneDir,
+            timeout: GIT_CLONE_TIMEOUT,
+          }),
+        {
+          ...this.retryOpts,
+          onRetry: (_a, err, delay) => {
+            const msg = err instanceof Error ? err.message.split("\n")[0] : String(err);
+            console.warn(`  [retry] git pull ${source.name} → ${msg}, waiting ${Math.round(delay)}ms…`);
+          },
+        },
+      );
     }
 
     // (Re-)apply sparse-checkout every run — idempotent when paths match

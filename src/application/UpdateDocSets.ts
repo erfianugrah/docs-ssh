@@ -265,12 +265,16 @@ export class UpdateDocSets {
     }
   }
 
-  /** git ls-remote HEAD — compare SHA without cloning. */
+  /** git ls-remote HEAD — compare SHA without cloning. Retries on transient network errors. */
   private async checkGitFreshness(source: DocSource, stamp: StampData): Promise<boolean> {
     if (!stamp.gitSha) return false;
-    const { stdout } = await execFileAsync("git", ["ls-remote", source.url, "HEAD"], {
-      timeout: 15_000,
-    });
+    const { stdout } = await retryWithBackoff(
+      () =>
+        execFileAsync("git", ["ls-remote", source.url, "HEAD"], {
+          timeout: 15_000,
+        }),
+      { retries: 2 },
+    );
     // Output: "<full-40-char-sha>\tHEAD"
     const remoteSha = stdout.trim().split(/\s/)[0];
     if (!remoteSha) return false;
