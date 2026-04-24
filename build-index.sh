@@ -160,13 +160,15 @@ xargs -0 awk -v root="$DOCS_ROOT/" '
       summary = substr(headings, 1, 300) " " substr(content, 1, 200)
     }
 
-    # Sanitise: strip ANSI escapes, tabs, control chars
+    # Sanitise: strip ANSI escapes, tabs, carriage returns, control chars
     gsub(/\033\[[0-9;]*[A-Za-z]/, "", final_title)
     gsub(/\t/, " ", final_title)
+    gsub(/\r/, "", final_title)
     gsub(/[\001-\010\013\014\016-\037\177]/, "", final_title)
 
     gsub(/\033\[[0-9;]*[A-Za-z]/, "", summary)
     gsub(/\t/, " ", summary)
+    gsub(/\r/, "", summary)
     gsub(/[\001-\010\013\014\016-\037\177]/, "", summary)
 
     # Strip common trailing boilerplate from title and summary

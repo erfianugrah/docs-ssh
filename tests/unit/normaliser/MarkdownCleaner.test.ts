@@ -185,4 +185,40 @@ Copy page`;
     expect(result.content).toContain("This is real content.");
     expect(result.content).toContain("console.log('hello');");
   });
+
+  // ─── CSS stripping: code fence awareness ────────────────────────────
+
+  it("strips leaked CSS outside code fences", async () => {
+    const md = "# Guide\n\n.leaked-class { color: red; }\n\nContent here.";
+    const file = new DocFile("page.md", md);
+    const result = await cleaner.normalise(file);
+    expect(result.content).not.toContain(".leaked-class");
+    expect(result.content).toContain("Content here.");
+  });
+
+  it("preserves CSS inside code fences", async () => {
+    const md = "# Styling Guide\n\n```css\n.button { color: blue; }\n#header { display: flex; }\n```\n\nMore content.";
+    const file = new DocFile("style.md", md);
+    const result = await cleaner.normalise(file);
+    expect(result.content).toContain(".button { color: blue; }");
+    expect(result.content).toContain("#header { display: flex; }");
+    expect(result.content).toContain("More content.");
+  });
+
+  it("preserves multi-line CSS inside code fences", async () => {
+    const md = "# Example\n\n```css\n@media (max-width: 768px) {\n  .hide {\n    display: none;\n  }\n}\n```\n\nText.";
+    const file = new DocFile("responsive.md", md);
+    const result = await cleaner.normalise(file);
+    expect(result.content).toContain("@media (max-width: 768px)");
+    expect(result.content).toContain("display: none;");
+  });
+
+  it("strips leaked CSS but preserves adjacent code fence CSS", async () => {
+    const md = ".leaked { margin: 0; }\n\n```css\n.safe { padding: 10px; }\n```\n\n#another-leak { font-size: 14px; }";
+    const file = new DocFile("mixed.md", md);
+    const result = await cleaner.normalise(file);
+    expect(result.content).not.toContain(".leaked");
+    expect(result.content).not.toContain("#another-leak");
+    expect(result.content).toContain(".safe { padding: 10px; }");
+  });
 });

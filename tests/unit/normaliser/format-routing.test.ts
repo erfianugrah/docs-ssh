@@ -319,4 +319,82 @@ Regular paragraph.`;
 
     await fs.rm(tmpDir, { recursive: true });
   });
+
+  // ─── Title preservation through full pipeline ───────────────────────
+
+  it("MDX frontmatter title survives full pipeline as H1", async () => {
+    const source = new DocSource({
+      name: "test-mdx-title",
+      type: "git",
+      url: "https://github.com/example/docs",
+      format: "mdx",
+    });
+
+    const mdx = `---
+title: Hypnagogia
+date: 2021-03-08
+---
+
+The perception of time has changed.`;
+
+    const files = new Map([["post.mdx", new DocFile("post.mdx", mdx)]]);
+    const set = new DocSet(source, files);
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "fmt-test-"));
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors,
+      normalisers,
+      outDir: tmpDir,
+      workDir: tmpDir,
+    });
+
+    const normalised = await (updater as any).normalise(set);
+    const file = normalised.getFile("post.md");
+    expect(file).toBeDefined();
+    // Title from frontmatter should be injected as H1
+    expect(file!.content).toContain("# Hypnagogia");
+    // Frontmatter itself should be stripped
+    expect(file!.content).not.toContain("date: 2021-03-08");
+    // Original content preserved
+    expect(file!.content).toContain("perception of time");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("HTML <title> survives full pipeline as H1", async () => {
+    const source = new DocSource({
+      name: "test-html-title",
+      type: "http",
+      url: "https://example.com/",
+      format: "html",
+    });
+
+    const html = `<html><head><title>Self-hosted Deployments | Docs</title></head>
+<body><p>Deploy your application to your own infrastructure.</p></body></html>`;
+
+    const files = new Map([["deploy.md", new DocFile("deploy.md", html)]]);
+    const set = new DocSet(source, files);
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "fmt-test-"));
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors,
+      normalisers,
+      outDir: tmpDir,
+      workDir: tmpDir,
+    });
+
+    const normalised = await (updater as any).normalise(set);
+    const file = normalised.getFile("deploy.md");
+    expect(file).toBeDefined();
+    // Title should be injected with site suffix stripped, hyphen preserved
+    expect(file!.content).toContain("# Self-hosted Deployments");
+    // Site suffix stripped
+    expect(file!.content).not.toContain("| Docs");
+    // Content preserved
+    expect(file!.content).toContain("Deploy your application");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
 });

@@ -58,16 +58,9 @@ export class MarkdownCleaner implements DocNormaliser {
     );
 
     // Remove inline CSS blocks that leaked through HTML→MD conversion
-    // Matches lines like ".class { property: value; }" or "#id:hover {"
-    content = content.replace(/^[.#@][\w-]+[^{]*\{[^}]*\}\s*$/gm, "");
-    // Multi-line CSS blocks: selector { ... }
-    content = content.replace(/^[.#@][\w-][^{]*\{\s*\n(?:[^}]*\n)*?\}\s*$/gm, "");
+    // Must skip code fences to avoid stripping legitimate CSS examples
+    content = stripCssOutsideFences(content);
 
-    // Remove MediaWiki navigation chrome
-    content = content.replace(
-      /^(?:Navigation menu|Page actions?|Personal tools|Jump to navigation|Jump to search|Views|Search|Toolbox|In other languages)\s*$/gm,
-      "",
-    );
     // MediaWiki footer boilerplate
     content = content.replace(/^Retrieved from "\[?https?:\/\/wiki\.[^"]*"?\]?\s*$/gm, "");
 
@@ -80,9 +73,59 @@ export class MarkdownCleaner implements DocNormaliser {
       "",
     );
 
+    // Narrow MediaWiki chrome: require more specific patterns to avoid
+    // stripping legitimate "Search" or "Views" headings in non-wiki docs
+    content = content.replace(
+      /^(?:Navigation menu|Page actions?|Personal tools|Jump to navigation|Jump to search|Toolbox|In other languages)\s*$/gm,
+      "",
+    );
+
     // Collapse excessive blank lines
     content = content.replace(/\n{3,}/g, "\n\n").trim();
 
     return file.withContent(content);
   }
+}
+
+/** Strip CSS selectors/blocks only when NOT inside fenced code blocks. */
+function stripCssOutsideFences(content: string): string {
+  const lines = content.split("\n");
+  let inFence = false;
+  const result: string[] = [];
+  let skipMultiLine = false;
+
+  for (const line of lines) {
+    if (line.startsWith("```") || line.startsWith("~~~")) {
+      inFence = !inFence;
+      skipMultiLine = false;
+      result.push(line);
+      continue;
+    }
+
+    if (inFence) {
+      result.push(line);
+      continue;
+    }
+
+    // Track multi-line CSS blocks: selector { ... }
+    if (skipMultiLine) {
+      if (line.match(/^\s*\}/)) {
+        skipMultiLine = false;
+      }
+      continue;
+    }
+
+    // Single-line CSS: .class { prop: value; }
+    if (/^[.#@][\w-]+[^{]*\{[^}]*\}\s*$/.test(line)) continue;
+
+    // Multi-line CSS opening: .class {
+    if (/^[.#@][\w-][^{]*\{\s*$/.test(line)) {
+      skipMultiLine = true;
+      continue;
+    }
+
+    result.push(line);
+  }
+
+  return result.join("\n");
 }

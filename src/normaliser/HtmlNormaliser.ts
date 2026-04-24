@@ -43,7 +43,9 @@ export class HtmlNormaliser implements DocNormaliser {
 
     // Extract <title> before stripping — inject as H1 if Turndown misses it
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    const htmlTitle = titleMatch?.[1]?.trim().replace(/\s*[|–—-]\s*.*$/, "") ?? "";
+    // Strip site suffixes like "Page | Site", "Page — Site", "Page - Site"
+    // Requires spaces around hyphen to avoid truncating "Self-hosted guide"
+    const htmlTitle = titleMatch?.[1]?.trim().replace(/\s*(?:\||–|—)\s.*$/, "").replace(/\s+-\s+.*$/, "") ?? "";
 
     // Strip elements that add noise for agents
     html = html.replace(/<head[\s\S]*?<\/head>/gi, "");

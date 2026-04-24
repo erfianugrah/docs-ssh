@@ -359,6 +359,38 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("discovers URLs from TOC with uppercase HREF (DocBook/XHTML)", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const tocHtml = `<HTML><BODY>
+<A HREF="preface.html">Preface</A>
+<A HREF="intro.html">Introduction</A>
+</BODY></HTML>`;
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith("index.html")) {
+        return { ok: true, text: async () => tocHtml };
+      }
+      return { ok: true, text: async () => `<H1>Page</H1>` };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "docbook-toc-test",
+      type: "http",
+      format: "html",
+      url: "https://www.pgpool.net/docs/latest/en/html/",
+      discovery: "toc",
+      discoveryUrl: "https://www.pgpool.net/docs/latest/en/html/index.html",
+      urlPattern: "pgpool\\.net",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    expect(set.size).toBe(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   it("discovers non-.html URLs from a TOC page (wiki-style)", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
 
@@ -931,6 +963,58 @@ describe("HttpIngestor", () => {
     expect(set.size).toBe(2);
     // Fetch called once per explicit URL
     expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Partial failure handling ─────────────────────────────────────────
+
+  it("succeeds with partial failures (some pages fail, others succeed)", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("broken")) return { ok: false, status: 500 };
+      return { ok: true, text: async () => `<h1>Page</h1>` };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "partial-fail-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: [
+        "https://example.com/good1.html",
+        "https://example.com/broken.html",
+        "https://example.com/good2.html",
+      ],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    // 2 succeed, 1 fails (after retries) — should not throw
+    expect(set.size).toBe(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("throws when ALL pages fail", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "all-fail-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: [
+        "https://example.com/a.html",
+        "https://example.com/b.html",
+      ],
+    });
+
+    await expect(ingestor.ingest(src, tmpDir)).rejects.toThrow("all fetches failed");
 
     await fs.rm(tmpDir, { recursive: true });
   });
