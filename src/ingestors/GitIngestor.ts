@@ -66,10 +66,14 @@ export class GitIngestor implements DocIngestor {
       });
     }
 
-    // Get current HEAD SHA for versioning
+    // Get current HEAD SHA for versioning.
+    // Use full 40-char SHA (not --short) so freshness checks in
+    // UpdateDocSets.checkGitFreshness can compare byte-for-byte against
+    // `git ls-remote` output. --short auto-disambiguates to 7-10 chars
+    // for large repos, which never matches a sliced remote SHA.
     let version: string | undefined;
     try {
-      version = (await execFileAsync("git", ["rev-parse", "--short", "HEAD"], {
+      version = (await execFileAsync("git", ["rev-parse", "HEAD"], {
         cwd: cloneDir,
         timeout: GIT_FAST_TIMEOUT,
       })).stdout.trim();

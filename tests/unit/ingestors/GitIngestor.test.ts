@@ -58,4 +58,40 @@ describe("GitIngestor", () => {
 
     await fs.rm(tmpDir, { recursive: true });
   }, 30_000);
+
+  it("stores full 40-char SHA as version (not --short)", async () => {
+    // Freshness check in UpdateDocSets compares remote full-SHA against
+    // stamp.gitSha. If we stored a --short SHA, it would auto-disambiguate
+    // to 7-10 chars and never match the full 40-char remote SHA.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-sha-"));
+    const repoDir = path.join(tmpDir, "repo");
+    const workDir = path.join(tmpDir, "work");
+    await fs.mkdir(repoDir);
+    await fs.mkdir(workDir);
+
+    execSync("git init --bare --initial-branch=main", { cwd: repoDir, stdio: "pipe" });
+
+    const cloneDir = path.join(tmpDir, "clone");
+    execSync(`git clone ${repoDir} ${cloneDir}`, { stdio: "pipe" });
+    execSync("git config user.email 'test@test.com'", { cwd: cloneDir, stdio: "pipe" });
+    execSync("git config user.name 'Test'", { cwd: cloneDir, stdio: "pipe" });
+    await fs.writeFile(path.join(cloneDir, "README.md"), "# Hi");
+    execSync("git add .", { cwd: cloneDir, stdio: "pipe" });
+    execSync("git commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
+    execSync("git push origin main", { cwd: cloneDir, stdio: "pipe" });
+
+    const src = new DocSource({
+      name: "sha-test",
+      type: "git",
+      format: "markdown",
+      url: repoDir,
+    });
+
+    const set = await ingestor.ingest(src, workDir);
+
+    expect(set.version).toBeDefined();
+    expect(set.version).toMatch(/^[0-9a-f]{40}$/);
+
+    await fs.rm(tmpDir, { recursive: true });
+  }, 30_000);
 });

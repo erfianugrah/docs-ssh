@@ -209,4 +209,81 @@ describe("UpdateDocSets", () => {
       await fs.rm(tmpDir, { recursive: true });
     });
   });
+
+  describe("git freshness check", () => {
+    /**
+     * Directly exercise the private checkGitFreshness method against
+     * a real local bare repo. Covers full-SHA equality + legacy short-SHA
+     * prefix match so an upgrade from older stamp formats is seamless.
+     */
+    async function makeRepo(): Promise<{ url: string; sha: string; cleanup: () => Promise<void> }> {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-git-"));
+      const repoDir = path.join(tmpDir, "repo");
+      const cloneDir = path.join(tmpDir, "clone");
+      await fs.mkdir(repoDir);
+      const { execSync } = await import("node:child_process");
+      execSync("git init --bare --initial-branch=main", { cwd: repoDir, stdio: "pipe" });
+      execSync(`git clone ${repoDir} ${cloneDir}`, { stdio: "pipe" });
+      execSync("git config user.email 'test@test.com'", { cwd: cloneDir, stdio: "pipe" });
+      execSync("git config user.name 'Test'", { cwd: cloneDir, stdio: "pipe" });
+      await fs.writeFile(path.join(cloneDir, "README.md"), "# Hi");
+      execSync("git add .", { cwd: cloneDir, stdio: "pipe" });
+      execSync("git commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
+      execSync("git push origin main", { cwd: cloneDir, stdio: "pipe" });
+      const sha = execSync("git rev-parse HEAD", { cwd: cloneDir, encoding: "utf-8" }).trim();
+      return {
+        url: repoDir,
+        sha,
+        cleanup: () => fs.rm(tmpDir, { recursive: true, force: true }),
+      };
+    }
+
+    it("returns true when stamp has full 40-char SHA matching remote", async () => {
+      const { url, sha, cleanup } = await makeRepo();
+      const source = new DocSource({ name: "r", type: "git", format: "markdown", url });
+      const updater = new UpdateDocSets({
+        sources: [source],
+        ingestors: [],
+        normalisers: [],
+        outDir: "",
+        workDir: "",
+      });
+      const fresh = await (updater as any).checkGitFreshness(source, { fetchedAt: "", gitSha: sha });
+      expect(fresh).toBe(true);
+      await cleanup();
+    }, 15_000);
+
+    it("returns true for legacy short SHA that prefixes the full remote SHA", async () => {
+      const { url, sha, cleanup } = await makeRepo();
+      const source = new DocSource({ name: "r", type: "git", format: "markdown", url });
+      const updater = new UpdateDocSets({
+        sources: [source],
+        ingestors: [],
+        normalisers: [],
+        outDir: "",
+        workDir: "",
+      });
+      // Simulate an old stamp written with `git rev-parse --short` (7-10 chars).
+      const legacyShort = sha.slice(0, 9);
+      const fresh = await (updater as any).checkGitFreshness(source, { fetchedAt: "", gitSha: legacyShort });
+      expect(fresh).toBe(true);
+      await cleanup();
+    }, 15_000);
+
+    it("returns false when stamp SHA does not match remote", async () => {
+      const { url, cleanup } = await makeRepo();
+      const source = new DocSource({ name: "r", type: "git", format: "markdown", url });
+      const updater = new UpdateDocSets({
+        sources: [source],
+        ingestors: [],
+        normalisers: [],
+        outDir: "",
+        workDir: "",
+      });
+      const bogus = "0000000000000000000000000000000000000000";
+      const fresh = await (updater as any).checkGitFreshness(source, { fetchedAt: "", gitSha: bogus });
+      expect(fresh).toBe(false);
+      await cleanup();
+    }, 15_000);
+  });
 });

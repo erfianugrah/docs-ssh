@@ -277,9 +277,14 @@ export class UpdateDocSets {
     const { stdout } = await execFileAsync("git", ["ls-remote", source.url, "HEAD"], {
       timeout: 15_000,
     });
-    // Output: "<full-sha>\tHEAD"
-    const remoteSha = stdout.trim().split(/\s/)[0]?.slice(0, 7);
+    // Output: "<full-40-char-sha>\tHEAD"
+    const remoteSha = stdout.trim().split(/\s/)[0];
+    if (!remoteSha) return false;
+    // Full-SHA equality. Legacy stamps stored a truncated --short SHA
+    // (7-10 chars); tolerate those via prefix match so the cache doesn't
+    // invalidate on upgrade. New stamps store full 40-char SHAs.
     if (remoteSha === stamp.gitSha) return true;
+    if (stamp.gitSha.length < 40 && remoteSha.startsWith(stamp.gitSha)) return true;
     console.log(`[${source.name}] remote SHA changed: ${stamp.gitSha} → ${remoteSha}`);
     return false;
   }
