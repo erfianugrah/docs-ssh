@@ -62,6 +62,58 @@ describe("GitIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   }, 30_000);
 
+  it("recovers from a leftover partial-clone dir on the clone path", async () => {
+    // If a previous run's clone was killed partway (network drop,
+    // timeout), the target dir may still exist with partial content.
+    // A partial dir that looks 'present' should be cleaned before
+    // clone retries so we don't hit "destination path already exists".
+    //
+    // Simulate: bare repo is valid and reachable, but the cloneDir
+    // already contains junk from a pretend-partial previous attempt.
+    // Clone should succeed by wiping the leftover.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-partial-"));
+    const repoDir = path.join(tmpDir, "repo");
+    const workDir = path.join(tmpDir, "work");
+    await fs.mkdir(repoDir);
+    await fs.mkdir(workDir);
+
+    // Build a valid bare repo
+    execSync("git init --bare --initial-branch=main", { cwd: repoDir, stdio: "pipe" });
+    const seedDir = path.join(tmpDir, "seed");
+    execSync(`git clone ${repoDir} ${seedDir}`, { stdio: "pipe" });
+    execSync("git config user.email 'test@test.com'", { cwd: seedDir, stdio: "pipe" });
+    execSync("git config user.name 'Test'", { cwd: seedDir, stdio: "pipe" });
+    await fs.writeFile(path.join(seedDir, "README.md"), "# Valid");
+    execSync("git add .", { cwd: seedDir, stdio: "pipe" });
+    execSync("git commit -m 'init'", { cwd: seedDir, stdio: "pipe" });
+    execSync("git push origin main", { cwd: seedDir, stdio: "pipe" });
+
+    // Pre-pollute the clone target with junk that ISN'T a valid git
+    // repo so the pull path would fail, AND has content that would
+    // make git clone error with "destination path ... not empty".
+    const cloneDir = path.join(workDir, "partial");
+    await fs.mkdir(cloneDir);
+    await fs.writeFile(path.join(cloneDir, "stray.txt"), "leftover");
+
+    const src = new DocSource({
+      name: "partial",
+      type: "git",
+      format: "markdown",
+      url: repoDir,
+    });
+
+    // Current behaviour: exists(cloneDir) is true → pull branch runs.
+    // pull fails (not a git repo). Source errors, no recovery.
+    // After fix: detect non-repo dir and fall through to clone with
+    // cleanup, or clean unconditionally on the clone path before
+    // retrying. Either way, the source should succeed.
+    const set = await fastIngestor.ingest(src, workDir);
+    expect(set.size).toBeGreaterThan(0);
+    expect(set.hasFile("README.md")).toBe(true);
+
+    await fs.rm(tmpDir, { recursive: true });
+  }, 30_000);
+
   it("retries transient clone failures with backoff", async () => {
     // A bogus URL — git will fail immediately on each attempt. We just
     // check that the attempt count reflects retry behaviour by measuring

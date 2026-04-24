@@ -44,21 +44,33 @@ export class GitIngestor implements DocIngestor {
   async ingest(source: DocSource, workDir: string): Promise<DocSet> {
     const cloneDir = path.join(workDir, source.name);
 
-    // Clone with sparse-ready args if paths are specified, otherwise
-    // shallow clone. Sparse config is applied below so it's idempotent
-    // across runs — previously re-applying was skipped on existing
-    // clones, so editing source.paths had no effect until the work dir
-    // was wiped.
-    if (!(await exists(cloneDir))) {
+    // Decide clone vs pull: the dir must both exist AND be a real git
+    // repo (contains a .git directory). A partial clone killed mid-way
+    // leaves a non-repo dir on disk; treat that as "needs clone" and
+    // wipe before retrying.
+    const cloneDirExists = await exists(cloneDir);
+    const isRealRepo = cloneDirExists && (await exists(path.join(cloneDir, ".git")));
+
+    if (!isRealRepo) {
+      if (cloneDirExists) {
+        // Leftover from a killed/partial clone. Remove before retrying
+        // so git doesn't error with "destination path already exists
+        // and is not an empty directory".
+        await fs.rm(cloneDir, { recursive: true, force: true });
+      }
       const sparseArgs =
         source.paths.length > 0
           ? ["--no-checkout", "--filter=blob:none"]
           : ["--depth", "1"];
       await retryWithBackoff(
-        () =>
-          execFileAsync("git", ["clone", ...sparseArgs, source.url, cloneDir], {
+        async () => {
+          // Inside the retry loop too: if the previous attempt crashed
+          // after creating the dir, clean it before the next try.
+          await fs.rm(cloneDir, { recursive: true, force: true }).catch(() => {});
+          return execFileAsync("git", ["clone", ...sparseArgs, source.url, cloneDir], {
             timeout: GIT_CLONE_TIMEOUT,
-          }),
+          });
+        },
         {
           ...this.retryOpts,
           onRetry: (_a, err, delay) => {

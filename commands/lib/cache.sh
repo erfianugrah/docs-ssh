@@ -71,8 +71,10 @@ exec_and_cache() {
   # Only persist if stdout is under the size limit AND the command
   # didn't hit the timeout. Caching a timed-out result would replay
   # partial output on the next identical query.
+  # timeout(1) exits 124 on kill, OR 143 (128+SIGTERM) when the child
+  # inherits the signal status — treat both as "don't cache".
   _size=$(wc -c < "${_base}.out.tmp" 2>/dev/null || echo 0)
-  if [ "$_exit" -ne 124 ] && [ "$_size" -lt "$MAX_CACHE_BYTES" ]; then
+  if [ "$_exit" -ne 124 ] && [ "$_exit" -ne 143 ] && [ "$_size" -lt "$MAX_CACHE_BYTES" ]; then
     mv "${_base}.out.tmp" "${_base}.out" 2>/dev/null
     mv "${_base}.err.tmp" "${_base}.err" 2>/dev/null
     mv "${_base}.rc.tmp" "${_base}.rc" 2>/dev/null

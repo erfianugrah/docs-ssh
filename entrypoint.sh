@@ -16,6 +16,9 @@ ENV_FILE="/run/sshd/docs-ssh.env"
 _safe_host=$(printf '%s' "${DOCS_SSH_HOST:-localhost}" | tr -cd 'a-zA-Z0-9._-')
 _safe_port=$(printf '%s' "${DOCS_SSH_PORT:-2222}" | tr -cd '0-9')
 _safe_timeout=$(printf '%s' "${DOCS_CMD_TIMEOUT:-60}" | tr -cd '0-9')
+# Fall back to defaults if sanitisation stripped the input to empty
+# (e.g. DOCS_SSH_HOST='///' → '' → localhost).
+: "${_safe_host:=localhost}"
 : "${_safe_port:=2222}"
 : "${_safe_timeout:=60}"
 printf 'DOCS_SSH_HOST=%s\nDOCS_SSH_PORT=%s\nDOCS_CMD_TIMEOUT=%s\n' \
