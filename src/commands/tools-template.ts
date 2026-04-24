@@ -147,6 +147,19 @@ export const SEARCH_BODY_STATIC = `\
     const result = await ssh(
       \`total=$(\${pipeline} | wc -l); \${pipeline} | head -\${limit}; [ "$total" -gt \${limit} ] && echo "[showing \${limit} of $total results — refine query or add source filter]"\`
     )
+
+    // Fallback: if index search found nothing, search file contents directly
+    if (!result.trim()) {
+      const dir = args.source ? safePath(\`/docs/\${sq(args.source)}/\`) : "/docs/"
+      const fallback = await ssh(
+        \`rg -il '\${sq(args.query)}' '\${dir}' 2>/dev/null | head -\${limit}\`
+      )
+      if (fallback.trim()) {
+        return \`[no index matches — found in file content]\\n\${fallback}\`
+      }
+      return \`[no results for "\${args.query}"\${args.source ? \` in \${args.source}\` : ""}]\`
+    }
+
     return result
   },
 }
@@ -256,10 +269,13 @@ export const summary = {
 
 export const sources = {
   description: "List all available documentation sources and their file counts.",
-  args: {},
-  async execute() {
+  args: {
+    filter: z.string().optional().describe("Filter source names (e.g. 'postgres', 'supabase')"),
+  },
+  async execute(args: { filter?: string }) {
+    const filterCmd = args.filter ? \` | rg -i '\${sq(args.filter)}'\` : ""
     return ssh(
-      \`for d in /docs/*/; do name=$(basename "$d"); count=$(find "$d" -type f | wc -l); echo "$name: $count files"; done\`,
+      \`for d in /docs/*/; do name=$(basename "$d"); count=$(find "$d" -type f | wc -l); echo "$name: $count files"; done\${filterCmd}\`,
     )
   },
 }

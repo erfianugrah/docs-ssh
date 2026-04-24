@@ -27,6 +27,8 @@ tiny_files=$(find "$DOCS_ROOT" -type f \( -name '*.md' -o -name '*.html' \) -siz
 
 no_title=$(awk -F'\t' '$2 == ""' "$INDEX_FILE" | wc -l)
 no_summary=$(awk -F'\t' '$3 == "" || $3 ~ /^[[:space:]]*$/' "$INDEX_FILE" | wc -l)
+html_title=$(awk -F'\t' '$2 ~ /^<[!A-Za-z]/ || $2 ~ /\{/' "$INDEX_FILE" | wc -l)
+css_content=$(grep -rl '{.*:.*}' "$DOCS_ROOT" --include='*.md' 2>/dev/null | head -100 | wc -l)
 
 # ─── Summary ──────────────────────────────────────────────────────
 
@@ -51,6 +53,11 @@ fi
 
 if [ "$no_summary" -gt 0 ]; then
   echo "[health] WARN: ${no_summary} index entries with no summary"
+  warn_count=$((warn_count + 1))
+fi
+
+if [ "$html_title" -gt 0 ]; then
+  echo "[health] WARN: ${html_title} index entries with HTML/CSS in title"
   warn_count=$((warn_count + 1))
 fi
 
