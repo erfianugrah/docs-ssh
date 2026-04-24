@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { UpdateDocSets } from "../../../src/application/UpdateDocSets.js";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { UpdateDocSets, BatchProgress } from "../../../src/application/UpdateDocSets.js";
 import { DocFile } from "../../../src/domain/DocFile.js";
 import { DocSet } from "../../../src/domain/DocSet.js";
 import { DocSource } from "../../../src/domain/DocSource.js";
@@ -207,6 +207,110 @@ describe("UpdateDocSets", () => {
       expect(results[1].status).toBe("ok");
 
       await fs.rm(tmpDir, { recursive: true });
+    });
+  });
+
+  describe("BatchProgress", () => {
+    // Snapshot + restore real console so these tests don't pollute output
+    // if they fail partway through.
+    const real = {
+      log: console.log,
+      warn: console.warn,
+      error: console.error,
+    };
+
+    afterEach(() => {
+      console.log = real.log;
+      console.warn = real.warn;
+      console.error = real.error;
+    });
+
+    it("buffers console output during batch in TTY mode", () => {
+      const progress = new BatchProgress({ isTTY: true });
+      const spy = vi.fn();
+      console.log = spy;
+      console.warn = spy;
+      console.error = spy;
+
+      progress.start(["source-a", "source-b"]);
+      // Ingestor code calls console during the batch
+      console.log("progress message");
+      console.warn("warning");
+      console.error("error");
+
+      // Nothing should have been passed to the spy yet — the batch is
+      // still active and messages are queued for later replay.
+      expect(spy).not.toHaveBeenCalledWith("progress message");
+      expect(spy).not.toHaveBeenCalledWith("warning");
+      expect(spy).not.toHaveBeenCalledWith("error");
+    });
+
+    it("replays buffered messages on finish() in TTY mode", () => {
+      const progress = new BatchProgress({ isTTY: true });
+      const logSpy = vi.fn();
+      const warnSpy = vi.fn();
+      const errorSpy = vi.fn();
+      console.log = logSpy;
+      console.warn = warnSpy;
+      console.error = errorSpy;
+
+      progress.start(["source-a"]);
+      console.log("queued log", 1);
+      console.warn("queued warn");
+      console.error("queued error");
+      progress.finish();
+
+      // After finish the buffer is flushed to the restored console.
+      expect(logSpy).toHaveBeenCalledWith("queued log", 1);
+      expect(warnSpy).toHaveBeenCalledWith("queued warn");
+      expect(errorSpy).toHaveBeenCalledWith("queued error");
+    });
+
+    it("preserves ordering of buffered messages", () => {
+      const progress = new BatchProgress({ isTTY: true });
+      const calls: string[] = [];
+      console.log = (...a: unknown[]) => { calls.push(`log:${a.join(",")}`); };
+      console.warn = (...a: unknown[]) => { calls.push(`warn:${a.join(",")}`); };
+
+      progress.start(["x"]);
+      console.log("a");
+      console.warn("b");
+      console.log("c");
+      progress.finish();
+
+      expect(calls).toEqual(["log:a", "warn:b", "log:c"]);
+    });
+
+    it("does not touch console in non-TTY mode (logs pass through)", () => {
+      const progress = new BatchProgress({ isTTY: false });
+      const spy = vi.fn();
+      console.log = spy;
+
+      progress.start(["source-a"]);
+      console.log("passthrough");
+      progress.finish();
+
+      // In non-TTY mode the logs go straight to the original console;
+      // the spy is called immediately (not via buffer replay).
+      expect(spy).toHaveBeenCalledWith("passthrough");
+    });
+
+    it("clears buffer between batches", () => {
+      const progress = new BatchProgress({ isTTY: true });
+      const spy = vi.fn();
+      console.log = spy;
+
+      progress.start(["a"]);
+      console.log("batch1");
+      progress.finish();
+      spy.mockClear();
+
+      progress.start(["b"]);
+      // No message queued this time
+      progress.finish();
+
+      // Should not re-emit batch1
+      expect(spy).not.toHaveBeenCalled();
     });
   });
 

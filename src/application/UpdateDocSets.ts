@@ -80,23 +80,55 @@ interface ProgressLine {
   icon: string;
 }
 
-class BatchProgress {
+type ConsoleLevel = "log" | "warn" | "error";
+interface BufferedMessage {
+  readonly level: ConsoleLevel;
+  readonly args: readonly unknown[];
+}
+
+export interface BatchProgressOptions {
+  /** Override TTY detection. Default: process.stdout.isTTY. */
+  readonly isTTY?: boolean;
+}
+
+export class BatchProgress {
   private lines: ProgressLine[] = [];
-  private isTTY = process.stdout.isTTY ?? false;
+  private isTTY: boolean;
   private rendered = false;
-  private savedLog = console.log;
-  private savedWarn = console.warn;
-  private savedError = console.error;
+  // Populated in start() so the saved handlers reflect whatever console
+  // bindings are live at batch-start time (matters for tests that stub
+  // console before constructing the instance).
+  private savedLog: typeof console.log = console.log;
+  private savedWarn: typeof console.warn = console.warn;
+  private savedError: typeof console.error = console.error;
+  /**
+   * Messages console.log/warn/error would have printed during the
+   * batch. TTY runs buffer them to avoid shredding the progress
+   * display; finish() replays them afterwards so nothing is lost.
+   */
+  private buffer: BufferedMessage[] = [];
+
+  constructor(opts: BatchProgressOptions = {}) {
+    this.isTTY = opts.isTTY ?? process.stdout.isTTY ?? false;
+  }
 
   start(names: string[]) {
     this.lines = names.map((name) => ({ name, status: "waiting", icon: "○" }));
+    this.buffer = [];
     if (this.isTTY) {
-      // Suppress ingestor console noise — progress display replaces it
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      const noop = () => {};
-      console.log = noop;
-      console.warn = noop;
-      console.error = noop;
+      // Capture the current console bindings so finish() can restore
+      // them (not whatever was live at class construction time).
+      this.savedLog = console.log;
+      this.savedWarn = console.warn;
+      this.savedError = console.error;
+      // Redirect ingestor console output to a buffer so the progress
+      // display isn't shredded. finish() replays the buffer afterwards.
+      const capture = (level: ConsoleLevel) => (...args: unknown[]) => {
+        this.buffer.push({ level, args });
+      };
+      console.log = capture("log");
+      console.warn = capture("warn");
+      console.error = capture("error");
       this.render();
     }
   }
@@ -133,7 +165,12 @@ class BatchProgress {
       console.log = this.savedLog;
       console.warn = this.savedWarn;
       console.error = this.savedError;
+      // Flush buffered messages to the restored console.
+      for (const { level, args } of this.buffer) {
+        console[level](...args);
+      }
     }
+    this.buffer = [];
     this.rendered = false;
   }
 
