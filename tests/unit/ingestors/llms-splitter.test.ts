@@ -114,6 +114,37 @@ describe("splitVercelStyle", () => {
   });
 });
 
+describe("splitFrontmatterStyle (dedup stability)", () => {
+  it("dedup suffix reflects page index, not the mutating map size", () => {
+    // Reproduces the stability concern: a page with empty body is
+    // skipped (see `if (!pageContent || !title) continue`), which
+    // keeps idx advancing but leaves pages.size unchanged. The
+    // collision suffix must not shift in response — it should track
+    // the page's own idx so adding or removing unrelated empty blocks
+    // earlier in the file doesn't rename downstream collision pages.
+    //
+    // Sequence: A(idx=0), B(idx=1), [EMPTY skipped](idx=2), A(idx=3)
+    // With pages.size-based suffix: second A becomes 'a-2.md'
+    // (pages.size=2 at that point).
+    // With idx-based suffix: second A becomes 'a-3.md' (idx=3),
+    // stable regardless of whether the empty block existed.
+    const content = [
+      "---\ntitle: A\n---\n\nA1 content.\n\n",
+      "---\ntitle: B\n---\n\nB content.\n\n",
+      "---\ntitle: Skipped\n---\n\n", // no body → skipped
+      "---\ntitle: A\n---\n\nA2 content.",
+    ].join("");
+
+    const pages = splitFrontmatterStyle(content, "https://example.com/");
+    expect(pages.has("a.md")).toBe(true);
+    expect(pages.has("b.md")).toBe(true);
+    // idx-based suffix: a-3.md (page was at idx=3). Stable across
+    // additions/removals of earlier skipped blocks.
+    expect(pages.has("a-3.md")).toBe(true);
+    expect(pages.size).toBe(3);
+  });
+});
+
 describe("splitFrontmatterStyle", () => {
   it("splits a basic cloudflare-style llms-full.txt", () => {
     const content = [

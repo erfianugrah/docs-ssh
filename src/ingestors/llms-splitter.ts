@@ -176,9 +176,12 @@ export function splitFrontmatterStyle(content: string, _baseUrl: string): Map<st
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
     let filePath = slug ? `${slug}.md` : `page-${idx}.md`;
-    // Deduplicate: if slug already exists, append a suffix (same as splitHeadingStyle)
+    // Deduplicate: if slug already exists, append the page's idx as a
+    // suffix. Using idx (stable across runs and unaffected by earlier
+    // skipped pages) instead of pages.size (which shifts as other
+    // pages are added or skipped) makes filenames deterministic.
     if (pages.has(filePath)) {
-      filePath = slug ? `${slug}-${pages.size}.md` : `page-${idx}-${pages.size}.md`;
+      filePath = slug ? `${slug}-${idx}.md` : `page-${idx}-dup.md`;
     }
     pages.set(filePath, pageContent);
   }
