@@ -34,7 +34,11 @@ export class GitIngestor implements DocIngestor {
   async ingest(source: DocSource, workDir: string): Promise<DocSet> {
     const cloneDir = path.join(workDir, source.name);
 
-    // Clone with sparse checkout if paths are specified
+    // Clone with sparse-ready args if paths are specified, otherwise
+    // shallow clone. Sparse config is applied below so it's idempotent
+    // across runs — previously re-applying was skipped on existing
+    // clones, so editing source.paths had no effect until the work dir
+    // was wiped.
     if (!(await exists(cloneDir))) {
       const sparseArgs =
         source.paths.length > 0
@@ -43,26 +47,28 @@ export class GitIngestor implements DocIngestor {
       await execFileAsync("git", ["clone", ...sparseArgs, source.url, cloneDir], {
         timeout: GIT_CLONE_TIMEOUT,
       });
-
-      if (source.paths.length > 0) {
-        await execFileAsync("git", ["sparse-checkout", "init", "--cone"], {
-          cwd: cloneDir,
-          timeout: GIT_FAST_TIMEOUT,
-        });
-        await execFileAsync("git", ["sparse-checkout", "set", ...source.paths], {
-          cwd: cloneDir,
-          timeout: GIT_FAST_TIMEOUT,
-        });
-        await execFileAsync("git", ["checkout"], {
-          cwd: cloneDir,
-          timeout: GIT_FAST_TIMEOUT,
-        });
-      }
     } else {
       // Pull latest
       await execFileAsync("git", ["pull", "--rebase"], {
         cwd: cloneDir,
         timeout: GIT_CLONE_TIMEOUT,
+      });
+    }
+
+    // (Re-)apply sparse-checkout every run — idempotent when paths match
+    // the stored config, and picks up changes to source.paths otherwise.
+    if (source.paths.length > 0) {
+      await execFileAsync("git", ["sparse-checkout", "init", "--cone"], {
+        cwd: cloneDir,
+        timeout: GIT_FAST_TIMEOUT,
+      });
+      await execFileAsync("git", ["sparse-checkout", "set", ...source.paths], {
+        cwd: cloneDir,
+        timeout: GIT_FAST_TIMEOUT,
+      });
+      await execFileAsync("git", ["checkout"], {
+        cwd: cloneDir,
+        timeout: GIT_FAST_TIMEOUT,
       });
     }
 

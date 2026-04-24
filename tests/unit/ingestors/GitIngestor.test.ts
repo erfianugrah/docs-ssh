@@ -59,6 +59,60 @@ describe("GitIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   }, 30_000);
 
+  it("re-applies sparse-checkout when source.paths changes between runs", async () => {
+    // On first ingest, sparse-checkout restricts to ["a"]. On a second
+    // ingest with paths=["a","b"], the new path "b" must become visible.
+    // Previously the sparse-checkout step only ran on initial clone;
+    // subsequent runs kept the stored sparse config and newly requested
+    // paths were silently ignored.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-sparse-"));
+    const repoDir = path.join(tmpDir, "repo");
+    const workDir = path.join(tmpDir, "work");
+    await fs.mkdir(repoDir);
+    await fs.mkdir(workDir);
+
+    execSync("git init --bare --initial-branch=main", { cwd: repoDir, stdio: "pipe" });
+
+    const cloneDir = path.join(tmpDir, "clone");
+    execSync(`git clone ${repoDir} ${cloneDir}`, { stdio: "pipe" });
+    execSync("git config user.email 'test@test.com'", { cwd: cloneDir, stdio: "pipe" });
+    execSync("git config user.name 'Test'", { cwd: cloneDir, stdio: "pipe" });
+    await fs.mkdir(path.join(cloneDir, "a"), { recursive: true });
+    await fs.mkdir(path.join(cloneDir, "b"), { recursive: true });
+    await fs.writeFile(path.join(cloneDir, "a", "index.md"), "# A");
+    await fs.writeFile(path.join(cloneDir, "b", "index.md"), "# B");
+    execSync("git add .", { cwd: cloneDir, stdio: "pipe" });
+    execSync("git commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
+    execSync("git push origin main", { cwd: cloneDir, stdio: "pipe" });
+
+    // First ingest: only path "a"
+    const src1 = new DocSource({
+      name: "sparse-test",
+      type: "git",
+      format: "markdown",
+      url: repoDir,
+      paths: ["a"],
+    });
+    const set1 = await ingestor.ingest(src1, workDir);
+    expect(set1.hasFile("a/index.md")).toBe(true);
+    expect(set1.hasFile("b/index.md")).toBe(false);
+
+    // Second ingest on the SAME workDir: now request both "a" and "b".
+    // The clone already exists — sparse-checkout must be re-applied.
+    const src2 = new DocSource({
+      name: "sparse-test",
+      type: "git",
+      format: "markdown",
+      url: repoDir,
+      paths: ["a", "b"],
+    });
+    const set2 = await ingestor.ingest(src2, workDir);
+    expect(set2.hasFile("a/index.md")).toBe(true);
+    expect(set2.hasFile("b/index.md")).toBe(true);
+
+    await fs.rm(tmpDir, { recursive: true });
+  }, 30_000);
+
   it("stores full 40-char SHA as version (not --short)", async () => {
     // Freshness check in UpdateDocSets compares remote full-SHA against
     // stamp.gitSha. If we stored a --short SHA, it would auto-disambiguate
