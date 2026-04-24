@@ -183,6 +183,48 @@ describe("tools-template", () => {
     expect(summaryBody).toContain("Promise.all");
   });
 
+  it("formatRgMatches highlights match positions using submatches", () => {
+    // parseRgJson captures ripgrep's submatches (byte positions of each
+    // match within the line). Previously formatRgMatches ignored them,
+    // forcing the agent to re-scan every line to find what actually
+    // matched — burning tokens on verification greps.
+    const formatterStart = STATIC_BODY.indexOf("function formatRgMatches");
+    const formatterBody = STATIC_BODY.slice(formatterStart);
+    // Formatter must actually consume submatches (not just the parser).
+    expect(formatterBody).toContain("submatches");
+    // And it must wrap matched substrings with ** markers for visual
+    // confirmation of match position.
+    expect(formatterBody).toContain('"**"');
+  });
+
+  it("capOutput hint uses the actual arg name 'lines' (not 'limit')", () => {
+    // docs_read's arg is `lines`, not `limit`. The truncation hint
+    // previously said "use docs_read with offset/limit" which sent
+    // agents chasing a non-existent parameter.
+    expect(STATIC_BODY).toContain("offset/lines");
+    expect(STATIC_BODY).not.toContain("offset/limit");
+  });
+
+  it("read tool description references the actual arg names", () => {
+    // Same mismatch: description said "offset/limit" but arg is `lines`.
+    const readSection = REMAINING_TOOLS.slice(REMAINING_TOOLS.indexOf("export const read"));
+    const endIdx = readSection.indexOf("export const find");
+    const readBody = readSection.slice(0, endIdx);
+    expect(readBody).not.toMatch(/offset\/limit/);
+  });
+
+  it("read tool prepends a file-scale header so agents can triage", () => {
+    // For token-efficient workflows, agents need to know file size BEFORE
+    // reading to decide between full read vs docs_summary. A one-line
+    // header ("📄 N lines, M KB") lets them route without re-reading.
+    const readSection = REMAINING_TOOLS.slice(REMAINING_TOOLS.indexOf("export const read"));
+    const endIdx = readSection.indexOf("export const find");
+    const readBody = readSection.slice(0, endIdx);
+    // Guard: only prepend on full-file reads (no offset, no lines),
+    // since offset/line reads are already explicit narrow slices.
+    expect(readBody).toMatch(/lines,.*(KB|bytes)/);
+  });
+
   // ─── Search result count ──────────────────────────────────────
 
   it("search tool reports total result count when truncated", () => {

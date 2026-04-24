@@ -48,7 +48,7 @@ function capOutput(text: string, path?: string): string {
   const truncated = text.slice(0, MAX_RESULT_CHARS)
   const remaining = text.length - MAX_RESULT_CHARS
   const hint = path
-    ? `\n\n[truncated ${remaining} chars — use docs_read with offset/limit or docs_summary to target specific sections of ${path}]`
+    ? `\n\n[truncated ${remaining} chars — use docs_read with offset/lines or docs_summary to target specific sections of ${path}]`
     : `\n\n[truncated ${remaining} chars — narrow your query or add a line limit]`
   return truncated + hint
 }
@@ -130,7 +130,17 @@ function formatRgMatches(matches: RgMatch[]): string {
       lines.push(m.path)
       lastPath = m.path
     }
-    lines.push(`  ${m.line}: ${m.text}`)
+    // Wrap the matched substring(s) in **…** so agents see exact match
+    // positions without re-scanning the line. Walk submatches back-to-front
+    // to keep earlier byte indices valid while we splice.
+    let text = m.text
+    if (m.submatches && m.submatches.length > 0) {
+      const sorted = [...m.submatches].sort((a, b) => b.start - a.start)
+      for (const s of sorted) {
+        text = text.slice(0, s.start) + "**" + text.slice(s.start, s.end) + "**" + text.slice(s.end)
+      }
+    }
+    lines.push(`  ${m.line}: ${text}`)
   }
   return lines.join("\n")
 }
@@ -185,7 +195,7 @@ TOOLS_STATIC
 cat << 'TOOLS_STATIC'
 export const read = {
   description:
-    "Read a documentation file. For large files, use docs_summary first to see the headings, then read with offset/limit to get only the section you need.",
+    "Read a documentation file. For large files, use docs_summary first to see the headings, then read with offset/lines to get only the section you need.",
   args: {
     path: z.string().describe("File path (e.g. /docs/supabase/guides/auth.md)"),
     lines: z.number().optional().describe("Read N lines. Omit to read to end of file."),
@@ -194,6 +204,7 @@ export const read = {
   async execute(args: { path: string; lines?: number; offset?: number }) {
     const p = safePath(args.path)
     let cmd: string
+    const fullFile = !args.offset && !args.lines
 
     if (args.offset) {
       // offset set (with or without lines). bat's open-ended range
@@ -209,9 +220,10 @@ export const read = {
     } else if (args.lines) {
       cmd = `head -${Math.abs(Math.floor(args.lines))} '${sq(p)}'`
     } else {
-      // bat with line numbers for precise offset references; --decorations=always
-      // forces numbers even when stdout is not a TTY (SSH pipe mode).
-      cmd = `bat --decorations=always --paging=never --color=never --style=numbers '${sq(p)}' 2>/dev/null || cat '${sq(p)}'`
+      // Full-file read: prepend a one-line scale header so the agent
+      // can see file size at a glance and decide whether to narrow
+      // next time (saves tokens on repeated full reads of big files).
+      cmd = `printf '[file] %s lines, %s bytes\\n\\n' "$(wc -l < '${sq(p)}')" "$(wc -c < '${sq(p)}')"; bat --decorations=always --paging=never --color=never --style=numbers '${sq(p)}' 2>/dev/null || cat '${sq(p)}'`
     }
 
     const result = await ssh(cmd)
