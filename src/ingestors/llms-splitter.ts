@@ -81,7 +81,16 @@ export function splitVercelStyle(content: string, baseUrl: string): Map<string, 
       if (!filePath) filePath = "index";
       if (!filePath.endsWith(".md")) filePath += ".md";
 
-      pages.set(filePath, trimmed);
+      // Inject title as H1 if content doesn't already start with one.
+      // Current Vercel format includes '# Title' inline, so this is
+      // usually a no-op — but if upstream ever drops the inline
+      // heading, titles are preserved instead of vanishing.
+      const contentToStore =
+        currentTitle && !trimmed.trimStart().startsWith("# ")
+          ? `# ${currentTitle}\n\n${trimmed}`
+          : trimmed;
+
+      pages.set(filePath, contentToStore);
       currentTitle = "";
       currentSource = "";
     }

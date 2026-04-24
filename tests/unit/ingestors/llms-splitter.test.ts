@@ -70,6 +70,48 @@ describe("splitVercelStyle", () => {
     const pages = splitVercelStyle(content, "https://example.com/");
     expect(pages.size).toBe(0);
   });
+
+  it("injects H1 from title metadata when content doesn't already start with one", () => {
+    // Defensive: if Vercel ever drops the inline '# Title' from content
+    // blocks, titles would vanish. Inject the title as an H1 prefix
+    // when missing so downstream readers always have a heading.
+    const content = [
+      "--------------------------------------------------------------------------------",
+      'title: "Functions"',
+      'source: "https://vercel.com/docs/functions"',
+      "--------------------------------------------------------------------------------",
+      "",
+      "Run server-side code on Vercel. (no inline heading)",
+    ].join("\n");
+
+    const pages = splitVercelStyle(content, "https://vercel.com/docs/");
+    const fn = pages.get("functions.md");
+    expect(fn).toBeDefined();
+    expect(fn!.startsWith("# Functions")).toBe(true);
+    expect(fn).toContain("Run server-side code");
+  });
+
+  it("does not duplicate H1 when content already has one matching the title", () => {
+    // Current Vercel format includes '# Title' in the content body. We
+    // must not prepend a second '# Title' — otherwise we'd double the
+    // heading on every page.
+    const content = [
+      "--------------------------------------------------------------------------------",
+      'title: "Functions"',
+      'source: "https://vercel.com/docs/functions"',
+      "--------------------------------------------------------------------------------",
+      "",
+      "# Functions",
+      "",
+      "Content here.",
+    ].join("\n");
+
+    const pages = splitVercelStyle(content, "https://vercel.com/docs/");
+    const fn = pages.get("functions.md")!;
+    // Exactly one H1 line starting with "# "
+    const h1Lines = fn.split("\n").filter((l) => /^# /.test(l));
+    expect(h1Lines).toHaveLength(1);
+  });
 });
 
 describe("splitFrontmatterStyle", () => {
