@@ -25,7 +25,18 @@ function sq(s: string): string {
 }
 
 function safePath(p: string): string {
-  const cleaned = p.replace(/\.\./g, "").replace(/\/\//g, "/")
+  // Strip traversal segments only — ../ and ..\ — not bare '..' which
+  // appears in legitimate filenames (e.g. MDN's do...while/index.md).
+  // Loop until stable so stacked patterns like ....// collapse fully.
+  let cleaned = p
+  let prev: string
+  do {
+    prev = cleaned
+    cleaned = cleaned
+      .replace(/\.\.\//g, "")
+      .replace(/\.\.\\/g, "")
+      .replace(/\/\/+/g, "/")
+  } while (cleaned !== prev)
   if (!cleaned.startsWith("/docs/")) {
     return `/docs/${cleaned.replace(/^\/+/, "")}`
   }

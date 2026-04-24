@@ -170,3 +170,58 @@ describe("tools-template", () => {
     expect(rendered).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 });
+
+// ─── safePath behaviour ──────────────────────────────────────────────
+// safePath lives as a string inside STATIC_BODY; extract and eval it
+// so we can assert runtime behaviour (not just textual presence).
+
+describe("safePath (extracted from STATIC_BODY)", () => {
+  // Extract the function source from the template and compile it.
+  // The template uses TypeScript `: string` annotations — strip them
+  // to get plain JS that `new Function` can parse.
+  function extractSafePath(): (p: string) => string {
+    const match = STATIC_BODY.match(/function safePath\(p: string\): string \{([\s\S]*?)\n\}/);
+    if (!match) throw new Error("safePath not found in STATIC_BODY");
+    // Strip TypeScript type annotations (`: string`, `: number`, etc.)
+    const body = match[1].replace(/:\s*string\b/g, "").replace(/:\s*number\b/g, "");
+    return new Function("p", body) as (p: string) => string;
+  }
+
+  const safePath = extractSafePath();
+
+  it("preserves .. inside filenames (MDN do...while pattern)", () => {
+    expect(safePath("/docs/mdn/web/javascript/reference/statements/do...while/index.md"))
+      .toBe("/docs/mdn/web/javascript/reference/statements/do...while/index.md");
+  });
+
+  it("preserves .. inside filenames (if...else, try...catch, for...of)", () => {
+    const cases = [
+      "/docs/mdn/web/javascript/reference/statements/if...else/index.md",
+      "/docs/mdn/web/javascript/reference/statements/try...catch/index.md",
+      "/docs/mdn/web/javascript/reference/statements/for...of/index.md",
+      "/docs/mdn/web/javascript/reference/statements/for-await...of/index.md",
+      "/docs/mdn/web/javascript/reference/statements/for...in/index.md",
+      "/docs/mdn/webassembly/reference/control_flow/if...else/index.md",
+    ];
+    for (const p of cases) {
+      expect(safePath(p), p).toBe(p);
+    }
+  });
+
+  it("strips ../ traversal attempts", () => {
+    expect(safePath("/docs/../etc/passwd")).toBe("/docs/etc/passwd");
+    expect(safePath("../../../etc/passwd")).toBe("/docs/etc/passwd");
+  });
+
+  it("prepends /docs/ when missing", () => {
+    expect(safePath("supabase/guide.md")).toBe("/docs/supabase/guide.md");
+  });
+
+  it("preserves well-formed /docs/ paths unchanged", () => {
+    expect(safePath("/docs/supabase/guide.md")).toBe("/docs/supabase/guide.md");
+  });
+
+  it("collapses redundant slashes", () => {
+    expect(safePath("/docs//supabase//guide.md")).toBe("/docs/supabase/guide.md");
+  });
+});
