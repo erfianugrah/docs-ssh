@@ -69,3 +69,11 @@ const untagged = SOURCES.filter((s) => !SOURCE_TAGS[s.name]).map((s) => s.name);
 if (untagged.length) {
   console.warn(`\nWARNING: ${untagged.length} untagged sources: ${untagged.join(", ")}`);
 }
+
+// Exit explicitly. Node 22 warns and exits with 13 if a top-level await
+// remains unsettled when the event loop drains — we've observed this in
+// CI when a stray fetch handle outlives its source (the per-source
+// deadline now catches the common case, but exit insulates against
+// anything else). A clean exit also propagates success/failure to the
+// shell based on how many sources actually produced output.
+process.exit(errors.length > 0 && successes.length === 0 ? 1 : 0);

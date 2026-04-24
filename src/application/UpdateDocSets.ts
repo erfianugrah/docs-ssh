@@ -45,6 +45,13 @@ export interface UpdateDocSetsOptions {
   concurrency?: number;
   /** Max age in seconds before re-checking freshness (default: 86400 = 24h, 0 = always refresh) */
   maxAge?: number;
+  /**
+   * Hard per-source deadline in milliseconds (default: 600_000 = 10 min).
+   * Prevents a misbehaving upstream (retry storms, hung fetches) from
+   * pinning the whole build. A source that exceeds its deadline is
+   * reported as error and the next source continues.
+   */
+  sourceDeadline?: number;
 }
 
 export interface SourceResult {
@@ -190,10 +197,12 @@ export class BatchProgress {
 export class UpdateDocSets {
   private readonly concurrency: number;
   private readonly maxAge: number;
+  private readonly sourceDeadline: number;
 
   constructor(private readonly opts: UpdateDocSetsOptions) {
     this.concurrency = opts.concurrency ?? 6;
     this.maxAge = opts.maxAge ?? 86400;
+    this.sourceDeadline = opts.sourceDeadline ?? 600_000;
   }
 
   async run(): Promise<SourceResult[]> {
@@ -210,7 +219,7 @@ export class UpdateDocSets {
       progress.start(batch.map((s) => s.name));
 
       const batchResults = await Promise.allSettled(
-        batch.map((source) => this.processSource(source, progress)),
+        batch.map((source) => this.withDeadline(source, progress)),
       );
 
       progress.finish();
@@ -225,6 +234,27 @@ export class UpdateDocSets {
     }
 
     return results;
+  }
+
+  /**
+   * Race processSource against a hard deadline so a pathological
+   * upstream can't pin the build. The timer is explicitly cleared on
+   * normal completion to avoid keeping the event loop alive.
+   */
+  private async withDeadline(source: DocSource, progress: BatchProgress): Promise<SourceResult> {
+    let timer: NodeJS.Timeout | undefined;
+    const deadline = new Promise<SourceResult>((resolve) => {
+      timer = setTimeout(() => {
+        const msg = `source deadline exceeded (${this.sourceDeadline}ms) — likely unresponsive upstream`;
+        progress.error(source.name, msg.slice(0, 50));
+        resolve({ source: source.name, status: "error", error: msg });
+      }, this.sourceDeadline);
+    });
+    try {
+      return await Promise.race([this.processSource(source, progress), deadline]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   private async processSource(source: DocSource, progress: BatchProgress): Promise<SourceResult> {

@@ -210,6 +210,54 @@ describe("UpdateDocSets", () => {
     });
   });
 
+  describe("per-source deadline", () => {
+    it("fails a source that exceeds sourceDeadline without blocking others", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-deadline-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const hungSource = new DocSource({ name: "hung", type: "http", format: "markdown", url: "https://example.com/" });
+      const fastSource = new DocSource({ name: "fast", type: "http", format: "markdown", url: "https://example.com/" });
+
+      const hungIngestor: DocIngestor = {
+        name: "HungIngestor",
+        supports: (s) => s.name === "hung",
+        // never resolves
+        ingest: () => new Promise(() => {}),
+      };
+      const files = new Map([["ok.md", new DocFile("ok.md", "# OK")]]);
+      const fastIngestor = mockIngestor(new DocSet(fastSource, files));
+      fastIngestor.supports = (s) => s.name === "fast";
+
+      const updater = new UpdateDocSets({
+        sources: [hungSource, fastSource],
+        ingestors: [hungIngestor, fastIngestor],
+        normalisers: [noopNormaliser],
+        outDir,
+        workDir,
+        sourceDeadline: 50, // 50ms for the test
+      });
+
+      const start = Date.now();
+      const results = await updater.run();
+      const elapsed = Date.now() - start;
+
+      expect(results).toHaveLength(2);
+      const hung = results.find((r) => r.source === "hung");
+      const fast = results.find((r) => r.source === "fast");
+      expect(hung?.status).toBe("error");
+      expect(hung?.error).toMatch(/deadline exceeded/);
+      expect(fast?.status).toBe("ok");
+      // Deadline caps total runtime — should not take much longer than
+      // the deadline itself even with the hung source.
+      expect(elapsed).toBeLessThan(1000);
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+  });
+
   describe("BatchProgress", () => {
     // Snapshot + restore real console so these tests don't pollute output
     // if they fail partway through.
