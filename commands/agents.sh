@@ -129,11 +129,24 @@ ${API_SOURCES}
 | \`docs_find\` | Find files by name pattern | Know part of filename |
 | \`docs_sources\` | List sources + file counts | Check what available |
 
+### Reading the output
+
+Tool output uses stable markers the agent should recognise:
+
+- \`[file] N lines, M bytes\` — prefix on full \`docs_read\` results. Use this to decide whether to re-read with \`offset\`/\`lines\` next time.
+- \`**matched text**\` — \`docs_grep\` wraps matched substrings in bold so match positions are visible without re-scanning.
+- \`(showing X of Y)\` — truncation notice in \`docs_search\` / \`docs_grep\`. Narrow the query or raise \`maxResults\`.
+- \`[truncated N chars — use docs_read with offset/lines or docs_summary ...]\` — output hit the 51K char cap. Follow the hint.
+- \`[error] command timed out ...\` — server killed the command at 60s. Narrow path/regex; don't retry the same query.
+- \`[error] SSH connection failed: ...\` — network issue. Retry after a short delay.
+- \`[no results for "..."]\` — search found nothing after index + filename + content fallback. Try a different term or \`docs_grep\` across \`/docs/\`.
+
 ### Token tips
 
 - \`docs_search\` searches index (~15x smaller than raw docs)
 - \`docs_summary\` before \`docs_read\` — find right line range first
 - \`offset+lines\`: 35 lines = ~140 tokens vs ~2K for full file
+- \`docs_read\` with only \`offset\`: reads from that line to EOF (bat open range)
 - \`docs_grep\` with source path: \`docs_grep(query="RLS", path="/docs/postgres/")\` faster than searching all
 - \`source\` param: \`docs_search(query="auth", source="supabase")\` filters to one source
 - API specs: \`docs_read(path="/docs/{source}-api/api/overview.md")\` for endpoint index
