@@ -14,12 +14,17 @@ const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
 const UA = "docs-ssh/0.8 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
 const MAX_RETRIES = 2;
 
-/** Fetch with User-Agent header and retry on transient/network errors. */
+const REQUEST_TIMEOUT = 30_000; // 30s per request — prevents hanging on stalled connections
+
+/** Fetch with User-Agent header, timeout, and retry on transient/network errors. */
 async function fetchWithRetry(url: string, retries = MAX_RETRIES): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(url, { headers: { "User-Agent": UA } });
+      const res = await fetch(url, {
+        headers: { "User-Agent": UA },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+      });
       if (res.ok || attempt === retries) return res;
       // Retry on 5xx and 413/429 (CDN rate-limit), not on 404 etc.
       if (res.status < 500 && res.status !== 413 && res.status !== 429) return res;
