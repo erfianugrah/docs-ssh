@@ -4,8 +4,9 @@
 #
 # Usage: sh build-index.sh /docs > /docs/_index.tsv
 #
-# Performance: single awk process reads all files (~55K) in one pass.
-# Previous shell-loop approach spawned ~14 subprocesses per file (770K forks).
+# The index is a search OPTIMIZATION — not a filter. Every .md file gets
+# an entry. Files with poor/missing titles are still discoverable via
+# docs_grep (content search) and docs_find (filename search) at runtime.
 #
 # Frontmatter extraction: detects YAML frontmatter (--- fences at line 1)
 # and extracts title/description/oneline fields for better summaries.
@@ -13,15 +14,13 @@
 
 DOCS_ROOT="${1:-/docs}"
 
-find "$DOCS_ROOT" -type f \( -name '*.md' -o -name '*.html' \) -print0 | sort -z | \
+find "$DOCS_ROOT" -type f -name '*.md' -print0 | sort -z | \
 xargs -0 awk -v root="$DOCS_ROOT/" '
   # ── Per-file processing ──────────────────────────────────────────
 
   FNR == 1 {
-    # Emit previous file (if any)
     if (relpath != "") emit()
 
-    # Reset state for new file
     relpath = FILENAME
     sub(root, "", relpath)
     title = ""
@@ -37,7 +36,6 @@ xargs -0 awk -v root="$DOCS_ROOT/" '
   }
 
   # ── Frontmatter detection ────────────────────────────────────────
-  # YAML frontmatter: --- at line 1 opens, next --- closes.
 
   FNR == 1 && /^---[ \t]*$/ {
     in_frontmatter = 1
@@ -49,16 +47,11 @@ xargs -0 awk -v root="$DOCS_ROOT/" '
     next
   }
 
-  # Heuristic: h2+ heading inside "frontmatter" means it was a false
-  # positive (e.g. stray --- from stripped MDX). Exit FM, process normally.
-  # Uses ## (not #) because # is a valid YAML comment prefix.
   in_frontmatter && /^## / {
     in_frontmatter = 0
-    # Fall through to heading/content collection below
   }
 
   in_frontmatter {
-    # Multi-line YAML continuation: indented lines after a >/>-/| scalar
     if (fm_pending_multiline && /^  /) {
       v = $0
       sub(/^  +/, "", v)
@@ -68,49 +61,42 @@ xargs -0 awk -v root="$DOCS_ROOT/" '
     }
     fm_pending_multiline = 0
 
-    # Extract title: field
     if (/^title:/) {
       v = $0
       sub(/^title: */, "", v)
-      # Strip surrounding quotes (single or double)
-      gsub(/^["'\'']|["'\'']$/, "", v)
-      # Strip backtick wrapping (e.g. title: `"What'\''s new"`)
+      gsub(/^["'\''"]|["'\''"]$/, "", v)
       gsub(/^`|`$/, "", v)
       if (v != "") fm_title = substr(v, 1, 200)
     }
-    # Extract description: field (kubernetes, traefik, etc.)
     if (/^description:/) {
       v = $0
       sub(/^description: */, "", v)
-      gsub(/^["'\'']|["'\'']$/, "", v)
-      # Handle multi-line YAML scalars (description: > or description: >-)
+      gsub(/^["'\''"]|["'\''"]$/, "", v)
       if (v ~ /^[>|]-?$/) {
         fm_pending_multiline = 1
       } else if (v != "") {
         fm_desc = substr(v, 1, 300)
       }
     }
-    # Extract oneline: field (typescript)
     if (/^oneline:/) {
       v = $0
       sub(/^oneline: */, "", v)
-      gsub(/^["'\'']|["'\'']$/, "", v)
+      gsub(/^["'\''"]|["'\''"]$/, "", v)
       if (v != "" && fm_desc == "") fm_desc = substr(v, 1, 300)
     }
     next
   }
 
-  # Track fenced code blocks (``` or ~~~) — skip # inside them
+  # ── Content collection ───────────────────────────────────────────
+
   /^```/ || /^~~~/ { in_fence = !in_fence; next }
 
-  # Collect title: first # heading (outside code blocks)
   /^#/ && !in_fence && title == "" {
     t = $0
     sub(/^#+ */, "", t)
     title = substr(t, 1, 200)
   }
 
-  # Collect up to 5 headings for summary (outside code blocks)
   /^#/ && !in_fence && heading_count < 5 {
     h = $0
     sub(/^#+ */, "", h)
@@ -118,21 +104,9 @@ xargs -0 awk -v root="$DOCS_ROOT/" '
     heading_count++
   }
 
-  # Collect first non-heading content line (outside code blocks).
-  # Skip noise: CSS selectors, HTML tags, nav chrome, short fragments.
-  /^[^#]/ && !in_fence && !got_content && /[A-Za-z]/ {
-    line = $0
-    # Skip lines that look like CSS (".class {" / "#id:hover {")
-    if (line ~ /^[.#@][-_A-Za-z].*\{/) next
-    # Skip raw HTML tags (<!DOCTYPE, <html, <div, etc.)
-    if (line ~ /^<[!A-Za-z]/) next
-    # Skip MediaWiki/site nav chrome
-    if (line ~ /^(Navigation menu|Page actions|Personal tools|Jump to |Views$|Toolbox$|Search$)/) next
-    # Skip lines with fewer than 3 word chars (pure symbols/punctuation)
-    if (line !~ /[A-Za-z].*[A-Za-z].*[A-Za-z]/) next
-    # Skip common boilerplate
-    if (line ~ /^(Submit correction|Was this helpful|Edit page|Copy page)/) next
-    content = substr(line, 1, 200)
+  # First prose line: requires 3+ alpha chars, skips code/markup lines
+  /^[^#`\-\|<>![]/ && !in_fence && !got_content && /[A-Za-z].*[A-Za-z].*[A-Za-z]/ {
+    content = substr($0, 1, 200)
     got_content = 1
   }
 
@@ -141,18 +115,16 @@ xargs -0 awk -v root="$DOCS_ROOT/" '
   # ── Output ───────────────────────────────────────────────────────
 
   function emit() {
-    # If frontmatter was never closed, discard FM data (malformed/false positive)
     if (in_frontmatter) { fm_title = ""; fm_desc = "" }
 
-    # Title priority: frontmatter title > first # heading > first content line
+    # Title: frontmatter > heading > first content line
     final_title = fm_title
     if (final_title == "") final_title = title
     if (final_title == "" && content != "") final_title = substr(content, 1, 200)
 
-    # Summary priority: frontmatter description > headings + first content line
+    # Summary: frontmatter description > headings + content
     if (fm_desc != "") {
       summary = fm_desc
-      # Append headings if we have room (description + headings = richer context)
       if (length(summary) < 200 && headings != "") {
         summary = summary " " substr(headings, 1, 300 - length(summary))
       }
@@ -160,7 +132,7 @@ xargs -0 awk -v root="$DOCS_ROOT/" '
       summary = substr(headings, 1, 300) " " substr(content, 1, 200)
     }
 
-    # Sanitise: strip ANSI escapes, tabs, carriage returns, control chars
+    # Sanitise: strip ANSI, tabs, \r, control chars
     gsub(/\033\[[0-9;]*[A-Za-z]/, "", final_title)
     gsub(/\t/, " ", final_title)
     gsub(/\r/, "", final_title)
@@ -170,17 +142,6 @@ xargs -0 awk -v root="$DOCS_ROOT/" '
     gsub(/\t/, " ", summary)
     gsub(/\r/, "", summary)
     gsub(/[\001-\010\013\014\016-\037\177]/, "", summary)
-
-    # Strip common trailing boilerplate from title and summary
-    gsub(/ - PostgreSQL wiki *$/, "", final_title)
-    gsub(/ \| Docker Docs *$/, "", final_title)
-    gsub(/ - PostgreSQL wiki *$/, "", summary)
-    gsub(/ \| Docker Docs *$/, "", summary)
-    gsub(/Submit correction *$/, "", summary)
-    # Strip MediaWiki chrome fragments from summary
-    gsub(/Navigation menu */, "", summary)
-    gsub(/Page actions? */, "", summary)
-    gsub(/Personal tools */, "", summary)
 
     printf "%s\t%s\t%s\n", relpath, final_title, summary
   }

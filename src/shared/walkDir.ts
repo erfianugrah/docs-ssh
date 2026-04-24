@@ -2,6 +2,13 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { DocFile } from "../domain/DocFile.js";
 
+/** Filenames to skip — non-doc metadata files common in git repos. */
+const SKIP_FILENAMES = new Set([
+  "config.json", "_category_.json", "sidebars.js", "sidebars.json",
+  "docusaurus.config.js", "docusaurus.config.ts", "mkdocs.yml", "book.toml",
+  ".gitignore", ".editorconfig", "LICENSE", "LICENSE.md",
+]);
+
 export interface WalkDirOptions {
   /** Only include files whose extension is in this set. If undefined, include all files. */
   extensions?: ReadonlySet<string>;
@@ -31,6 +38,9 @@ export async function walkDir(
     if (entry.isDirectory()) {
       await walkDir(fullPath, root, files, options);
     } else if (entry.isFile()) {
+      // Skip non-doc metadata files
+      if (SKIP_FILENAMES.has(entry.name)) continue;
+
       // Extension filter
       if (options?.extensions) {
         const ext = entry.name.split(".").pop() ?? "";
