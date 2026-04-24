@@ -46,3 +46,26 @@ const parts = [`${successes.length} updated`];
 if (skipped.length > 0) parts.push(`${skipped.length} cached`);
 if (errors.length > 0) parts.push(`${errors.length} failed`);
 console.log(`\n${results.length} sources: ${parts.join(", ")}.`);
+
+// Generate source groups JSON for agents.sh
+import { SOURCE_TAGS, TAG_LABELS, buildSourceGroups } from "./application/source-tags.js";
+const groups = buildSourceGroups();
+const sourceNames = new Set(SOURCES.map((s) => s.name));
+const groupsOutput: Record<string, { label: string; sources: string[] }> = {};
+for (const [tag, names] of groups) {
+  const existing = names.filter((n) => sourceNames.has(n));
+  if (existing.length) {
+    groupsOutput[tag] = { label: TAG_LABELS[tag] ?? tag, sources: existing };
+  }
+}
+const groupsPath = path.join(OUT_DIR, "_source_groups.json");
+await import("node:fs/promises").then((fs) =>
+  fs.writeFile(groupsPath, JSON.stringify(groupsOutput, null, 2) + "\n"),
+);
+console.log(`Generated ${groupsPath} (${Object.keys(groupsOutput).length} groups)`);
+
+// Validate: warn about untagged sources
+const untagged = SOURCES.filter((s) => !SOURCE_TAGS[s.name]).map((s) => s.name);
+if (untagged.length) {
+  console.warn(`\nWARNING: ${untagged.length} untagged sources: ${untagged.join(", ")}`);
+}

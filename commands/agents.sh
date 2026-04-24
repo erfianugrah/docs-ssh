@@ -22,6 +22,23 @@ SOURCES=$(echo "$ALL_SOURCES" | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
 SOURCE_COUNT=$(echo "$ALL_SOURCES" | wc -l | tr -d ' ')
 FILE_COUNT=$(find /docs -type f | wc -l | tr -d ' ')
 SSH="ssh -p $PORT $USER@$HOST"
+GROUPS_FILE="/docs/_source_groups.json"
+
+# Generate "Related source groups" from _source_groups.json (or fallback to static)
+generate_source_groups() {
+  if [ -f "$GROUPS_FILE" ] && command -v jq >/dev/null 2>&1; then
+    echo "### Related source groups"
+    echo ""
+    echo "When searching one source, check related sources for cross-referencing:"
+    echo ""
+    jq -r 'to_entries | sort_by(.key) | .[] | "- **\(.value.label)**: \(.value.sources | join(", "))"' "$GROUPS_FILE"
+  else
+    # Fallback: minimal static list if jq or JSON unavailable
+    echo "### Related source groups"
+    echo ""
+    echo "Run \`docs_sources\` or \`ssh ... sources\` to see all available sources."
+  fi
+}
 
 # ─── Dynamic example data ───────────────────────────────────────────
 # File paths, line numbers, and grep patterns resolved from the live
@@ -121,31 +138,7 @@ ${API_SOURCES}
 - \`source\` param: \`docs_search(query="auth", source="supabase")\` filters to one source
 - API specs: \`docs_read(path="/docs/{source}-api/api/overview.md")\` for endpoint index
 
-### Related source groups
-
-When searching one source, check related sources for cross-referencing:
-
-- **Auth & identity**: supabase, keycloak, authentik, openid, saml, bitwarden, vaultwarden
-- **Databases & SQL**: postgres, postgres-wiki, supabase, drizzle, prisma, sqlite, redis, valkey, modern-sql, use-the-index-luke, sqlstyle, pglocks
-- **Postgres ecosystem**: pgvector, postgis, pgbouncer, pg-cron, pgrx, citus, pg-graphql, pg-net, index-advisor, supavisor, supabase-grafana, multigres
-- **Postgres-compatible**: neon, cockroachdb, yugabytedb, paradedb, timescaledb, electric
-- **Postgres HA & ops**: patroni, pgpool
-- **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio, helm, argocd, sst
-- **Reverse proxy & networking**: cloudflare, caddy, traefik, wireguard
-- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn, svelte, htmx, tanstack-query, tanstack-router, tanstack-table, tanstack-form, effect
-- **Languages & runtimes**: typescript, python, rust-book, bun, deno, go, zod, nix
-- **Cloud platforms**: aws, cloudflare, vercel, flyio
-- **Build tools**: vite, vitest, turborepo, rspack, eslint, prettier, pnpm
-- **Testing**: vitest, jest, playwright, cypress
-- **Mobile & desktop**: react-native, flutter, expo, tauri, wails
-- **Monitoring & observability**: prometheus, opentelemetry, grafana
-- **Secrets & encryption**: age, sops, bitwarden, vaultwarden
-- **Terminal & editor**: neovim, tmux, wezterm, zsh, ohmyzsh, mise
-- **CLI tools**: curl, ripgrep, httpie, rclone
-- **Git forges**: github, gitlab, gitea
-- **APIs & specs**: graphql, graphql-spec, openid, saml, mcp
-- **Docs & diagrams**: mdn, d2, mermaid, starlight, mcp, excalidraw
-- **Email & services**: resend, letsencrypt
+$(generate_source_groups)
 EOF
 }
 
@@ -280,31 +273,7 @@ $SSH "rg -il 'cron' /docs/ | head -5 | while read f; do echo \"--- \\\$f ---\"; 
 - **Use \`-l\` for file lists**: \`rg -il 'pattern'\` returns only filenames, not content.
 - **Get structure first**: \`rg -n '^#' /docs/file.md\` shows headings with line numbers before reading full file.
 
-### Related source groups
-
-When searching one source, check related sources for cross-referencing:
-
-- **Auth & identity**: supabase, keycloak, authentik, openid, saml, bitwarden, vaultwarden
-- **Databases & SQL**: postgres, postgres-wiki, supabase, drizzle, prisma, sqlite, redis, valkey, modern-sql, use-the-index-luke, sqlstyle, pglocks
-- **Postgres ecosystem**: pgvector, postgis, pgbouncer, pg-cron, pgrx, citus, pg-graphql, pg-net, index-advisor, supavisor, supabase-grafana, multigres
-- **Postgres-compatible**: neon, cockroachdb, yugabytedb, paradedb, timescaledb, electric
-- **Postgres HA & ops**: patroni, pgpool
-- **Infrastructure**: docker, kubernetes, k3s, terraform, ansible, flyio, helm, argocd, sst
-- **Reverse proxy & networking**: cloudflare, caddy, traefik, wireguard
-- **Frontend frameworks**: nextjs, react, astro, hono, tailwindcss, shadcn, svelte, htmx, tanstack-query, tanstack-router, tanstack-table, tanstack-form, effect
-- **Languages & runtimes**: typescript, python, rust-book, bun, deno, go, zod, nix
-- **Cloud platforms**: aws, cloudflare, vercel, flyio
-- **Build tools**: vite, vitest, turborepo, rspack, eslint, prettier, pnpm
-- **Testing**: vitest, jest, playwright, cypress
-- **Mobile & desktop**: react-native, flutter, expo, tauri, wails
-- **Monitoring & observability**: prometheus, opentelemetry, grafana
-- **Secrets & encryption**: age, sops, bitwarden, vaultwarden
-- **Terminal & editor**: neovim, tmux, wezterm, zsh, ohmyzsh, mise
-- **CLI tools**: curl, ripgrep, httpie, rclone
-- **Git forges**: github, gitlab, gitea
-- **APIs & specs**: graphql, graphql-spec, openid, saml, mcp
-- **Docs & diagrams**: mdn, d2, mermaid, starlight, mcp, excalidraw
-- **Email & services**: resend, letsencrypt
+$(generate_source_groups)
 EOF
 }
 

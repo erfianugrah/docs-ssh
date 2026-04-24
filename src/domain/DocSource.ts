@@ -51,6 +51,10 @@ export interface DocSourceConfig {
   readonly urlExclude?: string;
   /** Suffix to append to discovered URLs (e.g. ".md") */
   readonly urlSuffix?: string;
+  /** Category tags for grouping in agent instructions and README (e.g. ["databases", "postgres-ecosystem"]) */
+  readonly tags?: readonly string[];
+  /** Short human-readable description for README table */
+  readonly description?: string;
 }
 
 /**
@@ -70,6 +74,8 @@ export class DocSource {
   readonly urlPattern: string | undefined;
   readonly urlExclude: string | undefined;
   readonly urlSuffix: string | undefined;
+  readonly tags: readonly string[];
+  readonly description: string | undefined;
 
   constructor(config: DocSourceConfig) {
     if (!config.name || config.name.trim() === "") {
@@ -90,6 +96,8 @@ export class DocSource {
     this.urlPattern = config.urlPattern;
     this.urlExclude = config.urlExclude;
     this.urlSuffix = config.urlSuffix;
+    this.tags = config.tags ?? [];
+    this.description = config.description;
   }
 
   equals(other: DocSource): boolean {

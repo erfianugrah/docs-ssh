@@ -206,6 +206,49 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("auto-detects sitemapindex when discovery is sitemap", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // A sitemapindex served where a sitemap was expected
+    const sitemapIndex = `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>https://example.com/en/sitemap.xml</loc></sitemap>
+</sitemapindex>`;
+
+    const childSitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/docs/intro</loc></url>
+  <url><loc>https://example.com/docs/guide</loc></url>
+</urlset>`;
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("sitemap.xml") && !url.includes("/en/")) {
+        return { ok: true, text: async () => sitemapIndex };
+      }
+      if (url.includes("/en/sitemap.xml")) {
+        return { ok: true, text: async () => childSitemap };
+      }
+      return { ok: true, text: async () => `<h1>Page</h1>` };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "autodetect-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/docs/",
+      discovery: "sitemap",
+      discoveryUrl: "https://example.com/sitemap.xml",
+      urlPattern: "example\\.com/docs/",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    // Should transparently handle the sitemapindex and find 2 child pages
+    expect(set.size).toBe(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   // ─── Discovery: llms-txt ───────────────────────────────────────────
 
   it("discovers URLs from llms.txt", async () => {

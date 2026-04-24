@@ -218,7 +218,7 @@ async function discover(source: DocSource): Promise<string[]> {
 
   switch (discovery) {
     case "sitemap":
-      return discoverFromSitemap(discoveryUrl);
+      return discoverFromSitemap(discoveryUrl, source.urlPattern);
     case "sitemap-index":
       return discoverFromSitemapIndex(discoveryUrl, source.urlPattern);
     case "toc":
@@ -236,10 +236,18 @@ async function discover(source: DocSource): Promise<string[]> {
   }
 }
 
-async function discoverFromSitemap(sitemapUrl: string): Promise<string[]> {
+async function discoverFromSitemap(sitemapUrl: string, urlPattern?: string): Promise<string[]> {
   const res = await fetchWithRetry(sitemapUrl);
   if (!res.ok) throw new Error(`Failed to fetch sitemap ${sitemapUrl}: HTTP ${res.status}`);
-  return resolveLocs(extractLocs(await res.text()), sitemapUrl);
+  const xml = await res.text();
+
+  // Auto-detect: if this is actually a sitemapindex, delegate transparently
+  if (xml.includes("<sitemapindex") || xml.includes("</sitemapindex>")) {
+    console.log(`  [auto-detect] ${sitemapUrl} is a sitemapindex, not a sitemap`);
+    return discoverFromSitemapIndex(sitemapUrl, urlPattern);
+  }
+
+  return resolveLocs(extractLocs(xml), sitemapUrl);
 }
 
 async function discoverFromSitemapIndex(
