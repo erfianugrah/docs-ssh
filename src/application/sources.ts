@@ -979,16 +979,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Helm ──────────────────────────────────────────────────────
 
-  // Sitemap — Kubernetes package manager (filter to current docs, skip v2)
+  // Git sparse — Kubernetes package manager (sitemap times out)
   new DocSource({
     name: "helm",
-    type: "http",
-    url: "https://helm.sh/docs/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://helm.sh/sitemap.xml",
-    urlPattern: "helm\\.sh/docs/",
-    urlExclude: "helm\\.sh/docs/v2/",
+    type: "git",
+    url: "https://github.com/helm/helm-www",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── mise ──────────────────────────────────────────────────────
@@ -1566,7 +1564,7 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── YugabyteDB ───────────────────────────────────────────────
 
-  // Sitemap — distributed Postgres-compatible database (filter to stable)
+  // Sitemap — distributed Postgres-compatible database (filter to stable, skip partials)
   new DocSource({
     name: "yugabytedb",
     type: "http",
@@ -1575,6 +1573,7 @@ export const SOURCES: readonly DocSource[] = [
     discovery: "sitemap",
     discoveryUrl: "https://docs.yugabyte.com/sitemap.xml",
     urlPattern: "docs\\.yugabyte\\.com/stable/",
+    urlExclude: "(includes/|techadvisories/|yedis/|quick-start/explore/)",
   }),
 
   // ─── Supavisor ─────────────────────────────────────────────────
