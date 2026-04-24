@@ -47,15 +47,18 @@ try_cache() {
 # Captures stdout and stderr to temp files, then streams them to the
 # client while also persisting for future cache hits.
 # Uses only POSIX sh constructs (no bash process substitution).
+# Honours CMD_TIMEOUT (set by log-cmd.sh) so cached-path commands
+# get the same execution ceiling as uncached ones.
 exec_and_cache() {
   _key=$(_cache_key "$1")
   _base="$CACHE_DIR/$_key"
+  _timeout="${CMD_TIMEOUT:-60}"
 
   # Run command, capture stdout and stderr to temp files.
   # We can't tee and stream simultaneously in POSIX sh without process
   # substitution, so we capture first then replay.  For docs queries
   # this adds negligible latency (output is typically <100KB).
-  /bin/bash -c "$1" >"${_base}.out.tmp" 2>"${_base}.err.tmp"
+  timeout "$_timeout" /bin/bash -c "$1" >"${_base}.out.tmp" 2>"${_base}.err.tmp"
   _exit=$?
 
   # Stream captured output to the client
@@ -65,9 +68,11 @@ exec_and_cache() {
   # Store exit code
   printf '%d' "$_exit" > "${_base}.rc.tmp"
 
-  # Only persist if stdout is under the size limit
+  # Only persist if stdout is under the size limit AND the command
+  # didn't hit the timeout. Caching a timed-out result would replay
+  # partial output on the next identical query.
   _size=$(wc -c < "${_base}.out.tmp" 2>/dev/null || echo 0)
-  if [ "$_size" -lt "$MAX_CACHE_BYTES" ]; then
+  if [ "$_exit" -ne 124 ] && [ "$_size" -lt "$MAX_CACHE_BYTES" ]; then
     mv "${_base}.out.tmp" "${_base}.out" 2>/dev/null
     mv "${_base}.err.tmp" "${_base}.err" 2>/dev/null
     mv "${_base}.rc.tmp" "${_base}.rc" 2>/dev/null

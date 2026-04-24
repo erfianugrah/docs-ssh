@@ -15,8 +15,11 @@ fi
 ENV_FILE="/run/sshd/docs-ssh.env"
 _safe_host=$(printf '%s' "${DOCS_SSH_HOST:-localhost}" | tr -cd 'a-zA-Z0-9._-')
 _safe_port=$(printf '%s' "${DOCS_SSH_PORT:-2222}" | tr -cd '0-9')
+_safe_timeout=$(printf '%s' "${DOCS_CMD_TIMEOUT:-60}" | tr -cd '0-9')
 : "${_safe_port:=2222}"
-printf 'DOCS_SSH_HOST=%s\nDOCS_SSH_PORT=%s\n' "$_safe_host" "$_safe_port" > "$ENV_FILE"
+: "${_safe_timeout:=60}"
+printf 'DOCS_SSH_HOST=%s\nDOCS_SSH_PORT=%s\nDOCS_CMD_TIMEOUT=%s\n' \
+  "$_safe_host" "$_safe_port" "$_safe_timeout" > "$ENV_FILE"
 
 # Audit log — owned by root, group-writable by docs user (append only via jq >>).
 # The docs user can append but not truncate (sshd runs ForceCommand as docs).

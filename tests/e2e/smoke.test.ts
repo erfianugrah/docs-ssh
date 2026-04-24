@@ -89,10 +89,14 @@ describe("E2E smoke tests", () => {
       { cwd: projectRoot, encoding: "utf-8", timeout: 300_000 },
     );
 
-    // Start container with security hardening (same as prod)
+    // Start container with security hardening (same as prod).
+    // DOCS_CMD_TIMEOUT=3 keeps the timeout-kills-slow-commands test fast —
+    // production defaults to 60s, the value is exercised by the same
+    // test asserting a sleep 10 is killed within ~4s.
     console.log("Starting container…");
     execSync(
       `docker run -d --name ${CONTAINER} -p ${PORT}:2222 ` +
+        `-e DOCS_CMD_TIMEOUT=3 ` +
         `--read-only --cap-drop ALL ` +
         `--cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add SYS_CHROOT --cap-add AUDIT_WRITE ` +
         `--security-opt no-new-privileges:true ` +
@@ -653,6 +657,31 @@ describe("E2E smoke tests", () => {
       expect(obj).toHaveProperty("cached");
     }
   });
+
+  // ─── Per-command timeout ────────────────────────────────────────
+
+  it("kills commands that exceed DOCS_CMD_TIMEOUT", () => {
+    // Container started with DOCS_CMD_TIMEOUT=3s (see beforeAll).
+    // A `sleep 10` should be killed at the 3s mark, not run to completion.
+    // SSH forwards `timeout(1)`'s exit 124 to the client.
+    const t0 = Date.now();
+    let exitCode = 0;
+    try {
+      execSync(`${SSH_CMD} "sleep 10"`, {
+        encoding: "utf-8",
+        timeout: 15_000,
+      });
+    } catch (err: unknown) {
+      const e = err as { status?: number };
+      exitCode = e.status ?? -1;
+    }
+    const elapsed = Date.now() - t0;
+
+    // Killed around 3s (+network/startup jitter), not 10s.
+    expect(elapsed).toBeLessThan(7_000);
+    expect(elapsed).toBeGreaterThan(2_000);
+    expect(exitCode).toBe(124);
+  }, 20_000);
 });
 
 function run(cmd: string): string {

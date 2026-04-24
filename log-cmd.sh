@@ -11,13 +11,20 @@
 # ─── Environment ────────────────────────────────────────────────────
 
 [ -f /run/sshd/docs-ssh.env ] && . /run/sshd/docs-ssh.env
-export DOCS_SSH_HOST DOCS_SSH_PORT
+export DOCS_SSH_HOST DOCS_SSH_PORT DOCS_CMD_TIMEOUT
 
 LOG_FILE="/var/log/docs-ssh.jsonl"
 CMD_DIR="/usr/local/lib/docs-ssh"
 LIB_DIR="$CMD_DIR/lib"
 CLIENT="${SSH_CLIENT%% *}"
 CACHE_DIR="/tmp/docs-ssh-cache"
+
+# Per-command execution ceiling. A pathological regex or a forgotten
+# `sleep` shouldn't pin a session indefinitely — `rg` across all docs
+# finishes in a few seconds on normal queries; 60s is ~10-30x headroom.
+# On timeout, `timeout(1)` returns exit code 124 which propagates
+# naturally to the SSH client.
+CMD_TIMEOUT="${DOCS_CMD_TIMEOUT:-60}"
 
 # ─── Libraries ──────────────────────────────────────────────────────
 
@@ -72,7 +79,7 @@ if should_cache "$SSH_ORIGINAL_COMMAND"; then
   exec_and_cache "$SSH_ORIGINAL_COMMAND"
   EXIT_CODE=$?
 else
-  /bin/bash -c "$SSH_ORIGINAL_COMMAND"
+  timeout "$CMD_TIMEOUT" /bin/bash -c "$SSH_ORIGINAL_COMMAND"
   EXIT_CODE=$?
 fi
 
