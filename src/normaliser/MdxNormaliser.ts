@@ -48,11 +48,16 @@ export class MdxNormaliser implements DocNormaliser {
     content = content.replace(/^export\s+default\s+function[^{]*\{[\s\S]*?^\}/gm, "");
     content = content.replace(/^export\s+.*?(?:\n|$)/gm, "");
 
-    // Strip self-closing JSX tags <Component ... />
-    content = content.replace(/<[A-Z][A-Za-z]*[^>]*\/>/g, "");
-
-    // Strip JSX open/close tags but keep inner text
-    content = content.replace(/<[A-Z][A-Za-z]*[^>]*>([\s\S]*?)<\/[A-Z][A-Za-z]*>/g, "$1");
+    // Strip JSX component tags. We treat opening, closing, and
+    // self-closing tags independently rather than trying to pair
+    // <Tag>...</Tag> with a non-greedy regex — that approach fails on
+    // nested components (e.g. Astro Starlight's <Tabs><TabItem>...
+    // </TabItem></Tabs>), leaving orphan opening tags in the output.
+    // The component's inner text is plain markdown / code, so dropping
+    // the tags wholesale produces clean output.
+    content = content.replace(/<[A-Z][A-Za-z0-9]*[^>]*\/>/g, "");
+    content = content.replace(/<[A-Z][A-Za-z0-9]*[^>]*>/g, "");
+    content = content.replace(/<\/[A-Z][A-Za-z0-9]*>/g, "");
 
     // Collapse excessive blank lines
     content = content.replace(/\n{3,}/g, "\n\n").trim();
