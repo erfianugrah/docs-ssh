@@ -122,36 +122,8 @@ export const SOURCES: readonly DocSource[] = [
     urlExclude: "(bookindex|biblio|errcodes|features|acronyms)\\.html",
   }),
 
-  // ─── AWS ───────────────────────────────────────────────────────────
-
-  // llms-index — uses the top-level llms.txt to find per-service llms.txt,
-  // which list all HTML page URLs. Pre-filtered to core services.
-  new DocSource({
-    name: "aws",
-    type: "http",
-    url: "https://docs.aws.amazon.com/",
-    format: "html",
-    discovery: "llms-index",
-    discoveryUrl: "https://docs.aws.amazon.com/llms.txt",
-    urlPattern:
-      "(lambda|AmazonS3|AmazonCloudFront|IAM|amazondynamodb|AWSCloudFormation|vpc|AWSEC2|AmazonRDS|AWSSimpleQueueService|sns|AmazonECS|eks|secretsmanager|systems-manager|cognito|apigateway|eventbridge|step-functions|waf|elasticloadbalancing)",
-    urlExclude: "(de_de|ja_jp|zh_cn|fr_fr|ko_kr|es_es|pt_br|it_it|id_id|/APIReference/)",
-  }),
-
-  // AWS API — multi-spec OpenAPI from APIs-guru/openapi-directory.
-  // Sparse-clones APIs/amazonaws.com, converts latest version of each
-  // core service spec to per-tag markdown.
-  new DocSource({
-    name: "aws-api",
-    type: "git",
-    url: "https://github.com/APIs-guru/openapi-directory",
-    format: "openapi",
-    paths: ["APIs/amazonaws.com"],
-    rootPath: "APIs/amazonaws.com",
-    discovery: "openapi-dir",
-    urlPattern:
-      "^(lambda|s3|cloudfront|iam|dynamodb|cloudformation|ec2|rds|sqs|sns|ecs|eks|secretsmanager|apigateway|apigatewayv2|eventbridge|stepfunctions|wafv2|elasticloadbalancingv2|cognito-idp|cognito-identity)$",
-  }),
+  // (AWS sources moved to end of file — they're the slowest to fetch
+  //  and we don't want them blocking faster sources in early batches.)
 
   // ─── Next.js ───────────────────────────────────────────────────────
 
@@ -250,26 +222,26 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Docker ──────────────────────────────────────────────────────
 
-  // llms.txt — TOC with ~400+ page links
+  // Git sparse — Hugo source for docs.docker.com (1.2k+ md files)
   new DocSource({
     name: "docker",
-    type: "http",
-    url: "https://docs.docker.com/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://docs.docker.com/llms.txt",
+    type: "git",
+    url: "https://github.com/docker/docs",
+    format: "markdown",
+    paths: ["content"],
+    rootPath: "content",
   }),
 
   // ─── Shadcn/UI ─────────────────────────────────────────────────
 
-  // llms.txt — component docs index
+  // Git sparse — component docs are MDX in apps/v4/content
   new DocSource({
     name: "shadcn",
-    type: "http",
-    url: "https://ui.shadcn.com/docs/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://ui.shadcn.com/llms.txt",
+    type: "git",
+    url: "https://github.com/shadcn-ui/ui",
+    format: "mdx",
+    paths: ["apps/v4/content"],
+    rootPath: "apps/v4/content",
   }),
 
   // ─── Kubernetes ────────────────────────────────────────────────
@@ -345,19 +317,6 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "packages/mermaid/src/docs",
   }),
 
-  // ─── D2 ────────────────────────────────────────────────────────
-
-  // Sitemap — D2 diagramming language docs (tour + examples)
-  new DocSource({
-    name: "d2",
-    type: "http",
-    url: "https://d2lang.com/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://d2lang.com/sitemap.xml",
-    urlPattern: "d2lang\\.com/(tour|examples)/.+",
-  }),
-
   // ─── Bun ───────────────────────────────────────────────────────
 
   // llms.txt — comprehensive docs with .md URLs
@@ -384,14 +343,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Hono ──────────────────────────────────────────────────────
 
-  // llms.txt — ultrafast web framework for CF Workers + Bun
+  // Git sparse — VitePress source for hono.dev (84 md files)
   new DocSource({
     name: "hono",
-    type: "http",
-    url: "https://hono.dev/docs/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://hono.dev/llms.txt",
+    type: "git",
+    url: "https://github.com/honojs/website",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── Zod ───────────────────────────────────────────────────────
@@ -408,14 +367,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Drizzle ORM ──────────────────────────────────────────────
 
-  // llms.txt — TypeScript ORM for Postgres/MySQL/SQLite
+  // Git sparse — Astro Starlight source (247 mdx files)
   new DocSource({
     name: "drizzle",
-    type: "http",
-    url: "https://orm.drizzle.team/docs/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://orm.drizzle.team/llms.txt",
+    type: "git",
+    url: "https://github.com/drizzle-team/drizzle-orm-docs",
+    format: "mdx",
+    paths: ["src/content/docs"],
+    rootPath: "src/content/docs",
   }),
 
   // ─── TypeScript ────────────────────────────────────────────────
@@ -432,15 +391,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── K3s ───────────────────────────────────────────────────────
 
-  // Sitemap — lightweight Kubernetes distribution docs
+  // Git sparse — Docusaurus source for docs.k3s.io (68 md files)
   new DocSource({
     name: "k3s",
-    type: "http",
-    url: "https://docs.k3s.io/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://docs.k3s.io/sitemap.xml",
-    urlPattern: "docs\\.k3s\\.io/(add-ons|advanced|architecture|cli|cluster-access|datastore|faq|installation|known-issues|networking|quick-start|reference|security|upgrades)",
+    type: "git",
+    url: "https://github.com/k3s-io/docs",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── Python ────────────────────────────────────────────────────
@@ -547,17 +505,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Gitea ───────────────────────────────────────────────────────
 
-  // Sitemap — self-hosted Git forge docs (unversioned = latest stable)
+  // Git sparse — Hugo source for docs.gitea.com (56 md files)
   new DocSource({
     name: "gitea",
-    type: "http",
-    url: "https://docs.gitea.com/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://docs.gitea.com/sitemap.xml",
-    urlPattern:
-      "docs\\.gitea\\.com/(administration|installation|usage|development|contributing|help|packages|actions)",
-    urlExclude: "/category/",
+    type: "git",
+    url: "https://github.com/go-gitea/docs",
+    format: "markdown",
+    paths: ["content"],
+    rootPath: "content",
   }),
 
   // ─── Authentik ─────────────────────────────────────────────────
@@ -761,16 +716,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── OpenCode ────────────────────────────────────────────────────
 
-  // Sitemap — English docs only (34 pages). Starlight/Astro site.
-  // urlPattern filters to single-segment paths after /docs/ (excludes locales like /docs/zh-cn/).
+  // Git sparse — Astro Starlight source (630 mdx files)
   new DocSource({
     name: "opencode",
-    type: "http",
-    url: "https://opencode.ai/docs/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://opencode.ai/sitemap.xml",
-    urlPattern: "opencode\\.ai/docs/[^/]+$",
+    type: "git",
+    url: "https://github.com/sst/opencode",
+    format: "mdx",
+    paths: ["packages/web/src/content/docs"],
+    rootPath: "packages/web/src/content/docs",
   }),
 
   // ─── Vitest ────────────────────────────────────────────────────
@@ -878,14 +831,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Prettier ──────────────────────────────────────────────────
 
-  // llms.txt — code formatter docs (~23 pages)
+  // Git sparse — code formatter docs (24 md files in main repo)
   new DocSource({
     name: "prettier",
-    type: "http",
-    url: "https://prettier.io/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://prettier.io/llms.txt",
+    type: "git",
+    url: "https://github.com/prettier/prettier",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── ESLint ────────────────────────────────────────────────────
@@ -917,27 +870,28 @@ export const SOURCES: readonly DocSource[] = [
   // ─── Prometheus ────────────────────────────────────────────────
 
   // Sitemap — monitoring system docs (filter to /docs/)
+  // Git sparse — monitoring system. Site is Next.js (HTML retention
+  // was 26/173); the docs/ tree in the docs repo is canonical markdown.
   new DocSource({
     name: "prometheus",
-    type: "http",
-    url: "https://prometheus.io/docs/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://prometheus.io/sitemap.xml",
-    urlPattern: "prometheus\\.io/docs/",
+    type: "git",
+    url: "https://github.com/prometheus/docs",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── OpenTelemetry ─────────────────────────────────────────────
 
-  // Sitemap-index — observability standard (English child sitemap → /docs/ pages)
+  // Git sparse — Hugo source for opentelemetry.io (English docs only,
+  // 406 md files)
   new DocSource({
     name: "opentelemetry",
-    type: "http",
-    url: "https://opentelemetry.io/docs/",
-    format: "html",
-    discovery: "sitemap-index",
-    discoveryUrl: "https://opentelemetry.io/sitemap.xml",
-    urlPattern: "opentelemetry\\.io/docs/",
+    type: "git",
+    url: "https://github.com/open-telemetry/opentelemetry.io",
+    format: "markdown",
+    paths: ["content/en/docs"],
+    rootPath: "content/en/docs",
   }),
 
   // ─── Rspack ────────────────────────────────────────────────────
@@ -968,13 +922,15 @@ export const SOURCES: readonly DocSource[] = [
   // ─── Argo CD ───────────────────────────────────────────────────
 
   // Sitemap — GitOps CD for Kubernetes (~180 pages)
+  // Git sparse — GitOps CD for Kubernetes. ReadTheDocs renders from
+  // the docs/ tree of the main repo; pull from source instead.
   new DocSource({
     name: "argocd",
-    type: "http",
-    url: "https://argo-cd.readthedocs.io/en/stable/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://argo-cd.readthedocs.io/en/stable/sitemap.xml",
+    type: "git",
+    url: "https://github.com/argoproj/argo-cd",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── Helm ──────────────────────────────────────────────────────
@@ -991,28 +947,57 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── mise ──────────────────────────────────────────────────────
 
-  // Sitemap — polyglot dev tool manager (asdf successor, ~170 pages)
+  // Git sparse — polyglot dev tool manager. Live site is JS-rendered
+  // (live audit produced ~0 usable markdown via sitemap+Turndown);
+  // canonical docs in repo are clean VitePress markdown.
   new DocSource({
     name: "mise",
-    type: "http",
-    url: "https://mise.jdx.dev/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://mise.jdx.dev/sitemap.xml",
+    type: "git",
+    url: "https://github.com/jdx/mise",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── D2 ────────────────────────────────────────────────────────
+
+  // Git sparse — diagramming language. Docs live in a separate repo
+  // (terrastruct/d2-docs); main repo has none. Sitemap+Turndown of
+  // d2lang.com produced low-quality output.
+  new DocSource({
+    name: "d2",
+    type: "git",
+    url: "https://github.com/terrastruct/d2-docs",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── Grafana ───────────────────────────────────────────────────
+
+  // Git sparse — observability platform. Live site is fully JS-rendered;
+  // sitemap+Turndown produced 0 usable markdown across 708 pages
+  // (HtmlNormaliser safety net retained the HTML, leaving them
+  // unindexed). Canonical docs are Hugo markdown in the main repo.
+  new DocSource({
+    name: "grafana",
+    type: "git",
+    url: "https://github.com/grafana/grafana",
+    format: "markdown",
+    paths: ["docs/sources"],
+    rootPath: "docs/sources",
   }),
 
   // ─── pnpm ──────────────────────────────────────────────────────
 
-  // Sitemap — fast, disk-efficient package manager (filter to current version)
-  // Docs live at top-level (/installation) and under /cli/ (/cli/add, /cli/install)
+  // Git sparse — Docusaurus source for pnpm.io (111 md + 9 mdx files)
   new DocSource({
     name: "pnpm",
-    type: "http",
-    url: "https://pnpm.io/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://pnpm.io/sitemap.xml",
-    urlExclude: "(/blog|/\\d+\\.x/|/next/|/benchmarks|/crypto-donations|/users|/logos|/search)",
+    type: "git",
+    url: "https://github.com/pnpm/pnpm.io",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── Resend ────────────────────────────────────────────────────
@@ -1030,53 +1015,41 @@ export const SOURCES: readonly DocSource[] = [
   // ─── Let's Encrypt ─────────────────────────────────────────────
 
   // Sitemap-index — TLS CA docs (English sub-sitemap)
+  // Git sparse — TLS CA. Site is Hugo with extensive l10n; pull just
+  // English content from source.
   new DocSource({
     name: "letsencrypt",
-    type: "http",
-    url: "https://letsencrypt.org/",
-    format: "html",
-    discovery: "sitemap-index",
-    discoveryUrl: "https://letsencrypt.org/sitemap.xml",
-    urlPattern: "letsencrypt\\.org/(docs|getting-started|how-it-works|about|donate|stats|contact|repository|privacy|trademarks)/",
-    urlExclude: "letsencrypt\\.org/(de|fr|es|pt|ja|zh|ko|ru|he|uk|sr|vi|id)/",
+    type: "git",
+    url: "https://github.com/letsencrypt/website",
+    format: "markdown",
+    paths: ["content/en"],
+    rootPath: "content/en",
   }),
 
   // ─── rclone ────────────────────────────────────────────────────
 
-  // Sitemap — cloud storage sync tool (~130 pages)
+  // Git sparse — Hugo source for rclone.org (190 md files)
   new DocSource({
     name: "rclone",
-    type: "http",
-    url: "https://rclone.org/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://rclone.org/sitemap.xml",
+    type: "git",
+    url: "https://github.com/rclone/rclone",
+    format: "markdown",
+    paths: ["docs/content"],
+    rootPath: "docs/content",
   }),
 
   // ─── Redis ─────────────────────────────────────────────────────
 
   // Sitemap — in-memory data store (docs-only sitemap, not marketing)
+  // Git sparse — in-memory data store. Site is Hugo over Tailwind;
+  // canonical content/ in repo is clean markdown.
   new DocSource({
     name: "redis",
-    type: "http",
-    url: "https://redis.io/docs/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://redis.io/docs/latest/sitemap.xml",
-    urlPattern: "redis\\.io/docs/latest/",
-  }),
-
-  // ─── Grafana ───────────────────────────────────────────────────
-
-  // Sitemap — observability platform (filter to docs paths from English sitemap)
-  new DocSource({
-    name: "grafana",
-    type: "http",
-    url: "https://grafana.com/docs/grafana/latest/",
-    format: "html",
-    discovery: "sitemap-index",
-    discoveryUrl: "https://grafana.com/sitemap.xml",
-    urlPattern: "grafana\\.com/docs/grafana/latest/",
+    type: "git",
+    url: "https://github.com/redis/docs",
+    format: "markdown",
+    paths: ["content"],
+    rootPath: "content",
   }),
 
   // ─── GitLab ────────────────────────────────────────────────────
@@ -1108,44 +1081,39 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Playwright ────────────────────────────────────────────────
 
-  // Sitemap — browser testing framework (filter to current docs)
+  // Git sparse — Microsoft's Playwright docs source (178 md files)
   new DocSource({
     name: "playwright",
-    type: "http",
-    url: "https://playwright.dev/docs/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://playwright.dev/sitemap.xml",
-    urlPattern: "playwright\\.dev/docs/",
-    urlExclude: "/docs/next/",
+    type: "git",
+    url: "https://github.com/microsoft/playwright",
+    format: "markdown",
+    paths: ["docs/src"],
+    rootPath: "docs/src",
   }),
 
   // ─── FastAPI ───────────────────────────────────────────────────
 
-  // Sitemap — modern Python web framework (~130 pages)
+  // Git sparse — MkDocs source for fastapi.tiangolo.com (English docs
+  // only, 153 md files)
   new DocSource({
     name: "fastapi",
-    type: "http",
-    url: "https://fastapi.tiangolo.com/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://fastapi.tiangolo.com/sitemap.xml",
-    urlPattern: "fastapi\\.tiangolo\\.com/(tutorial|advanced|deployment|how-to|reference|about|features|alternatives|help|learn|project-generation|external-links|fastapi-cli|environment-variables)",
-    urlExclude: "(de/|fr/|es/|pt/|ja/|zh/|ko/|ru/|tr/|vi/|uk/|bn/|az/|em/|fa/|he/|hy/|id/|pl/|nl/|yo/)",
+    type: "git",
+    url: "https://github.com/fastapi/fastapi",
+    format: "markdown",
+    paths: ["docs/en"],
+    rootPath: "docs/en",
   }),
 
   // ─── Go ────────────────────────────────────────────────────────
 
-  // TOC-based — core Go docs from /doc/ (tutorials, effective go, modules, etc.)
+  // Git sparse — go.dev's Hugo source (90 md files in _content/doc).
   new DocSource({
     name: "go",
-    type: "http",
-    url: "https://go.dev/doc/",
-    format: "html",
-    discovery: "toc",
-    discoveryUrl: "https://go.dev/doc/",
-    urlPattern: "go\\.dev/(doc|ref|blog)/",
-    urlExclude: "(devel/release|codereview|contribute|play)",
+    type: "git",
+    url: "https://github.com/golang/website",
+    format: "markdown",
+    paths: ["_content/doc"],
+    rootPath: "_content/doc",
   }),
 
   // ─── WireGuard ─────────────────────────────────────────────────
@@ -1162,14 +1130,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Nix ───────────────────────────────────────────────────────
 
-  // Sitemap — nix.dev community docs (tutorials, guides, recipes, ~57 pages)
+  // Git sparse — nix.dev community docs source (55 md files)
   new DocSource({
     name: "nix",
-    type: "http",
-    url: "https://nix.dev/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://nix.dev/sitemap.xml",
+    type: "git",
+    url: "https://github.com/NixOS/nix.dev",
+    format: "markdown",
+    paths: ["source"],
+    rootPath: "source",
   }),
 
   // ─── React Native ──────────────────────────────────────────────
@@ -1186,78 +1154,76 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Flutter ───────────────────────────────────────────────────
 
-  // llms.txt — cross-platform UI toolkit (~100 curated pages)
+  // Git sparse — flutter.dev source (695 md files in src/content)
   new DocSource({
     name: "flutter",
-    type: "http",
-    url: "https://docs.flutter.dev/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://docs.flutter.dev/llms.txt",
+    type: "git",
+    url: "https://github.com/flutter/website",
+    format: "markdown",
+    paths: ["src/content"],
+    rootPath: "src/content",
   }),
 
   // ─── Expo ──────────────────────────────────────────────────────
 
-  // llms.txt — React Native framework (EAS, Router, modules, ~200+ pages)
+  // Git sparse — Next.js source for docs.expo.dev (1030 mdx files)
   new DocSource({
     name: "expo",
-    type: "http",
-    url: "https://docs.expo.dev/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://docs.expo.dev/llms.txt",
+    type: "git",
+    url: "https://github.com/expo/expo",
+    format: "mdx",
+    paths: ["docs/pages"],
+    rootPath: "docs/pages",
   }),
 
   // ─── Tauri ─────────────────────────────────────────────────────
 
-  // llms.txt — Rust+Web desktop/mobile app framework (~80 pages)
+  // Git sparse — Astro Starlight source (496 mdx + 57 md files)
   new DocSource({
     name: "tauri",
-    type: "http",
-    url: "https://v2.tauri.app/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://tauri.app/llms.txt",
+    type: "git",
+    url: "https://github.com/tauri-apps/tauri-docs",
+    format: "mdx",
+    paths: ["src/content/docs"],
+    rootPath: "src/content/docs",
   }),
 
   // ─── htmx ──────────────────────────────────────────────────────
 
-  // Sitemap — HTML-driven interactivity (attributes, headers, events, examples)
+  // Git sparse — htmx site source (186 md files in www/)
   new DocSource({
     name: "htmx",
-    type: "http",
-    url: "https://htmx.org/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://htmx.org/sitemap.xml",
-    urlPattern: "htmx\\.org/(docs|attributes|headers|events|examples|extensions)/",
-    urlExclude: "/posts/",
+    type: "git",
+    url: "https://github.com/bigskysoftware/htmx",
+    format: "markdown",
+    paths: ["www"],
+    rootPath: "www",
   }),
 
   // ─── Jest ──────────────────────────────────────────────────────
 
-  // Sitemap — JavaScript testing framework (filter to current docs)
+  // Git sparse — jest docs source (37 md files; canonical content)
   new DocSource({
     name: "jest",
-    type: "http",
-    url: "https://jestjs.io/docs/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://jestjs.io/sitemap.xml",
-    urlPattern: "jestjs\\.io/docs/[^/]+$",
-    urlExclude: "(blog|/next/|/\\d+\\.)",
+    type: "git",
+    url: "https://github.com/jestjs/jest",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── Cypress ───────────────────────────────────────────────────
 
   // Sitemap — E2E testing framework (comprehensive docs)
+  // Git sparse — E2E testing framework. Site is Docusaurus, but the
+  // source markdown lives in the docs/ tree of the docs repo.
   new DocSource({
     name: "cypress",
-    type: "http",
-    url: "https://docs.cypress.io/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://docs.cypress.io/sitemap.xml",
+    type: "git",
+    url: "https://github.com/cypress-io/cypress-documentation",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── Wails ─────────────────────────────────────────────────────
@@ -1286,14 +1252,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── SST ───────────────────────────────────────────────────────
 
-  // llms.txt — infrastructure framework (AWS, Cloudflare, Vercel, ~200+ entries)
+  // Git sparse — Astro source for sst.dev (97 mdx files in www/)
   new DocSource({
     name: "sst",
-    type: "http",
-    url: "https://sst.dev/docs/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://sst.dev/llms.txt",
+    type: "git",
+    url: "https://github.com/sst/sst",
+    format: "mdx",
+    paths: ["www"],
+    rootPath: "www",
   }),
 
   // ─── Valkey ──────────────────────────────────────────────────────
@@ -1315,10 +1281,8 @@ export const SOURCES: readonly DocSource[] = [
     type: "http",
     url: "https://bitwarden.com/help/",
     format: "markdown",
-    discovery: "sitemap",
-    discoveryUrl: "https://bitwarden.com/sitemap.xml",
-    urlPattern: "bitwarden\\.com/help/.+",
-    urlSuffix: ".md",
+    discovery: "llms-full",
+    discoveryUrl: "https://bitwarden.com/help/llms-full.txt",
   }),
 
   // ─── Vaultwarden ───────────────────────────────────────────────
@@ -1387,16 +1351,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Multigres ──────────────────────────────────────────────────
 
-  // Sitemap — Vitess for Postgres (docs + blog + consensus tutorial)
+  // Git sparse — Vitess-for-Postgres docs (25 md files in main repo)
   new DocSource({
     name: "multigres",
-    type: "http",
-    url: "https://multigres.com/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://multigres.com/sitemap.xml",
-    urlPattern: "multigres\\.com/(docs|blog|consensus)/",
-    urlExclude: "(/tags/|/page/|/archive)",
+    type: "git",
+    url: "https://github.com/multigres/multigres",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // Git repo — developer docs (architecture, HA decision log, query serving internals)
@@ -1526,15 +1488,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Electric SQL ──────────────────────────────────────────────
 
-  // Sitemap — Postgres sync engine (llms.txt only has .md URLs that 500)
+  // Git sparse — Postgres sync engine (47 md files in website/docs)
   new DocSource({
     name: "electric",
-    type: "http",
-    url: "https://electric-sql.com/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://electric-sql.com/sitemap.xml",
-    urlPattern: "electric-sql\\.com/(docs|primitives)/",
+    type: "git",
+    url: "https://github.com/electric-sql/electric",
+    format: "markdown",
+    paths: ["website/docs"],
+    rootPath: "website/docs",
   }),
 
   // ─── ParadeDB ──────────────────────────────────────────────────
@@ -1552,28 +1513,32 @@ export const SOURCES: readonly DocSource[] = [
   // ─── CockroachDB ──────────────────────────────────────────────
 
   // Sitemap — distributed SQL database (filter to stable docs)
+  // Git sparse — distributed SQL database. Live site advisory pages
+  // are JS-rendered; the docs repo's src/current/ holds Jekyll source.
+  // We pull just the current major (v26.2), cloud docs, and advisories
+  // to avoid grabbing 1.4 GB of historical version directories.
   new DocSource({
     name: "cockroachdb",
-    type: "http",
-    url: "https://www.cockroachlabs.com/docs/stable/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://www.cockroachlabs.com/docs/sitemap.xml",
-    urlPattern: "cockroachlabs\\.com/docs/stable/",
+    type: "git",
+    url: "https://github.com/cockroachdb/docs",
+    format: "markdown",
+    paths: ["src/current/v26.2", "src/current/cockroachcloud", "src/current/advisories", "src/current/molt", "src/current/releases"],
+    rootPath: "src/current",
   }),
 
   // ─── YugabyteDB ───────────────────────────────────────────────
 
   // Sitemap — distributed Postgres-compatible database (filter to stable, skip partials)
+  // Git sparse — distributed Postgres-compatible. Site is Hugo over
+  // a heavy theme; canonical Markdown is content/latest/ in the docs
+  // repo. (No /stable/ in the source tree; latest = current.)
   new DocSource({
     name: "yugabytedb",
-    type: "http",
-    url: "https://docs.yugabyte.com/stable/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://docs.yugabyte.com/sitemap.xml",
-    urlPattern: "docs\\.yugabyte\\.com/stable/",
-    urlExclude: "(includes/|techadvisories/|yedis/|quick-start/explore/)",
+    type: "git",
+    url: "https://github.com/yugabyte/docs",
+    format: "markdown",
+    paths: ["content/latest"],
+    rootPath: "content/latest",
   }),
 
   // ─── Supavisor ─────────────────────────────────────────────────
@@ -1685,17 +1650,6 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern: "pgpool\\.net/docs/latest/en/html/",
   }),
 
-  // ─── pglocks ───────────────────────────────────────────────────
-
-  // Single-page Postgres lock reference
-  new DocSource({
-    name: "pglocks",
-    type: "http",
-    url: "https://pglocks.org/",
-    format: "html",
-    urls: ["https://pglocks.org/"],
-  }),
-
   // ─── SQL Style Guide ───────────────────────────────────────────
 
   // SQL formatting conventions (single canonical markdown file)
@@ -1704,6 +1658,38 @@ export const SOURCES: readonly DocSource[] = [
     type: "git",
     url: "https://github.com/treffynnon/sqlstyle.guide",
     format: "markdown",
+  }),
+
+  // ─── AWS (kept last — slowest to fetch) ────────────────────────
+
+  // llms-index — top-level llms.txt → per-service llms.txt → ~14k page
+  // URLs across ~80 services. Single longest-running source by far;
+  // placed last so it doesn't hold up earlier batches.
+  new DocSource({
+    name: "aws",
+    type: "http",
+    url: "https://docs.aws.amazon.com/",
+    format: "html",
+    discovery: "llms-index",
+    discoveryUrl: "https://docs.aws.amazon.com/llms.txt",
+    urlPattern:
+      "(lambda|AmazonS3|AmazonCloudFront|IAM|amazondynamodb|AWSCloudFormation|vpc|AWSEC2|AmazonRDS|AWSSimpleQueueService|sns|AmazonECS|eks|secretsmanager|systems-manager|cognito|apigateway|eventbridge|step-functions|waf|elasticloadbalancing)",
+    urlExclude: "(de_de|ja_jp|zh_cn|fr_fr|ko_kr|es_es|pt_br|it_it|id_id|/APIReference/)",
+  }),
+
+  // AWS API — multi-spec OpenAPI from APIs-guru/openapi-directory.
+  // Sparse-clones APIs/amazonaws.com, converts latest version of each
+  // core service spec to per-tag markdown.
+  new DocSource({
+    name: "aws-api",
+    type: "git",
+    url: "https://github.com/APIs-guru/openapi-directory",
+    format: "openapi",
+    paths: ["APIs/amazonaws.com"],
+    rootPath: "APIs/amazonaws.com",
+    discovery: "openapi-dir",
+    urlPattern:
+      "^(lambda|s3|cloudfront|iam|dynamodb|cloudformation|ec2|rds|sqs|sns|ecs|eks|secretsmanager|apigateway|apigatewayv2|eventbridge|stepfunctions|wafv2|elasticloadbalancingv2|cognito-idp|cognito-identity)$",
   }),
 
   // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).

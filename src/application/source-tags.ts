@@ -27,7 +27,6 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "modern-sql": ["databases"],
   "use-the-index-luke": ["databases"],
   sqlstyle: ["databases"],
-  pglocks: ["databases"],
 
   // ─── Postgres ecosystem ─────────────────────────────────────────
   pgvector: ["postgres-ecosystem"],
