@@ -13,6 +13,10 @@ import * as os from "node:os";
 const makeSource = (name = "test-source") =>
   new DocSource({ name, type: "http", format: "markdown", url: "https://example.com/" });
 
+/** Source that won't trigger network calls in captureFreshness (git path is offline). */
+const makeOfflineSource = (name = "test-source") =>
+  new DocSource({ name, type: "git", format: "markdown", url: "https://example.com/repo.git" });
+
 /** A mock ingestor that returns a pre-built DocSet */
 function mockIngestor(docSet: DocSet): DocIngestor {
   return {
@@ -210,6 +214,152 @@ describe("UpdateDocSets", () => {
     });
   });
 
+  describe("regression guard", () => {
+    it("rejects a fetch that drops below the threshold", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-reg-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const source = makeOfflineSource("regtest");
+
+      // Pre-write a stamp claiming the previous run produced 100 files.
+      const stampDir = path.join(outDir, "regtest");
+      await fs.mkdir(stampDir, { recursive: true });
+      await fs.writeFile(
+        path.join(stampDir, ".stamp.json"),
+        JSON.stringify({ fetchedAt: new Date().toISOString(), fileCount: 100 }),
+      );
+
+      // Mock ingestor returns just 10 files — 10% of previous, below 50% default.
+      const files = new Map();
+      for (let i = 0; i < 10; i++) {
+        files.set(`p${i}.md`, new DocFile(`p${i}.md`, `# Page ${i}`));
+      }
+      const docSet = new DocSet(source, files);
+
+      const updater = new UpdateDocSets({
+        sources: [source],
+        ingestors: [mockIngestor(docSet)],
+        normalisers: [noopNormaliser],
+        outDir,
+        workDir,
+        maxAge: 0, // skip freshness; force re-fetch
+      });
+
+      const results = await updater.run();
+      expect(results[0].status).toBe("error");
+      expect(results[0].error).toMatch(/regression/);
+      expect(results[0].error).toMatch(/10 files vs previous 100/);
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+
+    it("accepts a fetch that drops within the threshold", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-reg-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const source = makeOfflineSource("regtest2");
+      const stampDir = path.join(outDir, "regtest2");
+      await fs.mkdir(stampDir, { recursive: true });
+      await fs.writeFile(
+        path.join(stampDir, ".stamp.json"),
+        JSON.stringify({ fetchedAt: new Date().toISOString(), fileCount: 100 }),
+      );
+
+      // 70 files — 70% of previous, above 50% default.
+      const files = new Map();
+      for (let i = 0; i < 70; i++) {
+        files.set(`p${i}.md`, new DocFile(`p${i}.md`, `# Page ${i}`));
+      }
+      const docSet = new DocSet(source, files);
+
+      const updater = new UpdateDocSets({
+        sources: [source],
+        ingestors: [mockIngestor(docSet)],
+        normalisers: [noopNormaliser],
+        outDir,
+        workDir,
+        maxAge: 0,
+      });
+
+      const results = await updater.run();
+      expect(results[0].status).toBe("ok");
+
+      // Stamp should now record the new count (70).
+      const newStamp = JSON.parse(
+        await fs.readFile(path.join(stampDir, ".stamp.json"), "utf-8"),
+      );
+      expect(newStamp.fileCount).toBe(70);
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+
+    it("does nothing on first fetch (no previous stamp)", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-reg-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const source = makeOfflineSource("regtest3");
+      const files = new Map([["p.md", new DocFile("p.md", "# OK")]]);
+      const docSet = new DocSet(source, files);
+
+      const updater = new UpdateDocSets({
+        sources: [source],
+        ingestors: [mockIngestor(docSet)],
+        normalisers: [noopNormaliser],
+        outDir,
+        workDir,
+        maxAge: 0,
+      });
+
+      const results = await updater.run();
+      expect(results[0].status).toBe("ok");
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+
+    it("disabled when regressionThreshold is 0", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-reg-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const source = makeOfflineSource("regtest4");
+      const stampDir = path.join(outDir, "regtest4");
+      await fs.mkdir(stampDir, { recursive: true });
+      await fs.writeFile(
+        path.join(stampDir, ".stamp.json"),
+        JSON.stringify({ fetchedAt: new Date().toISOString(), fileCount: 100 }),
+      );
+      // Drop to 1 file — would trip the default threshold.
+      const files = new Map([["p.md", new DocFile("p.md", "# OK")]]);
+      const docSet = new DocSet(source, files);
+
+      const updater = new UpdateDocSets({
+        sources: [source],
+        ingestors: [mockIngestor(docSet)],
+        normalisers: [noopNormaliser],
+        outDir,
+        workDir,
+        maxAge: 0,
+        regressionThreshold: 0,
+      });
+
+      const results = await updater.run();
+      expect(results[0].status).toBe("ok");
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+  });
+
   describe("per-source deadline", () => {
     it("fails a source that exceeds sourceDeadline without blocking others", async () => {
       const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-deadline-"));
@@ -384,7 +534,7 @@ describe("UpdateDocSets", () => {
       execSync("git config user.name 'Test'", { cwd: cloneDir, stdio: "pipe" });
       await fs.writeFile(path.join(cloneDir, "README.md"), "# Hi");
       execSync("git add .", { cwd: cloneDir, stdio: "pipe" });
-      execSync("git commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
+      execSync("git -c commit.gpgsign=false commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
       execSync("git push origin main", { cwd: cloneDir, stdio: "pipe" });
       const sha = execSync("git rev-parse HEAD", { cwd: cloneDir, encoding: "utf-8" }).trim();
       return {

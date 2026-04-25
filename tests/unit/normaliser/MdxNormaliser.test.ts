@@ -108,4 +108,40 @@ describe("MdxNormaliser", () => {
     expect(result.content).toContain("code1");
     expect(result.content).toContain("code2");
   });
+
+  it("preserves label=\"...\" attributes as inline headings", async () => {
+    // Tauri/Astro Starlight pattern: <TabItem label="Debian"> wraps a
+    // code block that's specific to Debian. Stripping the tag drops
+    // the distro context; the agent then sees apt/pacman/dnf in
+    // sequence with no labels. Emit the label as a small heading so
+    // the context survives.
+    const content = `# Setup\n\n<Tabs>\n<TabItem label="Debian">\n\n\`\`\`sh\napt install foo\n\`\`\`\n\n</TabItem>\n<TabItem label="Arch">\n\n\`\`\`sh\npacman -S foo\n\`\`\`\n\n</TabItem>\n</Tabs>`;
+    const file = new DocFile("x.mdx", content);
+    const result = await normaliser.normalise(file);
+    expect(result.content).toContain("### Debian");
+    expect(result.content).toContain("### Arch");
+    expect(result.content).toContain("apt install foo");
+    expect(result.content).toContain("pacman -S foo");
+    // Original tags fully gone
+    expect(result.content).not.toMatch(/<[A-Z]/);
+    expect(result.content).not.toMatch(/<\/[A-Z]/);
+  });
+
+  it("preserves title=\"...\" attributes as inline headings", async () => {
+    // Many Astro Starlight components use `title=` instead of `label=`
+    // (e.g. <Code title="package.json">).
+    const content = `<Code title="package.json">\n{ "name": "foo" }\n</Code>`;
+    const file = new DocFile("x.mdx", content);
+    const result = await normaliser.normalise(file);
+    expect(result.content).toContain("### package.json");
+    expect(result.content).toContain('"name": "foo"');
+  });
+
+  it("does not emit a heading when no label/title attribute is present", async () => {
+    const content = `<Note>\nThis is important.\n</Note>`;
+    const file = new DocFile("x.mdx", content);
+    const result = await normaliser.normalise(file);
+    expect(result.content).not.toMatch(/^###/m);
+    expect(result.content).toContain("This is important.");
+  });
 });

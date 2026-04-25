@@ -48,14 +48,23 @@ export class MdxNormaliser implements DocNormaliser {
     content = content.replace(/^export\s+default\s+function[^{]*\{[\s\S]*?^\}/gm, "");
     content = content.replace(/^export\s+.*?(?:\n|$)/gm, "");
 
-    // Strip JSX component tags. We treat opening, closing, and
+    // Strip JSX component tags. Treat opening, closing, and
     // self-closing tags independently rather than trying to pair
     // <Tag>...</Tag> with a non-greedy regex — that approach fails on
     // nested components (e.g. Astro Starlight's <Tabs><TabItem>...
     // </TabItem></Tabs>), leaving orphan opening tags in the output.
-    // The component's inner text is plain markdown / code, so dropping
-    // the tags wholesale produces clean output.
+    //
+    // For opening tags carrying a `label=` or `title=` attribute, emit
+    // the value as an H3 heading before dropping the tag. Tauri,
+    // Drizzle, and other Starlight-based docs use these attributes to
+    // distinguish parallel content blocks (e.g. one TabItem per OS or
+    // package manager); without them the agent sees a sequence of
+    // commands with no context. The heading restores that.
     content = content.replace(/<[A-Z][A-Za-z0-9]*[^>]*\/>/g, "");
+    content = content.replace(
+      /<[A-Z][A-Za-z0-9]*\b[^>]*?\b(?:label|title)\s*=\s*["']([^"']+)["'][^>]*>/g,
+      "\n\n### $1\n\n",
+    );
     content = content.replace(/<[A-Z][A-Za-z0-9]*[^>]*>/g, "");
     content = content.replace(/<\/[A-Z][A-Za-z0-9]*>/g, "");
 

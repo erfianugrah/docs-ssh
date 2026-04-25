@@ -252,6 +252,27 @@ describe("tools-template", () => {
     expect(searchBody).toContain("awk");
   });
 
+  it("grep tool emits a [no matches] message when query finds nothing", () => {
+    // Empty rg output looks identical to a server timeout in the
+    // current ssh() helper. Surface a clear "[no matches for ...]"
+    // string so the agent doesn't keep grepping the same term.
+    const grepSection = REMAINING_TOOLS.slice(REMAINING_TOOLS.indexOf("export const grep"));
+    const endIdx = grepSection.indexOf("export const summary");
+    const grepBody = grepSection.slice(0, endIdx);
+    expect(grepBody).toMatch(/no matches/i);
+  });
+
+  it("summary tool reports file size alongside line count", () => {
+    // A bare line count tells the agent how big the file is in
+    // lines but not in tokens. Add bytes so the agent can decide
+    // whether a full read is affordable before calling docs_read.
+    const summarySection = REMAINING_TOOLS.slice(REMAINING_TOOLS.indexOf("export const summary"));
+    const endIdx = summarySection.indexOf("export const sources");
+    const summaryBody = summarySection.slice(0, endIdx);
+    expect(summaryBody).toContain("wc -c");
+    expect(summaryBody).toMatch(/lines.*bytes|bytes.*lines/);
+  });
+
   it("capOutput truncates at a safe boundary (no mid-surrogate slice)", () => {
     // String.prototype.slice operates on UTF-16 code units. If
     // MAX_RESULT_CHARS lands inside a surrogate pair, the result is an

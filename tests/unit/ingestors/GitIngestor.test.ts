@@ -40,7 +40,7 @@ describe("GitIngestor", () => {
     await fs.mkdir(path.join(cloneDir, "docs"), { recursive: true });
     await fs.writeFile(path.join(cloneDir, "docs", "index.md"), "# Hello");
     execSync("git add .", { cwd: cloneDir, stdio: "pipe" });
-    execSync("git commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
+    execSync("git -c commit.gpgsign=false commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
     execSync("git push origin main", { cwd: cloneDir, stdio: "pipe" });
 
     const src = new DocSource({
@@ -85,7 +85,7 @@ describe("GitIngestor", () => {
     execSync("git config user.name 'Test'", { cwd: seedDir, stdio: "pipe" });
     await fs.writeFile(path.join(seedDir, "README.md"), "# Valid");
     execSync("git add .", { cwd: seedDir, stdio: "pipe" });
-    execSync("git commit -m 'init'", { cwd: seedDir, stdio: "pipe" });
+    execSync("git -c commit.gpgsign=false commit -m 'init'", { cwd: seedDir, stdio: "pipe" });
     execSync("git push origin main", { cwd: seedDir, stdio: "pipe" });
 
     // Pre-pollute the clone target with junk that ISN'T a valid git
@@ -163,7 +163,7 @@ describe("GitIngestor", () => {
     await fs.writeFile(path.join(cloneDir, "a", "index.md"), "# A");
     await fs.writeFile(path.join(cloneDir, "b", "index.md"), "# B");
     execSync("git add .", { cwd: cloneDir, stdio: "pipe" });
-    execSync("git commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
+    execSync("git -c commit.gpgsign=false commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
     execSync("git push origin main", { cwd: cloneDir, stdio: "pipe" });
 
     // First ingest: only path "a"
@@ -212,7 +212,7 @@ describe("GitIngestor", () => {
     execSync("git config user.name 'Test'", { cwd: cloneDir, stdio: "pipe" });
     await fs.writeFile(path.join(cloneDir, "README.md"), "# Hi");
     execSync("git add .", { cwd: cloneDir, stdio: "pipe" });
-    execSync("git commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
+    execSync("git -c commit.gpgsign=false commit -m 'init'", { cwd: cloneDir, stdio: "pipe" });
     execSync("git push origin main", { cwd: cloneDir, stdio: "pipe" });
 
     const src = new DocSource({

@@ -52,6 +52,14 @@ export interface UpdateDocSetsOptions {
    * reported as error and the next source continues.
    */
   sourceDeadline?: number;
+  /**
+   * Reject a fetch when the source's file count drops below this
+   * fraction of the previous successful fetch's count. Default: 0.5
+   * (i.e. a >50% drop trips an error). Set 0 to disable.
+   * Catches silent upstream-format regressions like AWS dropping from
+   * 10k+ pages to 4 when their llms.txt format changed.
+   */
+  regressionThreshold?: number;
 }
 
 export interface SourceResult {
@@ -68,6 +76,15 @@ interface StampData {
   etag?: string;
   lastModified?: string;
   gitSha?: string;
+  /**
+   * File count from the previous successful fetch. Used to detect
+   * silent regressions when an upstream changes format (e.g. AWS
+   * shifted .html → .md llms.txt URLs in 2026-04 and the fetcher
+   * silently dropped from 10k+ to 4 files). The next run compares
+   * its own count against this and errors out if the drop exceeds
+   * a configurable threshold.
+   */
+  fileCount?: number;
 }
 
 /**
@@ -198,11 +215,13 @@ export class UpdateDocSets {
   private readonly concurrency: number;
   private readonly maxAge: number;
   private readonly sourceDeadline: number;
+  private readonly regressionThreshold: number;
 
   constructor(private readonly opts: UpdateDocSetsOptions) {
     this.concurrency = opts.concurrency ?? 6;
     this.maxAge = opts.maxAge ?? 86400;
     this.sourceDeadline = opts.sourceDeadline ?? 600_000;
+    this.regressionThreshold = opts.regressionThreshold ?? 0.5;
   }
 
   async run(): Promise<SourceResult[]> {
@@ -297,10 +316,32 @@ export class UpdateDocSets {
       progress.update(source.name, `normalising ${raw.size} files…`);
       const normalised = await this.normalise(raw);
 
+      // Regression guard: if the previous successful fetch produced
+      // significantly more files, this is almost certainly an upstream
+      // format change rather than a real content shrink. Fail loudly
+      // so a human investigates instead of writing a stamp that
+      // becomes the new (degraded) baseline.
+      const prevStamp = await this.readStamp(source.name);
+      if (
+        this.regressionThreshold > 0 &&
+        prevStamp?.fileCount &&
+        prevStamp.fileCount > 0
+      ) {
+        const ratio = normalised.size / prevStamp.fileCount;
+        if (ratio < this.regressionThreshold) {
+          throw new Error(
+            `regression: ${normalised.size} files vs previous ${prevStamp.fileCount} ` +
+              `(${(ratio * 100).toFixed(0)}% — threshold ${(this.regressionThreshold * 100).toFixed(0)}%). ` +
+              `Likely an upstream format change; investigate before accepting.`,
+          );
+        }
+      }
+
       progress.update(source.name, "writing…");
       const diff = await this.write(normalised);
 
       const stampData = await this.captureFreshness(source, normalised.version);
+      stampData.fileCount = normalised.size;
       await this.writeStamp(source.name, stampData);
 
       const summary = `+${diff.added} ~${diff.modified} -${diff.removed} =${diff.unchanged}`;
