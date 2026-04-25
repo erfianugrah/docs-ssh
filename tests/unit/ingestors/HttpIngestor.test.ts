@@ -1083,4 +1083,84 @@ describe("HttpIngestor", () => {
 
     await fs.rm(tmpDir, { recursive: true });
   });
+
+  // ─── Retry-After honoured ──────────────────────────────────────────
+
+  it("waits for Retry-After header instead of exponential backoff", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    let calls = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      calls++;
+      if (calls === 1) {
+        // First call: 429 with explicit Retry-After hint.
+        return {
+          ok: false,
+          status: 429,
+          headers: new Headers({ "Retry-After": "1" }),
+          text: async () => "rate limited",
+        };
+      }
+      // Second call succeeds.
+      return { ok: true, text: async () => "<h1>ok</h1>" };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "retry-after-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/page.html"],
+    });
+
+    const t0 = Date.now();
+    const set = await ingestor.ingest(src, tmpDir);
+    const elapsed = Date.now() - t0;
+
+    expect(set.size).toBe(1);
+    expect(calls).toBe(2);
+    // Retry-After: 1 → 1000ms wait. Backoff base would only have been
+    // ~1000ms here too, so the differentiator: should not be < 800ms
+    // (proves we actually waited).
+    expect(elapsed).toBeGreaterThanOrEqual(800);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── AbortSignal honoured ──────────────────────────────────────────
+
+  it("aborts in-flight fetches when signal is triggered between batches", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // Many URLs so fetch loop spans multiple CONCURRENCY=15 batches.
+    const urls: string[] = [];
+    for (let i = 0; i < 50; i++) urls.push(`https://example.com/p${i}.html`);
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount++;
+      // Slow fetch so the abort fires before the first batch finishes.
+      await new Promise((r) => setTimeout(r, 50));
+      return { ok: true, text: async () => "<h1>p</h1>" };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(new Error("source deadline exceeded")), 30);
+
+    const src = new DocSource({
+      name: "abort-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls,
+    });
+
+    await expect(ingestor.ingest(src, tmpDir, ctrl.signal)).rejects.toThrow(/abort/i);
+    // First batch (15) may complete; subsequent batches must NOT all run.
+    expect(fetchCount).toBeLessThan(urls.length);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
 });

@@ -69,6 +69,52 @@ describe("retryWithBackoff", () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
+  it("uses delayFromError when the thrown error carries a hint", async () => {
+    // 429/503 responses include a Retry-After header. Callers can
+    // surface that as a delay hint via delayFromError so the retry
+    // honours the upstream's wishes instead of guessing exponentially.
+    const start = Date.now();
+    let calls = 0;
+    const fn = async () => {
+      calls++;
+      if (calls < 2) {
+        const err: Error & { retryAfterMs?: number } = new Error("rate limited");
+        err.retryAfterMs = 75;
+        throw err;
+      }
+      return "ok";
+    };
+    const result = await retryWithBackoff(fn, {
+      retries: 2,
+      base: 100_000, // huge base — should be IGNORED in favour of the hint
+      jitter: 0,
+      delayFromError: (err) => (err as { retryAfterMs?: number }).retryAfterMs,
+    });
+    const elapsed = Date.now() - start;
+    expect(result).toBe("ok");
+    // ~75ms wait, generous upper bound for scheduler jitter.
+    expect(elapsed).toBeLessThan(500);
+    expect(elapsed).toBeGreaterThanOrEqual(70);
+  });
+
+  it("falls back to backoff when delayFromError returns undefined", async () => {
+    let calls = 0;
+    const fn = async () => {
+      calls++;
+      if (calls < 2) throw new Error("boom");
+      return "ok";
+    };
+    const start = Date.now();
+    const result = await retryWithBackoff(fn, {
+      retries: 1,
+      base: 50,
+      jitter: 0,
+      delayFromError: () => undefined, // hint absent → use backoff
+    });
+    expect(result).toBe("ok");
+    expect(Date.now() - start).toBeGreaterThanOrEqual(45);
+  });
+
   it("invokes onRetry callback with attempt number and error", async () => {
     const onRetry = vi.fn();
     let calls = 0;

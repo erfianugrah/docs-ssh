@@ -41,8 +41,17 @@ export class GitIngestor implements DocIngestor {
     return source.type === "git";
   }
 
-  async ingest(source: DocSource, workDir: string): Promise<DocSet> {
+  async ingest(source: DocSource, workDir: string, signal?: AbortSignal): Promise<DocSet> {
     const cloneDir = path.join(workDir, source.name);
+    // Surface abort between sub-steps. execFileAsync's `signal` option
+    // can also kill in-flight git processes, but checking here gives us
+    // bail-out points between clone/sparse-checkout/checkout/rev-parse.
+    const checkAbort = () => {
+      if (signal?.aborted) {
+        throw new Error(`git ingest aborted: ${signal.reason ?? "deadline exceeded"}`);
+      }
+    };
+    checkAbort();
 
     // Decide clone vs pull: the dir must both exist AND be a real git
     // repo (contains a .git directory). A partial clone killed mid-way

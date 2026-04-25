@@ -257,26 +257,38 @@ export class UpdateDocSets {
 
   /**
    * Race processSource against a hard deadline so a pathological
-   * upstream can't pin the build. The timer is explicitly cleared on
-   * normal completion to avoid keeping the event loop alive.
+   * upstream can't pin the build. On deadline expiry, an
+   * AbortController is signalled so the in-flight ingestor (and any
+   * fetches it has spawned) can release their handles promptly
+   * instead of running until process exit.
    */
   private async withDeadline(source: DocSource, progress: BatchProgress): Promise<SourceResult> {
     let timer: NodeJS.Timeout | undefined;
+    const controller = new AbortController();
     const deadline = new Promise<SourceResult>((resolve) => {
       timer = setTimeout(() => {
         const msg = `source deadline exceeded (${this.sourceDeadline}ms) — likely unresponsive upstream`;
         progress.error(source.name, msg.slice(0, 50));
+        controller.abort(new Error(msg));
         resolve({ source: source.name, status: "error", error: msg });
       }, this.sourceDeadline);
     });
     try {
-      return await Promise.race([this.processSource(source, progress), deadline]);
+      return await Promise.race([
+        this.processSource(source, progress, controller.signal),
+        deadline,
+      ]);
     } finally {
       if (timer) clearTimeout(timer);
+      // Settle any leftover async work tied to this source so it
+      // can release fetch sockets / setTimeouts. Ingestors that
+      // honour the signal stop their retry loops; those that don't
+      // still respect the per-fetch timeout / overall process exit.
+      controller.abort(new Error("source completed"));
     }
   }
 
-  private async processSource(source: DocSource, progress: BatchProgress): Promise<SourceResult> {
+  private async processSource(source: DocSource, progress: BatchProgress, signal?: AbortSignal): Promise<SourceResult> {
     const ingestor = this.opts.ingestors.find((i) => i.supports(source));
     if (!ingestor) {
       progress.error(source.name, "no ingestor");
@@ -311,7 +323,7 @@ export class UpdateDocSets {
     // ─── Fetch, normalise, write ──────────────────────────────────
     try {
       progress.update(source.name, "fetching…");
-      const raw = await ingestor.ingest(source, this.opts.workDir);
+      const raw = await ingestor.ingest(source, this.opts.workDir, signal);
 
       progress.update(source.name, `normalising ${raw.size} files…`);
       const normalised = await this.normalise(raw);

@@ -98,7 +98,29 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   nix: ["languages"],
 
   // ─── Cloud platforms ────────────────────────────────────────────
-  aws: ["cloud"],
+  // AWS is sharded per-service (see sources.ts). Each shard tagged
+  // 'cloud'; the umbrella 'aws' tag is gone with the umbrella source.
+  "aws-lambda": ["cloud"],
+  "aws-s3": ["cloud"],
+  "aws-cloudfront": ["cloud"],
+  "aws-iam": ["cloud"],
+  "aws-dynamodb": ["cloud", "databases"],
+  "aws-cloudformation": ["cloud"],
+  "aws-vpc": ["cloud"],
+  "aws-ec2": ["cloud"],
+  "aws-rds": ["cloud", "databases"],
+  "aws-sqs": ["cloud"],
+  "aws-sns": ["cloud"],
+  "aws-ecs": ["cloud"],
+  "aws-eks": ["cloud", "infrastructure"],
+  "aws-secretsmanager": ["cloud", "secrets"],
+  "aws-systems-manager": ["cloud"],
+  "aws-cognito": ["cloud", "auth"],
+  "aws-apigateway": ["cloud"],
+  "aws-eventbridge": ["cloud"],
+  "aws-step-functions": ["cloud"],
+  "aws-waf": ["cloud", "networking"],
+  "aws-elb": ["cloud", "networking"],
   vercel: ["cloud"],
 
   // ─── Build tools ────────────────────────────────────────────────

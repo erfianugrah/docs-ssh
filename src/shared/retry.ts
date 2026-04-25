@@ -35,11 +35,23 @@ export interface RetryOptions extends BackoffOptions {
   readonly onRetry?: (attempt: number, err: unknown, delayMs: number) => void;
   /** Return false to stop retrying on this error. Default: always retry. */
   readonly shouldRetry?: (err: unknown, attempt: number) => boolean;
+  /**
+   * Optional: extract an upstream-suggested delay (ms) from the error
+   * (e.g. parse a Retry-After header on a 429 / 503). Returning a
+   * number overrides the exponential backoff for this attempt only;
+   * returning undefined falls through to backoffDelay. Useful when
+   * the server tells us exactly how long to wait — retrying sooner
+   * is impolite and usually pointless.
+   */
+  readonly delayFromError?: (err: unknown, attempt: number) => number | undefined;
 }
 
 /**
  * Run `fn` up to `retries + 1` times, waiting with exponential backoff
  * + jitter between attempts. Throws the last error if all attempts fail.
+ *
+ * Per-attempt delay is controlled by `delayFromError` (if it returns a
+ * number) else `backoffDelay(attempt, opts)`.
  */
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
@@ -56,7 +68,8 @@ export async function retryWithBackoff<T>(
       lastError = err;
       if (attempt === retries) break;
       if (!shouldRetry(err, attempt)) break;
-      const delay = backoffDelay(attempt, opts);
+      const hinted = opts.delayFromError?.(err, attempt);
+      const delay = hinted !== undefined ? hinted : backoffDelay(attempt, opts);
       opts.onRetry?.(attempt, err, delay);
       await new Promise((r) => setTimeout(r, delay));
     }

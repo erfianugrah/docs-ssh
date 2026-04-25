@@ -77,7 +77,11 @@ describe("source file counts", () => {
     "cloudflare-blog": 3000,
     vercel: 1000,
     postgres: 700,
-    aws: 5000, // dropped from 10000 after a temporary upstream regression; 5k is the safe new floor
+    // AWS is sharded per-service (see sources.ts). Floor for the
+    // largest individual shard plus a couple of mid-sized ones.
+    "aws-lambda": 200,
+    "aws-s3": 300,
+    "aws-iam": 200,
     nextjs: 200,
     docker: 1000,
     kubernetes: 1000,

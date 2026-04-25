@@ -1660,22 +1660,53 @@ export const SOURCES: readonly DocSource[] = [
     format: "markdown",
   }),
 
-  // ─── AWS (kept last — slowest to fetch) ────────────────────────
-
-  // llms-index — top-level llms.txt → per-service llms.txt → ~14k page
-  // URLs across ~80 services. Single longest-running source by far;
-  // placed last so it doesn't hold up earlier batches.
-  new DocSource({
-    name: "aws",
-    type: "http",
-    url: "https://docs.aws.amazon.com/",
-    format: "html",
-    discovery: "llms-index",
-    discoveryUrl: "https://docs.aws.amazon.com/llms.txt",
-    urlPattern:
-      "(lambda|AmazonS3|AmazonCloudFront|IAM|amazondynamodb|AWSCloudFormation|vpc|AWSEC2|AmazonRDS|AWSSimpleQueueService|sns|AmazonECS|eks|secretsmanager|systems-manager|cognito|apigateway|eventbridge|step-functions|waf|elasticloadbalancing)",
-    urlExclude: "(de_de|ja_jp|zh_cn|fr_fr|ko_kr|es_es|pt_br|it_it|id_id|/APIReference/)",
-  }),
+  // ─── AWS, sharded per service (kept last — slowest tier) ──────
+  //
+  // Each AWS service publishes its own llms.txt with .md page URLs.
+  // We shard the umbrella 'aws' DocSource into per-service entries so
+  // (a) one slow/broken service doesn't drag the whole AWS fetch over
+  //     the per-source deadline,
+  // (b) the regression guard runs per-service (s3 dropping by 50%
+  //     trips even if the rest of AWS looks fine),
+  // (c) agents can scope searches to one service:
+  //     docs_search(query='cold start', source='aws-lambda').
+  //
+  // The previous umbrella source pulled ~14k pages through llms-index
+  // discovery; sharding splits that into independent fetches.
+  ...((): readonly DocSource[] => {
+    type AwsShard = readonly [name: string, llmsPath: string];
+    const shards: readonly AwsShard[] = [
+      ["aws-lambda",          "lambda/latest/dg"],
+      ["aws-s3",              "AmazonS3/latest/userguide"],
+      ["aws-cloudfront",      "AmazonCloudFront/latest/DeveloperGuide"],
+      ["aws-iam",             "IAM/latest/UserGuide"],
+      ["aws-dynamodb",        "amazondynamodb/latest/developerguide"],
+      ["aws-cloudformation",  "AWSCloudFormation/latest/UserGuide"],
+      ["aws-vpc",             "vpc/latest/userguide"],
+      ["aws-ec2",             "AWSEC2/latest/UserGuide"],
+      ["aws-rds",             "AmazonRDS/latest/UserGuide"],
+      ["aws-sqs",             "AWSSimpleQueueService/latest/SQSDeveloperGuide"],
+      ["aws-sns",             "sns/latest/dg"],
+      ["aws-ecs",             "AmazonECS/latest/developerguide"],
+      ["aws-eks",             "eks/latest/userguide"],
+      ["aws-secretsmanager",  "secretsmanager/latest/userguide"],
+      ["aws-systems-manager", "systems-manager/latest/userguide"],
+      ["aws-cognito",         "cognito/latest/developerguide"],
+      ["aws-apigateway",      "apigateway/latest/developerguide"],
+      ["aws-eventbridge",     "eventbridge/latest/userguide"],
+      ["aws-step-functions",  "step-functions/latest/dg"],
+      ["aws-waf",             "waf/latest/developerguide"],
+      ["aws-elb",             "elasticloadbalancing/latest/userguide"],
+    ];
+    return shards.map(([name, p]) => new DocSource({
+      name,
+      type: "http",
+      url: `https://docs.aws.amazon.com/${p}/`,
+      format: "markdown",
+      discovery: "llms-txt",
+      discoveryUrl: `https://docs.aws.amazon.com/${p}/llms.txt`,
+    }));
+  })(),
 
   // AWS API — multi-spec OpenAPI from APIs-guru/openapi-directory.
   // Sparse-clones APIs/amazonaws.com, converts latest version of each

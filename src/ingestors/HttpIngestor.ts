@@ -19,6 +19,26 @@ const REQUEST_TIMEOUT = 30_000; // 30s per page fetch
 const BULK_TIMEOUT = 120_000;   // 120s for large single-file downloads (llms-full, tarball, specs)
 
 /**
+ * Combine an external AbortSignal with a per-attempt timeout, so a
+ * caller can cancel in-flight retries (e.g. UpdateDocSets.withDeadline)
+ * without losing the per-fetch timeout safety net.
+ */
+function combineSignals(timeoutMs: number, external?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  if (!external) return timeout;
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any([timeout, external]);
+  }
+  // Pre-Node-20 fallback (not needed today, but cheap to keep).
+  const ctrl = new AbortController();
+  for (const s of [timeout, external]) {
+    if (s.aborted) ctrl.abort(s.reason);
+    s.addEventListener("abort", () => ctrl.abort(s.reason), { once: true });
+  }
+  return ctrl.signal;
+}
+
+/**
  * Fetch with User-Agent header, per-attempt timeout, and retry on
  * transient failures (network errors, 5xx, 413, 429). Uses exponential
  * backoff with jitter so concurrent failures don't retry in lockstep.
@@ -26,17 +46,21 @@ const BULK_TIMEOUT = 120_000;   // 120s for large single-file downloads (llms-fu
  * A thrown Response (on non-retryable status codes like 404) escapes
  * the retry loop via shouldRetry=false. All other throws and retryable
  * responses are retried.
+ *
+ * If `signal` is provided, abortion stops both the in-flight fetch
+ * and the retry loop (via shouldRetry).
  */
 async function fetchWithRetry(
   url: string,
   retries = MAX_RETRIES,
   timeout = REQUEST_TIMEOUT,
+  signal?: AbortSignal,
 ): Promise<Response> {
   return retryWithBackoff(
     async () => {
       const res = await fetch(url, {
         headers: { "User-Agent": UA },
-        signal: AbortSignal.timeout(timeout),
+        signal: combineSignals(timeout, signal),
       });
       // OK responses return directly.
       if (res.ok) return res;
@@ -52,9 +76,19 @@ async function fetchWithRetry(
     },
     {
       retries,
+      // Stop retrying immediately if the caller aborts.
+      shouldRetry: () => !signal?.aborted,
+      // Honour Retry-After when the upstream provides one (429/503).
+      // Falls through to exponential backoff otherwise.
+      delayFromError: (err) =>
+        err instanceof RetryableHttpError ? err.retryAfterMs : undefined,
       onRetry: (_attempt, err, delay) => {
         const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`  [retry] ${url} → ${msg}, waiting ${Math.round(delay)}ms…`);
+        const hinted =
+          err instanceof RetryableHttpError && err.retryAfterMs !== undefined
+            ? " (Retry-After honoured)"
+            : "";
+        console.warn(`  [retry] ${url} → ${msg}, waiting ${Math.round(delay)}ms${hinted}…`);
       },
     },
   ).catch((err: unknown) => {
@@ -67,13 +101,48 @@ async function fetchWithRetry(
 
 /** Thrown to signal a retryable HTTP status; caller unwraps on final attempt. */
 class RetryableHttpError extends Error {
+  /** Server-suggested delay (ms), parsed from Retry-After header if present. */
+  readonly retryAfterMs?: number;
+
   constructor(
     message: string,
     public readonly response: Response,
   ) {
     super(message);
     this.name = "RetryableHttpError";
+    // Defensive: mocked Response objects in unit tests may lack a
+    // `headers` property. Real `fetch` always provides Headers.
+    const header = response.headers?.get?.("retry-after") ?? null;
+    this.retryAfterMs = parseRetryAfter(header);
   }
+}
+
+/**
+ * RFC 7231 §7.1.3 Retry-After is either a non-negative integer
+ * (seconds) or an HTTP-date. Returns a delay in milliseconds, or
+ * undefined when the header is absent / malformed / in the past.
+ *
+ * We cap at 5 minutes — any longer and the source-deadline is going
+ * to fire anyway, so it's better to fail fast than block the whole
+ * batch on a single rate-limited URL.
+ */
+const RETRY_AFTER_MAX_MS = 5 * 60_000;
+function parseRetryAfter(header: string | null): number | undefined {
+  if (!header) return undefined;
+  const trimmed = header.trim();
+  // Numeric: seconds.
+  if (/^\d+$/.test(trimmed)) {
+    const ms = parseInt(trimmed, 10) * 1000;
+    return Math.min(ms, RETRY_AFTER_MAX_MS);
+  }
+  // HTTP-date.
+  const at = Date.parse(trimmed);
+  if (!Number.isNaN(at)) {
+    const delta = at - Date.now();
+    if (delta <= 0) return 0;
+    return Math.min(delta, RETRY_AFTER_MAX_MS);
+  }
+  return undefined;
 }
 
 /**
@@ -87,16 +156,16 @@ export class HttpIngestor implements DocIngestor {
     return source.type === "http";
   }
 
-  async ingest(source: DocSource, workDir: string): Promise<DocSet> {
+  async ingest(source: DocSource, workDir: string, signal?: AbortSignal): Promise<DocSet> {
     // Tarball and llms-full are bulk fetches that return files directly
     if (source.discovery === "tarball" && source.discoveryUrl) {
-      return this.ingestFromTarball(source, workDir);
+      return this.ingestFromTarball(source, workDir, signal);
     }
     if (source.discovery === "llms-full" && source.discoveryUrl) {
-      return this.ingestFromLlmsFull(source);
+      return this.ingestFromLlmsFull(source, signal);
     }
     if (source.discovery === "openapi" && source.discoveryUrl) {
-      return this.ingestFromOpenApi(source);
+      return this.ingestFromOpenApi(source, signal);
     }
 
     // Everything else is URL-based: discover URLs, filter, fetch each page
@@ -148,10 +217,15 @@ export class HttpIngestor implements DocIngestor {
     const errors: string[] = [];
 
     for (let i = 0; i < urls.length; i += CONCURRENCY) {
+      // Bail out between batches if the caller aborted (e.g. source
+      // deadline expired). Saves CONCURRENCY × ~30s of wasted fetches.
+      if (signal?.aborted) {
+        throw new Error(`fetch aborted: ${signal.reason ?? "deadline exceeded"}`);
+      }
       const batch = urls.slice(i, i + CONCURRENCY);
       const results = await Promise.allSettled(
         batch.map(async (url) => {
-          const res = await fetchWithRetry(url);
+          const res = await fetchWithRetry(url, undefined, undefined, signal);
           if (!res.ok) {
             throw new Error(`HTTP ${res.status} for ${url}`);
           }
@@ -183,7 +257,7 @@ export class HttpIngestor implements DocIngestor {
 
   // ─── Tarball ────────────────────────────────────────────────────────
 
-  private async ingestFromTarball(source: DocSource, workDir: string): Promise<DocSet> {
+  private async ingestFromTarball(source: DocSource, workDir: string, signal?: AbortSignal): Promise<DocSet> {
     const extractDir = path.join(workDir, `${source.name}-tarball`);
     await fs.mkdir(extractDir, { recursive: true });
 
@@ -191,7 +265,7 @@ export class HttpIngestor implements DocIngestor {
     // Download to a temp file first, then extract — avoids shell injection
     // from interpolating URLs into a shell pipeline.
     const tarballPath = path.join(workDir, `${source.name}.tar.gz`);
-    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT);
+    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
     if (!res.ok) {
       throw new Error(`Failed to fetch tarball: HTTP ${res.status}`);
     }
@@ -215,9 +289,9 @@ export class HttpIngestor implements DocIngestor {
 
   // ─── llms-full.txt ─────────────────────────────────────────────────
 
-  private async ingestFromLlmsFull(source: DocSource): Promise<DocSet> {
+  private async ingestFromLlmsFull(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
     console.log(`  [${source.name}] downloading llms-full.txt…`);
-    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT);
+    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
     if (!res.ok) {
       throw new Error(`Failed to fetch llms-full.txt: HTTP ${res.status}`);
     }
@@ -240,9 +314,9 @@ export class HttpIngestor implements DocIngestor {
   }
   // ─── OpenAPI spec ───────────────────────────────────────────────────
 
-  private async ingestFromOpenApi(source: DocSource): Promise<DocSet> {
+  private async ingestFromOpenApi(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
     console.log(`  [${source.name}] downloading OpenAPI spec…`);
-    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT);
+    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
     if (!res.ok) {
       throw new Error(`Failed to fetch OpenAPI spec: HTTP ${res.status}`);
     }
