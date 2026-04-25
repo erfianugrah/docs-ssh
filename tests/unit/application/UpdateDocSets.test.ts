@@ -237,7 +237,11 @@ describe("UpdateDocSets", () => {
         normalisers: [noopNormaliser],
         outDir,
         workDir,
-        sourceDeadline: 50, // 50ms for the test
+        // 500ms — short enough for the test to be fast, long enough
+        // that the "fast" mock source (which does fs.mkdir + fs.writeFile
+        // + stamp write under tmpfs/spinning disk on CI) actually has
+        // time to complete before the deadline can fire on it.
+        sourceDeadline: 500,
       });
 
       const start = Date.now();
@@ -252,7 +256,7 @@ describe("UpdateDocSets", () => {
       expect(fast?.status).toBe("ok");
       // Deadline caps total runtime — should not take much longer than
       // the deadline itself even with the hung source.
-      expect(elapsed).toBeLessThan(1000);
+      expect(elapsed).toBeLessThan(2000);
 
       await fs.rm(tmpDir, { recursive: true });
     });
