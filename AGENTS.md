@@ -91,6 +91,20 @@ Add a `case` entry in `log-cmd.sh:44-59` and a script in `commands/`. Human-faci
 
 Add a `new DocSource({...})` to `src/application/sources.ts`. Pick a discovery method that matches how the upstream provides docs. The ingestor and normaliser are selected automatically by type/format matching. Discovery methods: `none`, `tarball`, `llms-full`, `llms-index`, `llms-txt`, `sitemap`, `sitemap-index`, `toc`, `rss`, `openapi`, `openapi-dir`, `mediawiki`.
 
+**Source-type preference order** (most → least reliable; pick the highest one the upstream actually offers):
+
+1. **`type: "git"`** — clone+sparse-checkout the upstream's docs directory. Markdown direct from source. ~83 of 138 sources use this. Survives upstream HTML/JS/CSS rewrites; only breaks when the repo path changes.
+2. **`type: "http"` + `discovery: "tarball"`** — single bulk archive (e.g. Supabase's `docs.tar.gz`). One fetch, no rendering, durable.
+3. **`type: "http"` + `discovery: "llms-full"`** — single AI-targeted text dump from the upstream. Lighter than tarball, common pattern (Vercel, Cloudflare, Next.js, Bitwarden).
+4. **`type: "http"` + `discovery: "openapi"` / `"openapi-dir"`** — for API specs. Converted to per-tag markdown by `openapi-converter.ts`.
+5. **Other discovery methods** (`sitemap`, `toc`, `llms-txt`, `llms-index`, `rss`, `mediawiki`) — last resort. These all run page-by-page HTML scraping; brittle to upstream JS-rendering, format changes, missing pages.
+
+**AWS is the last entry in the SOURCES array on purpose** — it discovers ~14k page URLs across ~80 services and is by far the slowest source. Placing it last means earlier batches don't wait behind it.
+
+**Two helper scripts in `scripts/` for evaluating new sources** (devDeps: playwright, @mozilla/readability, jsdom):
+- `pnpm tsx scripts/probe-sources.ts > /tmp/probe.tsv` — checks every existing source for archive / llms-full / llms.txt / known-git availability. Used to drive the v0.14.0 mass migration.
+- `pnpm tsx scripts/audit-sources.ts > /tmp/audit.tsv` — fetches each `format: "html"` source's sample page two ways (plain `fetch` + Turndown, then headless Chromium + Mozilla Readability) and classifies KEEP / JS / DROP. Useful when adding a JS-heavy source to confirm a sitemap-based ingestion will yield usable markdown before committing to it.
+
 ## Modifying tools output
 
 Edit `src/commands/tools-template.ts` (the TypeScript source of truth), then run `pnpm generate:tools` to regenerate `commands/tools.sh`. Commit both files. Unit tests validate template exports; sync between template and generated shell is enforced by the CI "Verify tools.sh is in sync" step (see `Commands` section above).
