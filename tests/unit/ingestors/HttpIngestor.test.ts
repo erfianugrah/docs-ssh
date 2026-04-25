@@ -673,6 +673,48 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("discovers .md page URLs from llms-index (AWS new format)", async () => {
+    // AWS upstream switched from .html page URLs to .md in their child
+    // llms.txt files. The crawler must accept both.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const topLevel = `# AWS
+- [Lambda](https://docs.aws.amazon.com/lambda/llms.txt)
+`;
+    const lambdaLlms = `# Lambda
+- [Getting Started](https://docs.aws.amazon.com/lambda/latest/dg/getting-started.md)
+- [Functions](https://docs.aws.amazon.com/lambda/latest/dg/functions.md)
+- [Handler](https://docs.aws.amazon.com/lambda/latest/dg/handler.md)
+`;
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url === "https://docs.aws.amazon.com/llms.txt") {
+        return { ok: true, text: async () => topLevel };
+      }
+      if (url.endsWith("lambda/llms.txt")) {
+        return { ok: true, text: async () => lambdaLlms };
+      }
+      // Page fetches return markdown body
+      return { ok: true, text: async () => `# Page\n\nContent` };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "aws-md-test",
+      type: "http",
+      format: "markdown",
+      url: "https://docs.aws.amazon.com/",
+      discovery: "llms-index",
+      discoveryUrl: "https://docs.aws.amazon.com/llms.txt",
+      urlPattern: "(lambda)",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    expect(set.size).toBe(3);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   // ─── Discovery: RSS ─────────────────────────────────────────────────
 
   it("discovers URLs from an RSS feed", async () => {

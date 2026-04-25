@@ -107,6 +107,17 @@ export class HttpIngestor implements DocIngestor {
     } else if (source.discovery !== "none" && source.discoveryUrl) {
       urls = await discover(source);
       console.log(`  [${source.name}] raw discovery: ${urls.length} URLs`);
+      // Loud failure when discovery returns nothing. The previous quiet
+      // behaviour caused the AWS source to silently drop from 10k+ files
+      // to ~0 when upstream switched .html → .md in llms.txt — empty
+      // DocSet writes a clean state and freshness keeps stale files.
+      // Throwing here makes the source error out so it shows up in the
+      // 'N failed' summary instead of pretending success.
+      if (urls.length === 0) {
+        throw new Error(
+          `discovery returned 0 URLs for ${source.name} (method: ${source.discovery}, url: ${source.discoveryUrl}) — upstream format may have changed`,
+        );
+      }
     } else {
       urls = [source.url];
     }
@@ -440,8 +451,15 @@ async function discoverFromLlmsIndex(
         if (!r.ok) return [];
         const childText = await r.text();
         const childLinks = childText.match(urlRegex) ?? [];
-        // Return HTML page links (not llms.txt links)
-        return childLinks.filter((l) => l.endsWith(".html") && !l.endsWith("/llms.txt"));
+        // Page URLs are anything ending in .md or .html and not a
+        // sibling llms.txt. AWS migrated from .html to .md in 2026 —
+        // we accept both so older mirrors still work.
+        return childLinks.filter(
+          (l) =>
+            (l.endsWith(".md") || l.endsWith(".html")) &&
+            !l.endsWith("/llms.txt") &&
+            !l.endsWith("/llms-full.txt"),
+        );
       }),
     );
     for (const result of results) {
