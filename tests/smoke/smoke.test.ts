@@ -131,10 +131,11 @@ describe("search index", () => {
   });
 
   it("enriched index: headings in summary field", () => {
-    const entry = ssh("rg 'row-level-security' /docs/_index.tsv | head -1");
-    // Match either "Row Level Security" (postgres style) or "Row-Level
-    // Security" (cockroachdb style — first alphabetically). Either is a
-    // valid title for this concept.
+    // Look for an actual RLS landing page entry, not just any page
+    // that mentions row-level-security in passing. A real RLS doc has
+    // the phrase in its title or first prose line, so we anchor on a
+    // path containing 'row-level-security' as a basename.
+    const entry = ssh("rg '/row-level-security\\.md\\t' /docs/_index.tsv | head -1");
     expect(entry).toMatch(/Row[ -]Level Security/);
     expect(entry.length).toBeGreaterThan(100);
   });

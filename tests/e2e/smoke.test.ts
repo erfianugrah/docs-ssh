@@ -102,14 +102,18 @@ describe("E2E smoke tests", () => {
       ),
     );
 
-    // Build Docker image (capture output for health check verification)
-    // 2>&1 merges stderr into stdout — BuildKit sends build log to stderr.
-    // maxBuffer: BuildKit progress output easily exceeds the 1MB default
-    // (especially on cold caches); exceeding the default kills the
-    // child with SIGTERM mid-build. 32 MiB is generous.
+    // Build Docker image (capture output for health check verification).
+    // - --progress=plain disables BuildKit's TTY redraws that mangle
+    //   captured output.
+    // - --no-cache ensures the build-health-check.sh RUN step actually
+    //   re-runs (otherwise BuildKit reports CACHED and we get no
+    //   health output to assert on).
+    // Output is redirected to a file because execSync streaming
+    // capture can drop content when BuildKit emits in bursts.
     console.log("Building Docker image…");
-    buildOutput = execSync(
-      `docker build --build-arg DOCS_PREBUILT=true -t ${IMAGE} . 2>&1`,
+    const buildLog = path.join(projectRoot, "build.log");
+    execSync(
+      `docker build --progress=plain --no-cache --build-arg DOCS_PREBUILT=true -t ${IMAGE} . > '${buildLog}' 2>&1`,
       {
         cwd: projectRoot,
         encoding: "utf-8",
@@ -117,6 +121,8 @@ describe("E2E smoke tests", () => {
         maxBuffer: 32 * 1024 * 1024,
       },
     );
+    buildOutput = await fs.readFile(buildLog, "utf-8");
+    await fs.rm(buildLog, { force: true });
 
     // Start container with security hardening (same as prod).
     // DOCS_CMD_TIMEOUT=3 keeps the timeout-kills-slow-commands test fast —
