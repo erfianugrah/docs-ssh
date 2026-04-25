@@ -112,3 +112,48 @@ jobs:
             "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy" \
             -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
             -H "X-Requested-With: XMLHttpRequest"
+
+  smoke:
+    name: Post-deploy smoke against live
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Wait for Composer deploy to settle
+        # Composer's deploy endpoint returns immediately and the
+        # container restart takes some seconds. Poll the live SSH
+        # endpoint for connectivity (max ~60s) before running the
+        # smoke suite. SSH 'echo ok' is the cheapest health probe.
+        run: |
+          for i in $(seq 1 30); do
+            if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                   -o LogLevel=ERROR -o ConnectTimeout=2 \
+                   -p 2222 docs@${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }} \
+                   'echo ok' > /dev/null 2>&1; then
+              echo "live server reachable after ${i}×2s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::live server unreachable after 60s; aborting smoke"
+          exit 1
+
+      - name: Smoke against live
+        env:
+          DOCS_SSH_HOST: ${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }}
+          DOCS_SSH_PORT: ${{ vars.DOCS_SSH_PORT || '2222' }}
+        run: pnpm test:smoke

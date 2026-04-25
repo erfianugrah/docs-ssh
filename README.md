@@ -70,153 +70,29 @@ Output is capped at 51K chars (~12K tokens) with truncation hints that direct th
 
 ## Doc sources
 
-Each source uses the best available fetch method — no hardcoded URL lists.
+138 sources covering programming languages, frameworks, databases, cloud platforms, and developer tooling. Full canonical list lives in [`src/application/sources.ts`](src/application/sources.ts); the live server reports counts via:
 
-| Source | Discovery | Format | Notes |
-|--------|-----------|--------|-------|
-| Supabase | tarball | markdown | `docs.tar.gz` — same as supabase.sh |
-| Supabase Blog | git sparse | mdx → md | 400 posts from `supabase/supabase` repo |
-| Cloudflare | llms-full | markdown | 40MB dump from `llms-full.txt` |
-| Cloudflare Blog | sitemap | html → md | 3,400+ posts from `sitemap-posts.xml` |
-| Cloudflare Changelog | rss | html → md | Full history from RSS feed |
-| Vercel | llms-full | markdown | 11MB dump from `llms-full.txt` |
-| Vercel Blog | sitemap | markdown | `.md` suffix per page |
-| Vercel Changelog | sitemap | markdown | `.md` suffix per page |
-| PostgreSQL | toc | html → md | All pages from `bookindex.html` |
-| AWS | llms-index | html → md | 20 core services via per-service `llms.txt` |
-| Next.js | llms-full | markdown | Full docs from `llms-full.txt` |
-| Astro | llms-full | markdown | Full docs from `llms-full.txt` |
-| MCP | llms-txt | markdown | Per-page URLs from `llms.txt` |
-| Fly.io | sitemap | html → md | `/docs/` pages filtered from sitemap |
-| Tailwind CSS | git sparse | mdx → md | MDX docs from `tailwindcss.com` repo |
-| Rust Book | git sparse | markdown | The Rust Programming Language |
-| Docker | llms-txt | html → md | 1,400+ pages from `llms.txt` |
-| Shadcn/UI | llms-txt | html → md | Component docs from `llms.txt` |
-| Kubernetes | git sparse | markdown | Full docs from `kubernetes/website` |
-| Traefik | git sparse | markdown | Docs from `traefik/traefik` repo |
-| Caddy | git sparse | markdown | Docs from `caddyserver/website` repo |
-| Neovim | sitemap | html → md | Help docs from `neovim.io/doc/user/` |
-| Starlight | sitemap | html → md | Astro's Starlight framework docs |
-| Mermaid | git sparse | markdown | Diagram syntax from `mermaid-js/mermaid` |
-| D2 | sitemap | html → md | Diagramming language tour + examples |
-| Bun | llms-txt | markdown | 315 pages with `.md` URLs |
-| React | llms-txt | markdown | Full React docs with `.md` URLs |
-| Hono | llms-txt | html → md | CF Workers + Bun web framework |
-| Zod | llms-txt | html → md | TypeScript schema validation |
-| Drizzle ORM | llms-txt | html → md | TypeScript ORM for Postgres/MySQL/SQLite |
-| TypeScript | git sparse | markdown | Handbook + reference from `TypeScript-Website` |
-| K3s | sitemap | html → md | Lightweight Kubernetes docs |
-| Python | toc | html → md | Tutorial, library, reference, howto, FAQ |
-| Ansible | toc | html → md | Playbooks, inventory, vault, modules, dev guide |
-| Erfi Technical Blog | git sparse | mdx → md | Technical docs from `erfianugrah/lexicanum` |
-| Erfi Personal Blog | git sparse | mdx → md | Photography & writing from `erfianugrah/revista-3` |
-| MDN Web Docs | git sparse | markdown | 14,000+ pages — HTML, CSS, JS, HTTP, Web APIs |
-| Gitea | sitemap | html → md | Self-hosted Git forge docs (unversioned latest) |
-| Authentik | git sparse | mdx → md | Identity provider docs from `goauthentik/authentik` |
-| Keycloak | sitemap | html → md | OIDC/SAML IdP guides (server, HA, securing apps) |
-| OpenID | explicit | html → md | OIDC specs and developer docs from `openid.net` |
-| Terraform | git sparse | mdx → md | IaC docs from `hashicorp/web-unified-docs` (all versions) |
-| Zsh | toc | html → md | Full manual (28 chapters) from `zsh.sourceforge.io` |
-| Oh My Zsh | git | markdown | Curated wiki (FAQ, plugins, themes, customization) |
-| Zinit | git sparse | mdx → md | Guides, syntax, annexes, ecosystem from `z-shell/wiki` |
-| Powerlevel10k | git | markdown | Comprehensive README (105KB) from `romkatv/powerlevel10k` |
-| WezTerm | git sparse | markdown | 634 doc files from `wezterm/wezterm` |
-| SOPS | sitemap | html → md | Secrets management docs from `getsops.io` |
-| age | git | markdown | File encryption tool from `FiloSottile/age` |
-| tmux | git (wiki) | markdown | Terminal multiplexer guides from `tmux/tmux` wiki |
-| OpenCode | sitemap | html → md | AI coding agent docs from `opencode.ai` |
-| Vitest | llms-full | markdown | Testing framework docs (~1.1MB) |
-| Vite | llms-full | markdown | Build tool docs (~350KB) |
-| Turborepo | llms-txt | html → md | Monorepo build system (~130 entries) |
-| Deno | llms-full | markdown | Runtime docs (~2MB) |
-| Svelte/SvelteKit | llms-full | markdown | Both frameworks in one dump (~1MB) |
-| TanStack | llms-txt | html → md | Query, Router, Table, Form, and more |
-| Prettier | llms-txt | html → md | Code formatter docs (~23 pages) |
-| ESLint | sitemap | html → md | Linting rules, config, plugins |
-| SQLite | toc | html → md | All docs from table-of-contents page |
-| Prometheus | sitemap | html → md | Monitoring system docs |
-| OpenTelemetry | llms-txt | html → md | Observability standard (concepts, SDK guides) |
-| Rspack | llms-txt | html → md | Rust-based bundler (~100 entries) |
-| Effect | llms-txt | html → md | TypeScript effect system |
-| Argo CD | sitemap | html → md | GitOps CD for Kubernetes (~180 pages) |
-| Helm | sitemap | html → md | Kubernetes package manager |
-| mise | sitemap | html → md | Polyglot dev tool manager (~170 pages) |
-| pnpm | sitemap | html → md | Package manager (CLI + config reference) |
-| Resend | llms-txt | html → md | Email API for developers (~200 entries) |
-| Let's Encrypt | sitemap-index | html → md | TLS CA docs (English) |
-| rclone | sitemap | html → md | Cloud storage sync tool (~130 pages) |
-| Redis | sitemap | html → md | In-memory data store docs |
-| Grafana | sitemap-index | html → md | Observability platform docs |
-| GitLab | sitemap-index | html → md | DevSecOps platform docs |
-| GitHub Docs | git sparse | markdown | Full docs from `github/docs` repo |
-| Playwright | sitemap | html → md | Browser testing framework |
-| FastAPI | sitemap | html → md | Python web framework (~130 pages) |
-| Go | toc | html → md | Core docs (tutorials, effective go, modules) |
-| WireGuard | sitemap | html → md | VPN tunnel docs (~18 pages, dense) |
-| Nix | sitemap | html → md | nix.dev community docs (~57 pages) |
-| React Native | llms-full | markdown | Mobile framework docs (~2MB) |
-| Flutter | llms-txt | html → md | Cross-platform UI toolkit (~100 pages) |
-| Expo | llms-txt | html → md | React Native framework (EAS, Router, modules) |
-| Tauri | llms-txt | html → md | Rust+Web desktop/mobile app framework |
-| htmx | sitemap | html → md | HTML-driven interactivity |
-| Jest | sitemap | html → md | JavaScript testing framework |
-| Cypress | sitemap | html → md | E2E testing framework |
-| Wails | sitemap | html → md | Go+Web desktop apps |
-| Prisma | llms-txt | html → md | TypeScript ORM (~300+ entries) |
-| SST | llms-txt | html → md | Infrastructure framework (AWS, CF, Vercel) |
-| Valkey | git sparse | markdown | Redis fork docs (topics + commands) |
-| Bitwarden | sitemap | markdown | Help docs (~350 pages, `.md` suffix) |
-| Vaultwarden | git (wiki) | markdown | Self-hosted Bitwarden server (65 pages) |
-| curl | git | markdown | "Everything curl" book (~170 files) |
-| ripgrep | git | markdown | GUIDE.md + FAQ.md (~100KB) |
-| HTTPie | git sparse | markdown | CLI docs from `httpie/cli` repo |
-| GraphQL Spec | git sparse | markdown | Official spec (12 files) |
-| GraphQL Docs | git sparse | mdx → md | Learn guides, FAQ, graphql-js reference |
-| Multigres | sitemap | html → md | Vitess for Postgres (docs + blog + consensus) |
-| Multigres Dev | git sparse | markdown | Developer docs (architecture, HA, query serving) |
-| Excalidraw | git sparse | mdx → md | Dev docs from `excalidraw/excalidraw` monorepo |
-| PostgreSQL Wiki | mediawiki | html → md | 1,177 community wiki articles via API enumeration |
-| pgvector | git | markdown | Vector similarity search for Postgres |
-| PostGIS | toc | html → md | Spatial database reference manual |
-| PgBouncer | git | markdown | Connection pooler docs from `pgbouncer.github.io` |
-| TimescaleDB | llms-full | markdown | Time-series database docs (~4.6MB, TigerData) |
-| pg_cron | git | markdown | Job scheduler for Postgres |
-| pgrx | git sparse | markdown | Rust framework for Postgres extensions |
-| Citus | git | markdown | Distributed Postgres extension |
-| Neon | llms-full | markdown | Serverless Postgres platform (~5MB) |
-| Electric SQL | llms-txt | markdown | Postgres sync engine |
-| ParadeDB | llms-full | markdown | Postgres for search and analytics (~450KB) |
-| CockroachDB | sitemap | html → md | Distributed SQL database (stable docs, ~607 pages) |
-| YugabyteDB | sitemap | html → md | Distributed Postgres-compatible (~1,641 pages) |
-| Supavisor | git sparse | markdown | Postgres connection pooler by Supabase |
-| pg_graphql | git sparse | markdown | GraphQL for Postgres by Supabase |
-| pg_net | git sparse | markdown | Async HTTP client for Postgres |
-| index_advisor | git | markdown | Postgres index recommendation extension |
-| supabase-grafana | git sparse | markdown | Grafana dashboards for Supabase (~110KB metrics ref) |
-| Modern SQL | sitemap | html → md | SQL standard features reference (421 pages) |
-| Use The Index, Luke | sitemap | html → md | SQL indexing and performance tutorial |
-| Patroni | sitemap | html → md | Postgres HA template (ReadTheDocs) |
-| pgpool | toc | html → md | Postgres connection pooler + HA (Sphinx) |
-| pglocks | explicit | html → md | Single-page Postgres lock reference |
-| SQL Style Guide | git | markdown | SQL formatting conventions |
-| SAML 2.0 | explicit | html → md | OASIS SAML 2.0 specs |
+```bash
+ssh -p 2222 docs@docs.erfi.io sources
+```
 
-### OpenAPI specs
+Sources are fetched using the most reliable mechanism the upstream offers, in this preference order (most → least durable):
 
-Converted to per-endpoint-group markdown at ingestion time (4-8x compression vs raw JSON/YAML).
+| Mechanism | Count | Notes |
+|-----------|-------|-------|
+| **git sparse-checkout** | ~83 | Clone the upstream's docs directory (e.g. `grafana/grafana/docs/sources`). Markdown direct from source — survives any HTML/JS/CSS rewrite. |
+| **bulk archive** | 1 | Single `.tar.gz` (Supabase publishes one). |
+| **`llms-full.txt`** | ~12 | AI-targeted single-file dump (Cloudflare, Vercel, Next.js, Bitwarden, etc.). |
+| **OpenAPI spec** | ~10 | Converted to per-endpoint-group markdown at ingestion time (4-8× compression vs raw spec). |
+| **per-page HTML scrape** (sitemap, llms-index, toc, rss, mediawiki) | ~30 | Last resort. Used only when the upstream offers no better option (e.g. AWS, postgres, python). |
 
-| Source | Spec format | Raw size | Output |
-|--------|-------------|----------|--------|
-| Cloudflare API | OpenAPI 3.x | 9 MB | 456 files, 1.9 MB |
-| Docker Engine API | Swagger 2.0 | 456 KB | 16 files, 73 KB |
-| Kubernetes API | Swagger 2.0 | 4 MB | 65 files, 727 KB |
-| Supabase Management API | OpenAPI 3.0 | 455 KB | 17 files, 62 KB |
-| Supabase Auth API | OpenAPI 3.0 | 132 KB | 9 files, 38 KB |
-| Fly.io Machines API | Swagger 2.0 | 203 KB | 9 files, 26 KB |
-| Gitea API | Swagger 2.0 | 819 KB | 10 files |
-| Authentik API | OpenAPI 3.0 | 1.6 MB | 26 files |
-| Keycloak Admin API | OpenAPI 3.0 | 360 KB | 23 files |
-| AWS APIs | OpenAPI (multi-spec) | varies | 20 core services from `APIs-guru/openapi-directory` |
+The fetcher records each source's file count in a stamp file and refuses fetches that drop ≥50% — catches silent upstream-format regressions like AWS's 2026-04 `.html → .md` switch that quietly took the source from 10k+ files to 4.
+
+### API reference sources
+
+OpenAPI specs are converted to per-tag markdown at ingestion time. Each output dir has `api/overview.md` (endpoint index) plus one file per tag/group.
+
+Live: `aws-api`, `authentik-api`, `cloudflare-api`, `docker-api`, `flyio-api`, `gitea-api`, `keycloak-api`, `kubernetes-api`, `supabase-api`, `supabase-auth-api`.
 
 ## Build from source
 
