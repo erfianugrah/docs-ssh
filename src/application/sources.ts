@@ -1000,6 +1000,18 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs",
   }),
 
+  // ─── npm ───────────────────────────────────────────────────────
+
+  // Git sparse — markdown content from npm/cli (commands, configuring-npm, using-npm)
+  new DocSource({
+    name: "npm",
+    type: "git",
+    url: "https://github.com/npm/cli",
+    format: "markdown",
+    paths: ["docs/lib/content"],
+    rootPath: "docs/lib/content",
+  }),
+
   // ─── Resend ────────────────────────────────────────────────────
 
   // llms.txt — email API for developers (~200 entries)

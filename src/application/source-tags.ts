@@ -131,6 +131,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   eslint: ["build-tools"],
   prettier: ["build-tools"],
   pnpm: ["build-tools"],
+  npm: ["build-tools"],
 
   // ─── Testing ────────────────────────────────────────────────────
   jest: ["testing"],
