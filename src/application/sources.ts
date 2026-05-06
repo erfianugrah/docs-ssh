@@ -41,6 +41,15 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "apps/www/_blog",
   }),
 
+  // @supabase/server — server-side auth/client utilities for Edge Functions, Workers, Hono
+  new DocSource({
+    name: "supabase-server",
+    type: "git",
+    url: "https://github.com/supabase/server",
+    format: "markdown",
+    paths: ["docs", "README.md", "MIGRATION.md"],
+  }),
+
   // ─── Cloudflare ────────────────────────────────────────────────────
 
   // llms-full.txt — entire docs in one 40MB file, pre-split into pages

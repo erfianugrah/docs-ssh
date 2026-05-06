@@ -210,6 +210,9 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "authentik-api": ["api-specs"],
   "keycloak-api": ["api-specs"],
 
+  // ─── Supabase ecosystem (non-Postgres) ──────────────────────────
+  "supabase-server": ["supabase-ecosystem", "auth"],
+
   // ─── Other ──────────────────────────────────────────────────────
   opencode: ["build-tools"],
   fastapi: ["languages", "frontend"],
