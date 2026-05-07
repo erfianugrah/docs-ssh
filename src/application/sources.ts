@@ -1175,14 +1175,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Flutter ───────────────────────────────────────────────────
 
-  // Git sparse — flutter.dev source (695 md files in src/content)
+  // Git sparse — flutter.dev source (697 md files in sites/docs/src/content)
   new DocSource({
     name: "flutter",
     type: "git",
     url: "https://github.com/flutter/website",
     format: "markdown",
-    paths: ["src/content"],
-    rootPath: "src/content",
+    paths: ["sites/docs/src/content"],
+    rootPath: "sites/docs/src/content",
   }),
 
   // ─── Expo ──────────────────────────────────────────────────────
