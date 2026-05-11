@@ -1681,6 +1681,158 @@ export const SOURCES: readonly DocSource[] = [
     format: "markdown",
   }),
 
+  // ─── SearXNG ───────────────────────────────────────────────────
+
+  // TOC-based — Sphinx-rendered HTML site for the metasearch engine.
+  // Repo docs/ is .rst (no native RST normaliser); HTML site is canonical.
+  new DocSource({
+    name: "searxng",
+    type: "http",
+    url: "https://docs.searxng.org/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.searxng.org/",
+    urlPattern: "docs\\.searxng\\.org/",
+    urlExclude: "(_static/|_sources/|genindex|search\\.html|#)",
+  }),
+
+  // ─── ProjectDiscovery ──────────────────────────────────────────
+
+  // Mintlify MDX source — nuclei, subfinder, httpx, katana, naabu, etc.
+  new DocSource({
+    name: "projectdiscovery",
+    type: "git",
+    url: "https://github.com/projectdiscovery/docs",
+    format: "mdx",
+    paths: [
+      "tools",
+      "opensource",
+      "cloud",
+      "help",
+      "quickstart",
+      "templates",
+      "api-reference",
+      "_snippets",
+    ],
+  }),
+
+  // ─── OWASP Amass ───────────────────────────────────────────────
+
+  // Wiki repo — asset discovery and attack surface mapping
+  new DocSource({
+    name: "amass",
+    type: "git",
+    url: "https://github.com/owasp-amass/amass.wiki",
+    format: "markdown",
+  }),
+
+  // ─── SpiderFoot ────────────────────────────────────────────────
+
+  // Wiki repo — OSINT automation framework (docs/ is .rst, wiki is markdown)
+  new DocSource({
+    name: "spiderfoot",
+    type: "git",
+    url: "https://github.com/smicallef/spiderfoot.wiki",
+    format: "markdown",
+  }),
+
+  // ─── theHarvester ──────────────────────────────────────────────
+
+  // Whole repo — email/subdomain/name harvester (README + small md count)
+  new DocSource({
+    name: "theharvester",
+    type: "git",
+    url: "https://github.com/laramies/theHarvester",
+    format: "markdown",
+  }),
+
+  // ─── recon-ng ──────────────────────────────────────────────────
+
+  // Wiki repo — modular reconnaissance framework
+  new DocSource({
+    name: "recon-ng",
+    type: "git",
+    url: "https://github.com/lanmaster53/recon-ng.wiki",
+    format: "markdown",
+  }),
+
+  // ─── Sherlock ──────────────────────────────────────────────────
+
+  // Whole repo — username hunter (README + minimal docs/ tree)
+  new DocSource({
+    name: "sherlock",
+    type: "git",
+    url: "https://github.com/sherlock-project/sherlock",
+    format: "markdown",
+  }),
+
+  // ─── Maigret ───────────────────────────────────────────────────
+
+  // TOC-based — ReadTheDocs sitemap only lists version roots; the
+  // index page itself links to all sub-pages (Sphinx Furo theme).
+  new DocSource({
+    name: "maigret",
+    type: "http",
+    url: "https://maigret.readthedocs.io/en/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://maigret.readthedocs.io/en/latest/",
+    urlPattern: "maigret\\.readthedocs\\.io/en/latest/",
+    urlExclude: "(_static/|_sources/|genindex|search\\.html|#)",
+  }),
+
+  // ─── BBOT ──────────────────────────────────────────────────────
+
+  // Git sparse — recursive internet scanner (mkdocs markdown in docs/)
+  new DocSource({
+    name: "bbot",
+    type: "git",
+    url: "https://github.com/blacklanternsecurity/bbot",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── ExifTool ──────────────────────────────────────────────────
+
+  // Direct URLs — canonical reference pages for image metadata extraction
+  // (exiftool.org has no sitemap; TagNames/ has hundreds of vendor pages,
+  //  so we pick just the umbrella + most-used tag groups).
+  new DocSource({
+    name: "exiftool",
+    type: "http",
+    url: "https://exiftool.org/",
+    format: "html",
+    urls: [
+      "https://exiftool.org/index.html",
+      "https://exiftool.org/install.html",
+      "https://exiftool.org/exiftool_pod.html",
+      "https://exiftool.org/faq.html",
+      "https://exiftool.org/geotag.html",
+      "https://exiftool.org/filename.html",
+      "https://exiftool.org/struct.html",
+      "https://exiftool.org/htmldump.html",
+      "https://exiftool.org/TagNames/index.html",
+      "https://exiftool.org/TagNames/EXIF.html",
+      "https://exiftool.org/TagNames/GPS.html",
+      "https://exiftool.org/TagNames/IPTC.html",
+      "https://exiftool.org/TagNames/XMP.html",
+      "https://exiftool.org/TagNames/MakerNotes.html",
+      "https://exiftool.org/TagNames/Composite.html",
+      "https://exiftool.org/TagNames/Extra.html",
+    ],
+  }),
+
+  // ─── YaCy ──────────────────────────────────────────────────────
+
+  // Whole repo — distributed P2P search server (README + a handful of md)
+  new DocSource({
+    name: "yacy",
+    type: "git",
+    url: "https://github.com/yacy/yacy_search_server",
+    format: "markdown",
+  }),
+
   // ─── AWS, sharded per service (kept last — slowest tier) ──────
   //
   // Each AWS service publishes its own llms.txt with .md page URLs.

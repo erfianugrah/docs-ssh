@@ -213,6 +213,19 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   // ─── Supabase ecosystem (non-Postgres) ──────────────────────────
   "supabase-server": ["supabase-ecosystem", "auth"],
 
+  // ─── OSINT & reconnaissance ─────────────────────────────────────
+  searxng: ["osint"],
+  projectdiscovery: ["osint"],
+  amass: ["osint"],
+  spiderfoot: ["osint"],
+  theharvester: ["osint"],
+  "recon-ng": ["osint"],
+  sherlock: ["osint"],
+  maigret: ["osint"],
+  bbot: ["osint"],
+  exiftool: ["osint"],
+  yacy: ["osint"],
+
   // ─── Other ──────────────────────────────────────────────────────
   opencode: ["build-tools"],
   fastapi: ["languages", "frontend"],
@@ -248,6 +261,7 @@ export const TAG_LABELS: Record<string, string> = {
   email: "Email & services",
   blogs: "Blogs & changelogs",
   "api-specs": "API specs",
+  osint: "OSINT & reconnaissance",
 };
 
 /**
