@@ -365,4 +365,48 @@ describe("safePath (extracted from STATIC_BODY)", () => {
   it("collapses redundant slashes", () => {
     expect(safePath("/docs//supabase//guide.md")).toBe("/docs/supabase/guide.md");
   });
+
+  it("throws a clear error when given undefined (not 'cleaned.replace' crash)", () => {
+    // Regression: previously crashed with "undefined is not an object
+    // (evaluating 'cleaned.replace')" when an agent passed 'filePath'
+    // instead of 'path' to docs_read. Schema accepted both, but
+    // args.path resolved to undefined → safePath(undefined) → crash.
+    // Defensive guard now throws a meaningful message instead.
+    expect(() => safePath(undefined as unknown as string)).toThrow(/path is required|filePath/i);
+    expect(() => safePath("" as string)).toThrow();
+  });
+});
+
+// ─── filePath alias support ──────────────────────────────────────────
+
+describe("filePath alias", () => {
+  it("read tool accepts both 'path' and 'filePath' args", () => {
+    const readSection = REMAINING_TOOLS.slice(REMAINING_TOOLS.indexOf("export const read"));
+    const endIdx = readSection.indexOf("export const find");
+    const readBody = readSection.slice(0, endIdx);
+    expect(readBody).toContain("filePath: z.string()");
+    expect(readBody).toContain("resolvePath(args)");
+  });
+
+  it("summary tool accepts 'filePath' alias", () => {
+    const section = REMAINING_TOOLS.slice(REMAINING_TOOLS.indexOf("export const summary"));
+    const endIdx = section.indexOf("export const sources");
+    const body = section.slice(0, endIdx);
+    expect(body).toContain("filePath: z.string()");
+    expect(body).toContain("resolvePath(args)");
+  });
+
+  it("grep tool accepts 'filePath' alias", () => {
+    const section = REMAINING_TOOLS.slice(REMAINING_TOOLS.indexOf("export const grep"));
+    const endIdx = section.indexOf("export const summary");
+    const body = section.slice(0, endIdx);
+    expect(body).toContain("filePath: z.string()");
+    expect(body).toContain("resolvePath(args)");
+  });
+
+  it("STATIC_BODY exports resolvePath helper", () => {
+    expect(STATIC_BODY).toContain("function resolvePath(");
+    // Helper must prefer 'path' over 'filePath' when both are set.
+    expect(STATIC_BODY).toMatch(/args\.path\s*\?\?\s*args\.filePath/);
+  });
 });
