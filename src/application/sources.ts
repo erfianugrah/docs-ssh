@@ -1588,14 +1588,13 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── pg_net ────────────────────────────────────────────────────
 
-  // Async HTTP client for Postgres by Supabase
+  // Async HTTP client for Postgres by Supabase (README + CONTRIBUTING).
+  // Upstream removed the docs/ dir; root markdown is now the source.
   new DocSource({
     name: "pg-net",
     type: "git",
     url: "https://github.com/supabase/pg_net",
     format: "markdown",
-    paths: ["docs"],
-    rootPath: "docs",
   }),
 
   // ─── index_advisor ─────────────────────────────────────────────
