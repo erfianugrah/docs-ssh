@@ -41,13 +41,14 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "apps/www/_blog",
   }),
 
-  // @supabase/server — server-side auth/client utilities for Edge Functions, Workers, Hono
+  // @supabase/server — server-side auth/client utilities for Edge Functions, Workers, Hono.
+  // No `paths` — DocSource.paths are scanned via readdir (dirs only); listing files there
+  // crashes with ENOTDIR. The extension filter (.md/.mdx) already narrows the walk.
   new DocSource({
     name: "supabase-server",
     type: "git",
     url: "https://github.com/supabase/server",
     format: "markdown",
-    paths: ["docs", "README.md", "MIGRATION.md"],
   }),
 
   // ─── Cloudflare ────────────────────────────────────────────────────
