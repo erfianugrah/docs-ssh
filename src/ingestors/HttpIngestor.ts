@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { DocFile } from "../domain/DocFile.js";
-import { DocSet } from "../domain/DocSet.js";
+import { DocSet, type NegotiationStats } from "../domain/DocSet.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocSource, DiscoveryMethod } from "../domain/DocSource.js";
 import { splitLlmsFull } from "./llms-splitter.js";
@@ -17,6 +17,68 @@ const MAX_RETRIES = 2;
 
 const REQUEST_TIMEOUT = 30_000; // 30s per page fetch
 const BULK_TIMEOUT = 120_000;   // 120s for large single-file downloads (llms-full, tarball, specs)
+
+/**
+ * Accept header for page fetches. Per RFC 7231 §5.3.2, the q-value
+ * fallback ensures spec-compliant servers return HTML when markdown
+ * isn't available — single round trip in both cases. Non-compliant
+ * servers ignore Accept and return HTML; we detect via Content-Type.
+ *
+ * Reference: https://acceptmarkdown.com/ and Cloudflare's
+ * "Markdown for Agents" (developers.cloudflare.com/fundamentals/
+ * reference/markdown-for-agents/).
+ */
+const PAGE_ACCEPT = "text/markdown, text/html;q=0.9";
+
+/**
+ * Below this length threshold a markdown response is treated as a
+ * suspected over-stripped page — we retry forcing text/html. The unit
+ * is JS string length (UTF-16 code units), not UTF-8 bytes; for ASCII
+ * they are equal, for CJK content the threshold is effectively half
+ * as restrictive (which is fine — short CJK pages still have ASCII
+ * structure like `# `, `[…](…)`, code fences).
+ *
+ * Empirical floor: real markdown pages observed in probes were 2.2KB+
+ * (~2.2k chars) even for stub-like index pages.
+ */
+const MIN_MARKDOWN_BODY = 256;
+
+/**
+ * Content-Type prefixes accepted as markdown. RFC 7763 standardises
+ * only `text/markdown`. Cloudflare's "Markdown for Agents" uses that
+ * form. `text/x-markdown` is the de facto pre-RFC variant. Some less
+ * compliant origins emit `application/markdown` — honour it too;
+ * downstream parsers care about body shape, not the bikeshed.
+ *
+ * Compared with `.startsWith()` after `toLowerCase()`, so trailing
+ * parameters (`; charset=utf-8`) and capitalisation are handled.
+ */
+const MARKDOWN_CT_PREFIXES = [
+  "text/markdown",
+  "text/x-markdown",
+  "application/markdown",
+];
+
+/**
+ * Heuristic check: does the response body look like HTML, even though
+ * the Content-Type header claims markdown? Some origins mislabel —
+ * the only signal we can fall back to is content shape. Checks the
+ * first ~200 chars (after trim) for an HTML preamble. False negatives
+ * are acceptable (worst case: Turndown runs unnecessarily on markdown,
+ * skipped by the preNormalised flag); false positives would only fire
+ * on markdown documents whose first non-whitespace bytes spell out
+ * `<!doctype`, `<html`, `<head`, or `<body` — vanishingly unlikely
+ * since `<` is rare unescaped in markdown source.
+ */
+function looksLikeHtml(body: string): boolean {
+  const head = body.trimStart().slice(0, 200).toLowerCase();
+  return (
+    head.startsWith("<!doctype") ||
+    head.startsWith("<html") ||
+    head.startsWith("<head") ||
+    head.startsWith("<body")
+  );
+}
 
 /**
  * Combine an external AbortSignal with a per-attempt timeout, so a
@@ -55,11 +117,12 @@ async function fetchWithRetry(
   retries = MAX_RETRIES,
   timeout = REQUEST_TIMEOUT,
   signal?: AbortSignal,
+  extraHeaders?: Record<string, string>,
 ): Promise<Response> {
   return retryWithBackoff(
     async () => {
       const res = await fetch(url, {
-        headers: { "User-Agent": UA },
+        headers: { "User-Agent": UA, ...(extraHeaders ?? {}) },
         signal: combineSignals(timeout, signal),
       });
       // OK responses return directly.
@@ -115,6 +178,145 @@ class RetryableHttpError extends Error {
     const header = response.headers?.get?.("retry-after") ?? null;
     this.retryAfterMs = parseRetryAfter(header);
   }
+}
+
+/**
+ * Fetch a content page with markdown content negotiation.
+ *
+ * Sends `Accept: text/markdown, text/html;q=0.9` and sniffs
+ * `Content-Type` on the response. Routes the body to one of two
+ * pipeline branches:
+ *
+ *   - `preNormalised: true`  — origin honoured Accept and returned
+ *     `text/markdown`. Caller writes a `.md` file flagged so Pass 1
+ *     of normalisation (format converters) is skipped.
+ *
+ *   - `preNormalised: false` — origin returned HTML (most common
+ *     today). Existing pipeline runs HtmlNormaliser → Turndown.
+ *
+ * Defensive fallback: if a markdown response is suspiciously thin
+ * (likely upstream stripped the page too aggressively), retry once
+ * with `Accept: text/html` and use the HTML body if it is materially
+ * larger.
+ *
+ * Throws on final non-2xx (consistent with the original page-fetch
+ * loop). Retry/abort behaviour is delegated to fetchWithRetry.
+ */
+/**
+ * Outcome marker used by per-source telemetry. Distinguishes which
+ * branch of the negotiation produced the body so the ingester can log
+ * adoption rate and fallback usage.
+ */
+type FetchOutcome =
+  | "markdown" // origin honoured Accept and returned text/markdown
+  | "html" // origin returned text/html (most common)
+  | "html-fallback-404" // 404/406 with markdown Accept → recovered via text/html
+  | "html-fallback-thin" // markdown body suspiciously thin → swapped to text/html
+  | "html-fallback-lying-ct"; // Content-Type said markdown but body was HTML
+
+interface FetchPageResult {
+  body: string;
+  preNormalised: boolean;
+  outcome: FetchOutcome;
+  /** From Cloudflare's `x-markdown-tokens` header, if present. */
+  tokens?: number;
+}
+
+async function fetchPage(
+  url: string,
+  signal?: AbortSignal,
+): Promise<FetchPageResult> {
+  let res = await fetchWithRetry(url, undefined, undefined, signal, {
+    Accept: PAGE_ACCEPT,
+  });
+  let outcome: FetchOutcome = "html";
+
+  // Broken-server fallback: some origins return 404/406 ONLY when the
+  // markdown variant is requested, even though the spec requires falling
+  // back to HTML via the q-weighted Accept. Verified in the wild on
+  // turborepo's /docs/openapi/* pages — they 200 with no Accept header
+  // but 404 with `Accept: text/markdown, text/html;q=0.9`. Retry once
+  // forcing text/html to recover these pages. Skip when caller aborted —
+  // avoids one wasted fetch when the signal fires between the initial
+  // response and the fallback decision.
+  //
+  // No try/catch here — unlike the thin-body fallback below, the initial
+  // markdown request did not yield usable content (it was a 404). If the
+  // fallback also fails (network error, abort, post-retry 404), there is
+  // nothing to return, so the error must propagate to the batch loop and
+  // be recorded as a page failure.
+  if ((res.status === 404 || res.status === 406) && !signal?.aborted) {
+    const retry = await fetchWithRetry(url, undefined, undefined, signal, {
+      Accept: "text/html",
+    });
+    if (retry.ok) {
+      res = retry;
+      outcome = "html-fallback-404";
+    }
+  }
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} for ${url}`);
+  }
+
+  const ct = (res.headers?.get?.("content-type") ?? "").toLowerCase();
+  let isMarkdown = MARKDOWN_CT_PREFIXES.some((p) => ct.startsWith(p));
+  const body = await res.text();
+
+  // Mislabelled Content-Type sniff: the header says markdown but the
+  // body opens with HTML. We can't trust the negotiation in that case —
+  // route through the HTML pipeline so Turndown runs. No extra fetch.
+  if (isMarkdown && looksLikeHtml(body)) {
+    isMarkdown = false;
+    outcome = "html-fallback-lying-ct";
+  } else if (isMarkdown && outcome === "html") {
+    outcome = "markdown";
+  }
+
+  // Defensive guard: an origin honoured the Accept header but returned
+  // near-empty markdown (over-eager pre-processing strips the body).
+  // Retry forcing HTML; only switch if the fallback is materially larger
+  // so we don't downgrade legitimately short markdown pages. Skip when
+  // aborted (consistent with the broken-server fallback above).
+  //
+  // try/catch (asymmetric with the 404 fallback above): we already have
+  // a successful response — just a thin one. If the HTML fallback fails
+  // for any reason (network, abort, post-retry 5xx), we keep the thin
+  // markdown rather than losing the page entirely. The "materially
+  // larger" check (>2× body length) prevents accidentally swapping in
+  // a similarly-thin HTML 404 page when both representations are empty.
+  if (isMarkdown && body.length < MIN_MARKDOWN_BODY && !signal?.aborted) {
+    try {
+      const fallback = await fetchWithRetry(url, undefined, undefined, signal, {
+        Accept: "text/html",
+      });
+      if (fallback.ok) {
+        const fallbackBody = await fallback.text();
+        if (fallbackBody.length > body.length * 2) {
+          return {
+            body: fallbackBody,
+            preNormalised: false,
+            outcome: "html-fallback-thin",
+          };
+        }
+      }
+    } catch {
+      // Fallback failed — keep the (thin) markdown response.
+    }
+  }
+
+  // Cloudflare's `Markdown for Agents` annotates responses with the
+  // estimated token count of the converted document. Useful for
+  // operators tracking content-negotiation adoption.
+  const tokenHeader = res.headers?.get?.("x-markdown-tokens");
+  const tokens = tokenHeader ? parseInt(tokenHeader, 10) : NaN;
+
+  return {
+    body,
+    preNormalised: isMarkdown,
+    outcome,
+    tokens: Number.isFinite(tokens) ? tokens : undefined,
+  };
 }
 
 /**
@@ -215,6 +417,17 @@ export class HttpIngestor implements DocIngestor {
 
     const files = new Map<string, DocFile>();
     const errors: string[] = [];
+    // Per-source content-negotiation telemetry. Aggregated and logged
+    // once at the end of the fetch so operators can see adoption rate
+    // and which fallbacks (if any) fired.
+    const outcomes: Record<FetchOutcome, number> = {
+      markdown: 0,
+      html: 0,
+      "html-fallback-404": 0,
+      "html-fallback-thin": 0,
+      "html-fallback-lying-ct": 0,
+    };
+    let totalTokens = 0;
 
     for (let i = 0; i < urls.length; i += CONCURRENCY) {
       // Bail out between batches if the caller aborted (e.g. source
@@ -225,19 +438,31 @@ export class HttpIngestor implements DocIngestor {
       const batch = urls.slice(i, i + CONCURRENCY);
       const results = await Promise.allSettled(
         batch.map(async (url) => {
-          const res = await fetchWithRetry(url, undefined, undefined, signal);
-          if (!res.ok) {
-            throw new Error(`HTTP ${res.status} for ${url}`);
+          const { body, preNormalised, outcome, tokens } = await fetchPage(url, signal);
+          let filePath = urlToPath(url, source.url);
+          // urlToPath defaults trailing-slash URLs to `index.html` and
+          // strips extensions to `.md`. When we received markdown
+          // directly via content negotiation, the `.html` suffix is a
+          // lie — the file body is markdown. Mirror what HtmlNormaliser
+          // does at the end of Pass 1 (path.replace(/\.html$/, ".md"))
+          // so cleanup normalisers (MarkdownCleaner) that gate on
+          // file.extension === "md" can match.
+          if (preNormalised && filePath.endsWith(".html")) {
+            filePath = filePath.replace(/\.html$/, ".md");
           }
-          const content = await res.text();
-          const filePath = urlToPath(url, source.url);
-          return new DocFile(filePath, content);
+          return {
+            file: new DocFile(filePath, body, { preNormalised }),
+            outcome,
+            tokens,
+          };
         }),
       );
 
       for (const result of results) {
         if (result.status === "fulfilled") {
-          files.set(result.value.path, result.value);
+          files.set(result.value.file.path, result.value.file);
+          outcomes[result.value.outcome]++;
+          if (result.value.tokens) totalTokens += result.value.tokens;
         } else {
           errors.push(result.reason?.message ?? String(result.reason));
         }
@@ -252,7 +477,18 @@ export class HttpIngestor implements DocIngestor {
       console.warn(`  [${source.name}] ${errors.length} pages failed (${files.size} succeeded)`);
     }
 
-    return new DocSet(source, files, new Date());
+    logNegotiationStats(source.name, files.size, outcomes, totalTokens);
+
+    const negotiation: NegotiationStats = {
+      markdown: outcomes.markdown,
+      html: outcomes.html,
+      fallback404: outcomes["html-fallback-404"],
+      fallbackThin: outcomes["html-fallback-thin"],
+      fallbackLyingCt: outcomes["html-fallback-lying-ct"],
+      totalTokens,
+    };
+
+    return new DocSet(source, files, new Date(), undefined, negotiation);
   }
 
   // ─── Tarball ────────────────────────────────────────────────────────
@@ -642,6 +878,45 @@ function urlToPath(url: string, baseUrl: string): string {
     relative = relative + ".md";
   }
   return relative;
+}
+
+/**
+ * Log content-negotiation telemetry for a source. Stays silent when no
+ * markdown was negotiated AND no fallback fired — pure HTML scraping
+ * looks the same as before. Otherwise prints adoption rate, average
+ * token count (when origin returned `x-markdown-tokens`), and counts
+ * for each fallback branch that actually triggered.
+ */
+function logNegotiationStats(
+  sourceName: string,
+  totalSuccess: number,
+  outcomes: Record<FetchOutcome, number>,
+  totalTokens: number,
+): void {
+  const md = outcomes.markdown;
+  const fb404 = outcomes["html-fallback-404"];
+  const fbThin = outcomes["html-fallback-thin"];
+  const fbLying = outcomes["html-fallback-lying-ct"];
+  const anyFallback = fb404 + fbThin + fbLying;
+
+  // Stay quiet when there's nothing interesting to report — keeps the
+  // build log readable for the majority of sources that don't negotiate.
+  if (md === 0 && anyFallback === 0) return;
+
+  const parts: string[] = [];
+  if (md > 0) {
+    const pct = Math.round((md / totalSuccess) * 100);
+    let chunk = `negotiated markdown for ${md}/${totalSuccess} pages (${pct}%)`;
+    if (totalTokens > 0) {
+      chunk += ` ~${Math.round(totalTokens / md)} tokens/page`;
+    }
+    parts.push(chunk);
+  }
+  if (fb404 > 0) parts.push(`${fb404} via HTML fallback (404)`);
+  if (fbThin > 0) parts.push(`${fbThin} via HTML fallback (thin body)`);
+  if (fbLying > 0) parts.push(`${fbLying} via HTML fallback (lying CT)`);
+
+  console.log(`  [${sourceName}] ${parts.join(", ")}`);
 }
 
 

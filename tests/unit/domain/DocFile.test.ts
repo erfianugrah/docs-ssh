@@ -87,4 +87,46 @@ describe("DocFile", () => {
     expect(f.content).toBe("");
     expect(f.isEmpty).toBe(true);
   });
+
+  // ─── preNormalised flag ────────────────────────────────────────────
+
+  it("preNormalised defaults to false", () => {
+    const f = new DocFile("guide.md", "content");
+    expect(f.preNormalised).toBe(false);
+  });
+
+  it("preNormalised can be set to true via opts", () => {
+    const f = new DocFile("guide.md", "# Already markdown", { preNormalised: true });
+    expect(f.preNormalised).toBe(true);
+  });
+
+  it("withContent propagates preNormalised flag", () => {
+    const original = new DocFile("guide.md", "old", { preNormalised: true });
+    const updated = original.withContent("new");
+    expect(updated.preNormalised).toBe(true);
+    expect(updated.content).toBe("new");
+  });
+
+  it("withPath propagates preNormalised flag", () => {
+    const original = new DocFile("guide.md", "content", { preNormalised: true });
+    const updated = original.withPath("renamed.md");
+    expect(updated.preNormalised).toBe(true);
+    expect(updated.path).toBe("renamed.md");
+  });
+
+  it("withContent on default file preserves preNormalised=false", () => {
+    const original = new DocFile("guide.md", "old");
+    const updated = original.withContent("new");
+    expect(updated.preNormalised).toBe(false);
+  });
+
+  it("equals ignores preNormalised flag (content+path semantics)", () => {
+    // The flag is a pipeline-routing hint, not part of file identity.
+    // Two files with identical content but different preNormalised
+    // settings should equal — the diff system cares about content
+    // changes, not how we got there.
+    const a = new DocFile("guide.md", "# Hello", { preNormalised: true });
+    const b = new DocFile("guide.md", "# Hello", { preNormalised: false });
+    expect(a.equals(b)).toBe(true);
+  });
 });

@@ -35,6 +35,26 @@ function isFormatConverter(n: DocNormaliser): boolean {
   return FORMAT_VALUES.some((f) => n.supportsFormat(f));
 }
 
+/**
+ * Compute the markdown-adoption-rate change between two negotiation
+ * snapshots. Returns null when either snapshot has no negotiated
+ * pages (pure-HTML source on both sides — nothing to compare).
+ */
+function computeAdoptionDrift(
+  prev: { markdown: number; html: number; fallback404: number; fallbackThin: number; fallbackLyingCt: number },
+  curr: { markdown: number; html: number; fallback404: number; fallbackThin: number; fallbackLyingCt: number },
+): { before: number; after: number; delta: number; direction: "up" | "down" } | null {
+  const prevTotal =
+    prev.markdown + prev.html + prev.fallback404 + prev.fallbackThin + prev.fallbackLyingCt;
+  const currTotal =
+    curr.markdown + curr.html + curr.fallback404 + curr.fallbackThin + curr.fallbackLyingCt;
+  if (prevTotal === 0 || currTotal === 0) return null;
+  const before = prev.markdown / prevTotal;
+  const after = curr.markdown / currTotal;
+  const delta = after - before;
+  return { before, after, delta, direction: delta >= 0 ? "up" : "down" };
+}
+
 export interface UpdateDocSetsOptions {
   sources: readonly DocSource[];
   ingestors: readonly DocIngestor[];
@@ -85,7 +105,30 @@ interface StampData {
    * a configurable threshold.
    */
   fileCount?: number;
+  /**
+   * Content-negotiation outcome counts from the previous fetch.
+   * Used to detect adoption-rate drift — e.g. an upstream disabling
+   * its markdown converter would show as a sudden swing from
+   * `markdown: 100%` to `markdown: 0%`. Only populated for HTTP
+   * sources that went through page-by-page Accept negotiation.
+   */
+  negotiation?: {
+    markdown: number;
+    html: number;
+    fallback404: number;
+    fallbackThin: number;
+    fallbackLyingCt: number;
+    totalTokens: number;
+  };
 }
+
+/**
+ * If the markdown-adoption rate changes by more than this fraction
+ * between two successful fetches, log a warning. Catches upstream
+ * regressions (zone owner disabled the toggle, CDN configuration
+ * change, etc.) without false-firing on normal noise.
+ */
+const ADOPTION_DRIFT_THRESHOLD = 0.25;
 
 /**
  * Application service: orchestrates fetching, normalising and writing all DocSets.
@@ -349,11 +392,30 @@ export class UpdateDocSets {
         }
       }
 
+      // Content-negotiation drift warning: compare current adoption
+      // rate against the previous successful fetch. Sudden swings
+      // usually indicate the upstream toggled `Markdown for Agents`
+      // off (or vice versa) and are worth surfacing so the operator
+      // can correlate any large diff with a CDN configuration change.
+      if (prevStamp?.negotiation && normalised.negotiation) {
+        const drift = computeAdoptionDrift(prevStamp.negotiation, normalised.negotiation);
+        if (drift && Math.abs(drift.delta) > ADOPTION_DRIFT_THRESHOLD) {
+          console.log(
+            `  [${source.name}] markdown adoption ${drift.direction} ` +
+              `${Math.round(drift.before * 100)}% → ${Math.round(drift.after * 100)}% ` +
+              `(${drift.delta > 0 ? "+" : ""}${Math.round(drift.delta * 100)}pp)`,
+          );
+        }
+      }
+
       progress.update(source.name, "writing…");
       const diff = await this.write(normalised);
 
       const stampData = await this.captureFreshness(source, normalised.version);
       stampData.fileCount = normalised.size;
+      if (normalised.negotiation) {
+        stampData.negotiation = { ...normalised.negotiation };
+      }
       await this.writeStamp(source.name, stampData);
 
       const summary = `+${diff.added} ~${diff.modified} -${diff.removed} =${diff.unchanged}`;
@@ -488,17 +550,30 @@ export class UpdateDocSets {
     for (const [, file] of set.files) {
       let current = file;
 
-      // Pass 1: format-based normalisation (HTML→md, MDX→md)
+      // Pass 1: format-based normalisation (HTML→md, MDX→md).
+      // Skipped when the ingestor already received content in the target
+      // format (e.g. an upstream that honoured Accept: text/markdown — see
+      // HttpIngestor.fetchPage). Pass 3 cleanup normalisers still run.
       const formatNormaliser = this.opts.normalisers.find((n) =>
         n.supportsFormat(set.source.format),
       );
-      if (formatNormaliser) {
+      if (formatNormaliser && !current.preNormalised) {
         current = await formatNormaliser.normalise(current);
       }
 
-      // Pass 2: extension-based normalisation (catches files not handled by format)
+      // Pass 2: extension-based fallback for format converters only.
+      // Picks an MdxNormaliser/HtmlNormaliser by file extension when
+      // the source's declared format didn't match any (e.g. an `.mdx`
+      // file inside a `format: "markdown"` source).
+      //
+      // Must be restricted to format converters — otherwise on
+      // markdown/openapi-format sources (no Pass 1 converter), Pass 2
+      // would happily pick MarkdownCleaner via supports() and Pass 3
+      // would then run it again, double-cleaning every file.
       if (!formatNormaliser) {
-        const extNormaliser = this.opts.normalisers.find((n) => n.supports(current));
+        const extNormaliser = this.opts.normalisers.find(
+          (n) => isFormatConverter(n) && n.supports(current),
+        );
         if (extNormaliser) {
           current = await extNormaliser.normalise(current);
         }
@@ -517,7 +592,10 @@ export class UpdateDocSets {
       normalised.set(current.path, current);
     }
 
-    return new DocSet(set.source, normalised, set.fetchedAt, set.version);
+    // Pass `negotiation` through — captured by the ingestor before
+    // normalisation, must survive the new DocSet construction so the
+    // stamp can persist it and drift detection has a baseline.
+    return new DocSet(set.source, normalised, set.fetchedAt, set.version, set.negotiation);
   }
 
   // ─── Write to disk (unchanged) ──────────────────────────────────

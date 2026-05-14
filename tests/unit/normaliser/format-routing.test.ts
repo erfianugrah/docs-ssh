@@ -7,6 +7,7 @@ import { HtmlNormaliser } from "../../../src/normaliser/HtmlNormaliser.js";
 import { MdxNormaliser } from "../../../src/normaliser/MdxNormaliser.js";
 import { MarkdownCleaner } from "../../../src/normaliser/MarkdownCleaner.js";
 import { ContentSanitiser } from "../../../src/normaliser/ContentSanitiser.js";
+import type { DocNormaliser } from "../../../src/domain/DocNormaliser.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -358,6 +359,264 @@ The perception of time has changed.`;
     expect(file!.content).not.toContain("date: 2021-03-08");
     // Original content preserved
     expect(file!.content).toContain("perception of time");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Pre-normalised content bypass (content-negotiated markdown) ──
+
+  it("skips Pass 1 (HtmlNormaliser) when DocFile.preNormalised is true", async () => {
+    // Simulates a page fetched with Accept: text/markdown where the
+    // upstream returned text/markdown directly (Cloudflare's Markdown
+    // for Agents, Prisma docs, etc.). The ingestor flags the DocFile,
+    // and the normaliser pipeline must not run it through Turndown
+    // (which corrupts markdown via aggressive escaping).
+    const source = new DocSource({
+      name: "test-cn-skip",
+      type: "http",
+      url: "https://blog.cloudflare.com/",
+      format: "html", // source declares html, but this file is pre-normalised
+    });
+
+    // Real markdown with characters Turndown would mangle:
+    // backslashes, asterisks, underscores, brackets.
+    const md = `---
+title: Sandboxing AI agents
+---
+
+# Sandboxing AI agents, 100x faster
+
+Use \`env.LOADER.get(id)\` to spawn a sandbox. The \`*spread*\` operator
+copies _own_ properties. Backslash: \\n is a newline.
+
+[Link](https://example.com/path_with_underscores)`;
+
+    const files = new Map([
+      ["post.md", new DocFile("post.md", md, { preNormalised: true })],
+    ]);
+    const set = new DocSet(source, files);
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "fmt-test-"));
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors,
+      normalisers,
+      outDir: tmpDir,
+      workDir: tmpDir,
+    });
+
+    const normalised = await (updater as any).normalise(set);
+    const file = normalised.getFile("post.md");
+    expect(file).toBeDefined();
+
+    // The H1, code spans, emphasis, underscores in URLs, and backslashes
+    // all survive — none of which would have happened if HtmlNormaliser
+    // had run Turndown on this markdown.
+    expect(file!.content).toContain("# Sandboxing AI agents, 100x faster");
+    expect(file!.content).toContain("`env.LOADER.get(id)`");
+    expect(file!.content).toContain("path_with_underscores");
+    expect(file!.content).toContain("\\n");
+    // No double-escaping artifacts.
+    expect(file!.content).not.toContain("\\\\n");
+    expect(file!.content).not.toContain("\\_");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("still runs Pass 3 cleanup on pre-normalised content", async () => {
+    // Pre-normalised content should still pass through MarkdownCleaner
+    // and ContentSanitiser — the bypass only applies to format converters.
+    const source = new DocSource({
+      name: "test-cn-pass3",
+      type: "http",
+      url: "https://example.com/",
+      format: "html",
+    });
+
+    // Markdown with cleanup-worthy junk: ANSI codes, null bytes,
+    // skip-to-content link, feedback widget.
+    const md =
+      "# Title\n\n" +
+      "[Skip to content](#main){.skip-to-content}\n\n" +
+      "Real \x1b[31mcontent\x1b[0m here.\n\n" +
+      "Embedded \x00null byte.\n\n" +
+      "Was this page helpful?";
+
+    const files = new Map([
+      ["page.md", new DocFile("page.md", md, { preNormalised: true })],
+    ]);
+    const set = new DocSet(source, files);
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "fmt-test-"));
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors,
+      normalisers,
+      outDir: tmpDir,
+      workDir: tmpDir,
+    });
+
+    const normalised = await (updater as any).normalise(set);
+    const file = normalised.getFile("page.md");
+    expect(file).toBeDefined();
+
+    // Real content survives.
+    expect(file!.content).toContain("# Title");
+    expect(file!.content).toContain("content");
+    // ContentSanitiser stripped ANSI + null bytes.
+    expect(file!.content).not.toContain("\x1b[");
+    expect(file!.content).not.toContain("\x00");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("does NOT double-run MarkdownCleaner on markdown-format sources (Pass 2 fix)", async () => {
+    // Regression test for pre-existing pipeline bug: when source.format
+    // is "markdown" or "openapi" (no Pass 1 converter matches), Pass 2
+    // used to fall back to any normaliser whose supports() returned
+    // true. MarkdownCleaner supports `.md` files, so it ran in Pass 2,
+    // then ran AGAIN in Pass 3. Fix: Pass 2 only considers format
+    // converters.
+    let cleanerCallCount = 0;
+    const countingCleaner: DocNormaliser = {
+      name: "CountingCleaner",
+      supports: (f) => f.extension === "md",
+      supportsFormat: () => false, // cleanup normaliser, not a format converter
+      normalise: async (file) => {
+        cleanerCallCount++;
+        return file;
+      },
+    };
+
+    const source = new DocSource({
+      name: "test-md-source",
+      type: "git",
+      url: "https://github.com/x/y",
+      format: "markdown", // no Pass 1 converter matches this format
+    });
+
+    const files = new Map([
+      ["guide.md", new DocFile("guide.md", "# Guide\nContent.")],
+      ["api.md", new DocFile("api.md", "# API\nDetails.")],
+    ]);
+    const set = new DocSet(source, files);
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "fmt-test-"));
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors,
+      normalisers: [
+        new MdxNormaliser(),
+        new HtmlNormaliser(),
+        countingCleaner, // would have run twice per file before the fix
+        new ContentSanitiser(),
+      ],
+      outDir: tmpDir,
+      workDir: tmpDir,
+    });
+
+    await (updater as any).normalise(set);
+
+    // Exactly 2 invocations (one per file in Pass 3), not 4.
+    expect(cleanerCallCount).toBe(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("Pass 2 still routes .mdx files in markdown-format sources to MdxNormaliser", async () => {
+    // Counterpart: the Pass 2 fix must not break its original intent.
+    // A `format: "markdown"` source can legitimately contain `.mdx`
+    // files which need MdxNormaliser to strip JSX. Verify this still
+    // works after restricting Pass 2 to format converters.
+    const source = new DocSource({
+      name: "test-mixed-ext",
+      type: "git",
+      url: "https://github.com/x/y",
+      format: "markdown",
+    });
+
+    const mdx = `import { Card } from '@components/Card'
+
+# Title
+
+<Card>JSX content</Card>
+
+Regular text.`;
+
+    const files = new Map([
+      ["page.mdx", new DocFile("page.mdx", mdx)],
+    ]);
+    const set = new DocSet(source, files);
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "fmt-test-"));
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors,
+      normalisers,
+      outDir: tmpDir,
+      workDir: tmpDir,
+    });
+
+    const normalised = await (updater as any).normalise(set);
+    const file = normalised.getFile("page.md"); // MdxNormaliser renames
+    expect(file).toBeDefined();
+    expect(file!.content).not.toContain("import");
+    expect(file!.content).not.toContain("<Card");
+    expect(file!.content).toContain("# Title");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("mixed preNormalised and HTML files in one DocSet are handled per-file", async () => {
+    // Simulates the in-the-wild case where most pages come back as
+    // markdown via content negotiation, but a few (e.g. turborepo
+    // /docs/openapi/* recovered via the 404→HTML fallback) come back
+    // as HTML. The normaliser must dispatch per-file, not per-source.
+    const source = new DocSource({
+      name: "test-mixed",
+      type: "http",
+      url: "https://example.com/",
+      format: "html",
+    });
+
+    const markdownFile = new DocFile(
+      "markdown-page.md",
+      "# Markdown Page\n\nReal *markdown* with `code` and [links](https://example.com/path_with_underscores).",
+      { preNormalised: true },
+    );
+    const htmlFile = new DocFile(
+      "html-page.md",
+      "<html><body><main><h1>HTML Page</h1><p>Needs <strong>Turndown</strong> conversion.</p></main></body></html>",
+      { preNormalised: false },
+    );
+
+    const files = new Map([
+      [markdownFile.path, markdownFile],
+      [htmlFile.path, htmlFile],
+    ]);
+    const set = new DocSet(source, files);
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "fmt-test-"));
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors,
+      normalisers,
+      outDir: tmpDir,
+      workDir: tmpDir,
+    });
+
+    const normalised = await (updater as any).normalise(set);
+
+    // Markdown file: untouched by Pass 1, underscores in URL preserved.
+    const md = normalised.getFile("markdown-page.md");
+    expect(md!.content).toContain("# Markdown Page");
+    expect(md!.content).toContain("path_with_underscores");
+
+    // HTML file: Pass 1 ran Turndown → markdown.
+    const html = normalised.getFile("html-page.md");
+    expect(html!.content).toContain("# HTML Page");
+    expect(html!.content).toContain("**Turndown**");
+    expect(html!.content).not.toContain("<strong>");
 
     await fs.rm(tmpDir, { recursive: true });
   });

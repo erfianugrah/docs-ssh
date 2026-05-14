@@ -9,6 +9,28 @@ export interface UpdateResult {
 }
 
 /**
+ * Per-source content-negotiation telemetry. Captured by HttpIngestor
+ * during page-by-page fetches; persisted in the stamp file so that
+ * adoption-rate drift can be detected across builds (e.g. an upstream
+ * disabling its markdown converter would show as a sudden drop in
+ * `markdown` count).
+ */
+export interface NegotiationStats {
+  /** Pages where origin returned text/markdown directly. */
+  readonly markdown: number;
+  /** Pages where origin returned HTML (the spec-compliant fallback). */
+  readonly html: number;
+  /** Pages recovered via Accept: text/html retry after a 404/406. */
+  readonly fallback404: number;
+  /** Pages where markdown body was suspiciously thin → HTML used. */
+  readonly fallbackThin: number;
+  /** Pages where Content-Type lied → body was actually HTML. */
+  readonly fallbackLyingCt: number;
+  /** Sum of `x-markdown-tokens` across all markdown responses. */
+  readonly totalTokens: number;
+}
+
+/**
  * Entity representing a fetched, normalised collection of docs from one source.
  * Identity is the source name.
  */
@@ -18,17 +40,21 @@ export class DocSet {
   readonly fetchedAt: Date;
   /** Git SHA or other version identifier, if available */
   readonly version: string | undefined;
+  /** Content-negotiation outcomes — set by HttpIngestor only. */
+  readonly negotiation: NegotiationStats | undefined;
 
   constructor(
     source: DocSource,
     files: ReadonlyMap<string, DocFile>,
     fetchedAt: Date = new Date(),
     version?: string,
+    negotiation?: NegotiationStats,
   ) {
     this.source = source;
     this.files = files;
     this.fetchedAt = fetchedAt;
     this.version = version;
+    this.negotiation = negotiation;
   }
 
   get size(): number {

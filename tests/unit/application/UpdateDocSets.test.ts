@@ -592,4 +592,261 @@ describe("UpdateDocSets", () => {
       await cleanup();
     }, 15_000);
   });
+
+  describe("negotiation stamp + drift detection", () => {
+    it("persists DocSet.negotiation to the stamp file after a successful fetch", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-stamp-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const source = makeOfflineSource();
+      const docSet = new DocSet(
+        source,
+        new Map([["a.md", new DocFile("a.md", "# A")]]),
+        new Date(),
+        undefined,
+        {
+          markdown: 9,
+          html: 0,
+          fallback404: 1,
+          fallbackThin: 0,
+          fallbackLyingCt: 0,
+          totalTokens: 12345,
+        },
+      );
+
+      const updater = new UpdateDocSets({
+        sources: [source],
+        ingestors: [mockIngestor(docSet)],
+        normalisers: [noopNormaliser],
+        outDir,
+        workDir,
+      });
+
+      await updater.run();
+
+      const stamp = JSON.parse(
+        await fs.readFile(path.join(outDir, "test-source", ".stamp.json"), "utf-8"),
+      );
+      expect(stamp.negotiation).toEqual({
+        markdown: 9,
+        html: 0,
+        fallback404: 1,
+        fallbackThin: 0,
+        fallbackLyingCt: 0,
+        totalTokens: 12345,
+      });
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+
+    it("logs adoption drift when markdown rate changes by more than 25 percentage points", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-drift-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const source = makeOfflineSource();
+      const sourceDir = path.join(outDir, "test-source");
+      await fs.mkdir(sourceDir, { recursive: true });
+
+      // Seed a previous stamp where 100% of pages were markdown
+      await fs.writeFile(
+        path.join(sourceDir, ".stamp.json"),
+        JSON.stringify({
+          fetchedAt: new Date().toISOString(),
+          fileCount: 10,
+          negotiation: {
+            markdown: 10,
+            html: 0,
+            fallback404: 0,
+            fallbackThin: 0,
+            fallbackLyingCt: 0,
+            totalTokens: 5000,
+          },
+        }),
+      );
+
+      // New fetch: zone owner disabled the toggle, all responses are HTML now
+      const newDocSet = new DocSet(
+        source,
+        new Map([
+          ["a.md", new DocFile("a.md", "# A")],
+          ["b.md", new DocFile("b.md", "# B")],
+        ]),
+        new Date(),
+        undefined,
+        {
+          markdown: 0,
+          html: 10,
+          fallback404: 0,
+          fallbackThin: 0,
+          fallbackLyingCt: 0,
+          totalTokens: 0,
+        },
+      );
+
+      const logs: string[] = [];
+      const origLog = console.log;
+      console.log = (...args: unknown[]) => {
+        logs.push(args.map(String).join(" "));
+      };
+
+      try {
+        const updater = new UpdateDocSets({
+          sources: [source],
+          ingestors: [mockIngestor(newDocSet)],
+          normalisers: [noopNormaliser],
+          outDir,
+          workDir,
+          // Disable regression guard since we're testing drift, not file-count change
+          regressionThreshold: 0,
+        });
+        await updater.run();
+      } finally {
+        console.log = origLog;
+      }
+
+      const driftLog = logs.find((l) => l.includes("markdown adoption"));
+      expect(driftLog).toBeDefined();
+      expect(driftLog).toMatch(/down/);
+      expect(driftLog).toContain("100% → 0%");
+      expect(driftLog).toContain("-100pp");
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+
+    it("does NOT log drift when adoption stays within the 25pp threshold", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-no-drift-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const source = makeOfflineSource();
+      const sourceDir = path.join(outDir, "test-source");
+      await fs.mkdir(sourceDir, { recursive: true });
+
+      // Previous: 100% markdown
+      await fs.writeFile(
+        path.join(sourceDir, ".stamp.json"),
+        JSON.stringify({
+          fetchedAt: new Date().toISOString(),
+          fileCount: 10,
+          negotiation: {
+            markdown: 10,
+            html: 0,
+            fallback404: 0,
+            fallbackThin: 0,
+            fallbackLyingCt: 0,
+            totalTokens: 5000,
+          },
+        }),
+      );
+
+      // Current: 90% markdown (10pp drop — within threshold)
+      const newDocSet = new DocSet(
+        source,
+        new Map([["a.md", new DocFile("a.md", "# A")]]),
+        new Date(),
+        undefined,
+        {
+          markdown: 9,
+          html: 1,
+          fallback404: 0,
+          fallbackThin: 0,
+          fallbackLyingCt: 0,
+          totalTokens: 4500,
+        },
+      );
+
+      const logs: string[] = [];
+      const origLog = console.log;
+      console.log = (...args: unknown[]) => {
+        logs.push(args.map(String).join(" "));
+      };
+
+      try {
+        const updater = new UpdateDocSets({
+          sources: [source],
+          ingestors: [mockIngestor(newDocSet)],
+          normalisers: [noopNormaliser],
+          outDir,
+          workDir,
+          regressionThreshold: 0,
+        });
+        await updater.run();
+      } finally {
+        console.log = origLog;
+      }
+
+      expect(logs.find((l) => l.includes("markdown adoption"))).toBeUndefined();
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+
+    it("does NOT log drift when previous stamp has no negotiation data (first time)", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-first-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const source = makeOfflineSource();
+      const sourceDir = path.join(outDir, "test-source");
+      await fs.mkdir(sourceDir, { recursive: true });
+
+      // Legacy stamp without negotiation field
+      await fs.writeFile(
+        path.join(sourceDir, ".stamp.json"),
+        JSON.stringify({
+          fetchedAt: new Date().toISOString(),
+          fileCount: 10,
+        }),
+      );
+
+      const newDocSet = new DocSet(
+        source,
+        new Map([["a.md", new DocFile("a.md", "# A")]]),
+        new Date(),
+        undefined,
+        {
+          markdown: 10,
+          html: 0,
+          fallback404: 0,
+          fallbackThin: 0,
+          fallbackLyingCt: 0,
+          totalTokens: 1000,
+        },
+      );
+
+      const logs: string[] = [];
+      const origLog = console.log;
+      console.log = (...args: unknown[]) => {
+        logs.push(args.map(String).join(" "));
+      };
+
+      try {
+        const updater = new UpdateDocSets({
+          sources: [source],
+          ingestors: [mockIngestor(newDocSet)],
+          normalisers: [noopNormaliser],
+          outDir,
+          workDir,
+          regressionThreshold: 0,
+        });
+        await updater.run();
+      } finally {
+        console.log = origLog;
+      }
+
+      // No drift log on the first fetch — there's no baseline yet.
+      expect(logs.find((l) => l.includes("markdown adoption"))).toBeUndefined();
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+  });
 });

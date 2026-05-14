@@ -36,6 +36,7 @@ CI runs two parallel jobs on every push/PR: `test` (verify tools.sh sync → lin
 - **`docs/` is gitignored**: generated at build time by `pnpm fetch-docs` or during Docker build. Don't commit docs.
 - **`tsconfig.json` excludes `tests/`**: vitest handles test TypeScript separately.
 - **Normaliser pipeline is 3-pass** (see `UpdateDocSets.ts:362-398`): Pass 1 picks ONE format converter via `supportsFormat()` (MdxNormaliser or HtmlNormaliser). Pass 2 tries extension-based fallback if pass 1 missed. Pass 3 runs all cleanup normalisers (`supportsFormat()` returns false) — currently MarkdownCleaner then ContentSanitiser. Array order in `src/index.ts:20` determines priority. When adding a normaliser, `supportsFormat()` return value decides which pass it runs in.
+- **Pass 1 is skipped when `DocFile.preNormalised` is true** (markdown content negotiation): when `HttpIngestor.fetchPage()` receives `Content-Type: text/markdown` from an upstream that honours `Accept: text/markdown, text/html;q=0.9` (acceptmarkdown.com spec / Cloudflare Markdown for Agents), it tags the DocFile so the format converter is bypassed — running Turndown on existing markdown corrupts it via escaping. Pass 3 cleanup still runs. Fallbacks: thin markdown body (<256B) → retry as HTML; 404/406 → retry forcing `Accept: text/html` (only one in-the-wild case: turborepo `/docs/openapi/*`).
 
 ## Architecture
 
@@ -97,7 +98,7 @@ Add a `new DocSource({...})` to `src/application/sources.ts`. Pick a discovery m
 2. **`type: "http"` + `discovery: "tarball"`** — single bulk archive (e.g. Supabase's `docs.tar.gz`). One fetch, no rendering, durable.
 3. **`type: "http"` + `discovery: "llms-full"`** — single AI-targeted text dump from the upstream. Lighter than tarball, common pattern (Vercel, Cloudflare, Next.js, Bitwarden).
 4. **`type: "http"` + `discovery: "openapi"` / `"openapi-dir"`** — for API specs. Converted to per-tag markdown by `openapi-converter.ts`.
-5. **Other discovery methods** (`sitemap`, `toc`, `llms-txt`, `llms-index`, `rss`, `mediawiki`) — last resort. These all run page-by-page HTML scraping; brittle to upstream JS-rendering, format changes, missing pages.
+5. **Other discovery methods** (`sitemap`, `toc`, `llms-txt`, `llms-index`, `rss`, `mediawiki`) — last resort. These all run page-by-page HTML scraping; brittle to upstream JS-rendering, format changes, missing pages. **HttpIngestor opportunistically sends `Accept: text/markdown, text/html;q=0.9` per the acceptmarkdown.com spec**; upstreams running Cloudflare's "Markdown for Agents" or supporting RFC 7763 content negotiation return clean markdown directly (verified live: cloudflare/cloudflare-blog/cloudflare-changelog/turborepo/prisma/resend/vercel-blog/ansible/patroni), bypassing Turndown via `DocFile.preNormalised`. Origins that don't support it return HTML normally — no behaviour change.
 
 **AWS is the last entry in the SOURCES array on purpose** — it discovers ~14k page URLs across ~80 services and is by far the slowest source. Placing it last means earlier batches don't wait behind it.
 

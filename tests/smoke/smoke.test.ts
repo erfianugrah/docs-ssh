@@ -374,3 +374,117 @@ describe("security", () => {
     expect(parseInt(ansiCount)).toBe(0);
   });
 });
+
+// ─── Content negotiation (markdown via Accept: text/markdown) ─────
+//
+// Verifies HTML-scraping sources whose upstreams honour
+// `Accept: text/markdown` (see acceptmarkdown.com spec / Cloudflare
+// Markdown for Agents) ended up on disk as clean .md files with no
+// HTML tag leakage. Designed to pass on both pre- and post-feature
+// container builds:
+//   - On post-feature builds: assertions verify negotiated markdown
+//     reached disk intact (frontmatter, no <script>, no raw HTML).
+//   - On pre-feature builds: same sources existed as Turndown output,
+//     which also has no <script> tags and uses markdown link syntax.
+//     Frontmatter-specific tests skip when no frontmatter is detected.
+
+describe("negotiated-markdown content shape", () => {
+  /**
+   * Returns the first existing markdown file under a source dir, or
+   * null when the source has no .md files (or doesn't exist).
+   */
+  function firstMdFile(sourcePath: string): string | null {
+    try {
+      const out = ssh(
+        `find ${sourcePath} -name '*.md' -size +500c -size -50k 2>/dev/null | head -1`,
+      );
+      return out || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function sourceExists(name: string): boolean {
+    return docSources.some((s) => s.name === name && s.count > 0);
+  }
+
+  it("HTML-scraping markdown-capable sources have zero .html files on disk", () => {
+    // Whether the markdown came via content negotiation (new) or
+    // Turndown rename (existing), the final extension must always be
+    // `.md`. Catches the path-rewrite regression where pre-normalised
+    // files were stuck as .html.
+    const candidates = [
+      "cloudflare-blog",
+      "cloudflare-changelog",
+      "ansible",
+      "patroni",
+      "prisma",
+      "resend",
+      "turborepo",
+      "vercel-blog",
+    ];
+    for (const name of candidates) {
+      if (!sourceExists(name)) continue;
+      const htmlCount = parseInt(
+        ssh(`find /docs/${name} -name '*.html' 2>/dev/null | wc -l || echo 0`),
+      );
+      expect(htmlCount, `${name} must contain no .html files`).toBe(0);
+    }
+  });
+
+  it("no <script>/<style>/<nav>/<footer> tags leaked into markdown bodies", () => {
+    // Structural sanity check that works on both Turndown output and
+    // content-negotiated markdown. HtmlNormaliser strips these tags
+    // before Turndown runs; Cloudflare's Markdown for Agents strips
+    // them in its pre-processor.
+    const candidates = ["cloudflare-blog", "cloudflare-changelog", "ansible", "prisma"];
+    for (const name of candidates) {
+      if (!sourceExists(name)) continue;
+      const sample = firstMdFile(`/docs/${name}`);
+      if (!sample) continue;
+      const body = ssh(`head -50 ${sample}`);
+      expect(body, `${sample} should not contain raw <script> tags`).not.toMatch(/<script\b/i);
+      expect(body, `${sample} should not contain raw <style> tags`).not.toMatch(/<style\b/i);
+      expect(body, `${sample} should not contain raw <nav> tags`).not.toMatch(/<nav\b/i);
+      expect(body, `${sample} should not contain raw <footer> tags`).not.toMatch(/<footer\b/i);
+    }
+  });
+
+  it("markdown bodies use markdown link syntax, not HTML <a> tags", () => {
+    // [text](url), not <a href="…">text</a>. Both Turndown and
+    // Cloudflare's converter produce the markdown form.
+    const candidates = ["ansible", "prisma", "cloudflare-changelog"];
+    for (const name of candidates) {
+      if (!sourceExists(name)) continue;
+      const sample = firstMdFile(`/docs/${name}`);
+      if (!sample) continue;
+      const body = ssh(`head -50 ${sample}`);
+      // We allow `<a>` inside fenced code blocks (rare), so look for
+      // unfenced occurrences only. Quick heuristic: any standalone
+      // <a href=…> outside the first code fence range.
+      const beforeFence = body.split("```")[0];
+      expect(beforeFence, `${sample} should not contain unfenced <a href>`).not.toMatch(
+        /<a\s+href=/i,
+      );
+    }
+  });
+
+  it("cloudflare-changelog: emits frontmatter when content-negotiation is active", () => {
+    // Cloudflare's Markdown for Agents synthesises YAML frontmatter
+    // (title/description/image) from <meta> tags. Old Turndown output
+    // does NOT have frontmatter. Test passes either way: explicit
+    // skip when frontmatter is absent (= pre-feature deployment).
+    if (!sourceExists("cloudflare-changelog")) return;
+    const sample = firstMdFile("/docs/cloudflare-changelog");
+    if (!sample) return;
+    const head = ssh(`head -1 ${sample}`);
+    if (!head.startsWith("---")) {
+      // Pre-feature deployment — Turndown output, no frontmatter.
+      return;
+    }
+    // Post-feature deployment — verify frontmatter is well-formed.
+    const block = ssh(`head -8 ${sample}`);
+    expect(block).toMatch(/^---\s*$/m);
+    expect(block).toMatch(/^title:/m);
+  });
+});

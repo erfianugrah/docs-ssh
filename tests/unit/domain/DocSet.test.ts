@@ -67,6 +67,52 @@ describe("DocSet", () => {
       expect(result.removed).toBe(0);
     });
 
+    it("counts content-format flip as modified (HTML→markdown transition)", () => {
+      // Operator-visible regression scenario: a zone owner enables
+      // "Markdown for Agents" on their CDN between fetches. Pages that
+      // were previously Turndown-converted markdown now arrive as
+      // origin-supplied markdown — same logical content but different
+      // bytes. The diff system must report them as modified so the
+      // operator notices the change.
+      const turndownOutput = "# Page\n\nSome _content_."; // hypothetical Turndown output
+      const originMarkdown = "---\ntitle: Page\n---\n\n# Page\n\nSome *content*."; // origin's CMS output
+
+      const prev = new DocSet(
+        makeSource(),
+        makeFiles([["page.md", turndownOutput]]),
+      );
+      // Same path, different bytes — second fetch uses content negotiation.
+      // The preNormalised flag would be true here but it does not affect
+      // equality (content is the sole comparator).
+      const curr = new DocSet(
+        makeSource(),
+        new Map([["page.md", new DocFile("page.md", originMarkdown, { preNormalised: true })]]),
+      );
+      const result = curr.diff(prev);
+      expect(result.modified).toBe(1);
+      expect(result.unchanged).toBe(0);
+    });
+
+    it("does NOT report modified when content matches across preNormalised flag values", () => {
+      // Belt-and-braces: if upstream returns identical bytes via two
+      // different routes (e.g. cached Turndown output happens to match
+      // a markdown response), the diff should still see them as
+      // unchanged. The preNormalised flag is pipeline metadata, not
+      // file identity.
+      const content = "# Title\n\nBody.";
+      const prev = new DocSet(
+        makeSource(),
+        new Map([["page.md", new DocFile("page.md", content)]]),
+      );
+      const curr = new DocSet(
+        makeSource(),
+        new Map([["page.md", new DocFile("page.md", content, { preNormalised: true })]]),
+      );
+      const result = curr.diff(prev);
+      expect(result.unchanged).toBe(1);
+      expect(result.modified).toBe(0);
+    });
+
     it("handles mixed changes", () => {
       const prev = new DocSet(
         makeSource(),

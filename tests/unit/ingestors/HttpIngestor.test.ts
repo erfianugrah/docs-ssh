@@ -94,7 +94,12 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
-  it("does not retry on 404", async () => {
+  it("does not retry on 404 with backoff, but does attempt HTML fallback", async () => {
+    // 404 is not retried via exponential backoff. fetchPage does try
+    // ONE additional fetch with Accept: text/html to recover from
+    // broken servers that 404 only when Accept: text/markdown is set
+    // (real-world case: turborepo /docs/openapi/* pages). When both
+    // attempts 404, the page fails — total 2 fetch calls.
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
 
     const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
@@ -109,8 +114,49 @@ describe("HttpIngestor", () => {
     });
 
     await expect(ingestor.ingest(src, tmpDir)).rejects.toThrow("404");
-    // 404 is not retried — only called once
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    // Initial Accept: markdown,html;q=0.9 → 404, then HTML-only fallback → 404.
+    // Neither is retried via backoff. Total = 2.
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("recovers via HTML fallback when origin 404s only with markdown Accept", async () => {
+    // Real-world case verified on turborepo /docs/openapi/* pages:
+    // returns 404 when Accept includes text/markdown, but 200 with
+    // plain HTML when Accept is text/html or missing.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const mockFetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const accept = (init.headers as Record<string, string>)?.Accept ?? "";
+      if (accept.startsWith("text/markdown,")) {
+        // Broken server: 404 only when markdown is preferred
+        return { ok: false, status: 404 };
+      }
+      // HTML-only path works
+      return {
+        ok: true,
+        headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+        text: async () => "<h1>Recovered</h1>",
+      };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "broken-server-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/docs/openapi"],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    expect(set.size).toBe(1);
+    const [file] = [...set.files.values()];
+    expect(file.preNormalised).toBe(false);
+    expect(file.content).toBe("<h1>Recovered</h1>");
+    // 2 calls: initial markdown attempt (404) + HTML fallback (200)
+    expect(mockFetch).toHaveBeenCalledTimes(2);
 
     await fs.rm(tmpDir, { recursive: true });
   });
@@ -1129,6 +1175,777 @@ describe("HttpIngestor", () => {
   });
 
   // ─── AbortSignal honoured ──────────────────────────────────────────
+
+  // ─── Markdown content negotiation (acceptmarkdown.com spec) ──────
+
+  it("sends Accept: text/markdown, text/html;q=0.9 on page fetches", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+      text: async () => "<h1>Page</h1>",
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "accept-header-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/docs/intro"],
+    });
+
+    await ingestor.ingest(src, tmpDir);
+
+    // The page fetch should have sent the weighted Accept header.
+    const call = mockFetch.mock.calls.find(
+      ([url]) => typeof url === "string" && url.includes("intro"),
+    );
+    expect(call).toBeDefined();
+    const init = call![1] as { headers?: Record<string, string> };
+    expect(init.headers).toMatchObject({
+      Accept: "text/markdown, text/html;q=0.9",
+    });
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("flags DocFile.preNormalised=true when Content-Type is text/markdown", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const markdownBody = "# Workers\n\nBuild and deploy.".padEnd(500, " ");
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "content-type": "text/markdown; charset=utf-8" }),
+      text: async () => markdownBody,
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "markdown-response-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/workers"],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const [file] = [...set.files.values()];
+    expect(file.preNormalised).toBe(true);
+    expect(file.content).toContain("# Workers");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("flags DocFile.preNormalised=false when Content-Type is text/html", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+      text: async () => "<h1>Page</h1>",
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "html-response-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/docs"],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const [file] = [...set.files.values()];
+    expect(file.preNormalised).toBe(false);
+    // HTML content stored as-is — normalisation pipeline (not ingestor)
+    // is responsible for Turndown conversion.
+    expect(file.content).toBe("<h1>Page</h1>");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("falls back to HTML when markdown response is suspiciously thin", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // First fetch returns a near-empty markdown body (simulates an
+    // origin that pre-processes the page too aggressively). Second
+    // fetch with Accept: text/html returns real content.
+    const thinMarkdown = "# stub";
+    const fullHtml = "<h1>Real content</h1>" + "<p>body</p>".repeat(20);
+    let callCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      callCount++;
+      const accept = (init.headers as Record<string, string>)?.Accept ?? "";
+      if (accept.startsWith("text/markdown,")) {
+        return {
+          ok: true,
+          headers: new Headers({ "content-type": "text/markdown; charset=utf-8" }),
+          text: async () => thinMarkdown,
+        };
+      }
+      // Forced HTML fallback
+      return {
+        ok: true,
+        headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+        text: async () => fullHtml,
+      };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "thin-md-fallback-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/over-stripped"],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const [file] = [...set.files.values()];
+
+    // Should have used the HTML fallback — flag false, content is the
+    // full HTML body, not the thin markdown stub.
+    expect(file.preNormalised).toBe(false);
+    expect(file.content).toBe(fullHtml);
+    // Two fetches: initial markdown attempt + forced-HTML retry.
+    expect(callCount).toBe(2);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("keeps markdown response when body is above thin-body threshold", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // Above MIN_MARKDOWN_BODY (256 bytes) — no fallback should fire.
+    const markdownBody = "# Real markdown\n\n".padEnd(400, "x");
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ "content-type": "text/markdown; charset=utf-8" }),
+      text: async () => markdownBody,
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "no-fallback-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/page"],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const [file] = [...set.files.values()];
+    expect(file.preNormalised).toBe(true);
+    expect(file.content).toBe(markdownBody);
+    // Single fetch only — no fallback.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("handles missing Content-Type header by treating as HTML", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // Some upstreams (or our minimal test mocks) omit headers entirely.
+    // The ingestor must not crash — default to non-markdown.
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => "<h1>Page</h1>",
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "no-headers-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/page"],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const [file] = [...set.files.values()];
+    expect(file.preNormalised).toBe(false);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("does NOT send Accept: text/markdown on discovery URLs (sitemap)", async () => {
+    // Regression guard: discovery fetches (sitemap, llms.txt, RSS, etc.)
+    // must NOT advertise a markdown preference. Some upstreams would
+    // return the wrong content type for the discovery file if asked,
+    // breaking page enumeration. Only page fetches negotiate markdown.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/docs/intro</loc></url>
+</urlset>`;
+
+    const calls: Array<{ url: string; accept?: string }> = [];
+    const mockFetch = vi.fn().mockImplementation(async (url: string, init: RequestInit) => {
+      const headers = (init.headers as Record<string, string>) ?? {};
+      calls.push({ url, accept: headers.Accept });
+      if (url.endsWith("sitemap.xml")) {
+        return {
+          ok: true,
+          headers: new Headers({ "content-type": "application/xml" }),
+          text: async () => sitemapXml,
+        };
+      }
+      return {
+        ok: true,
+        headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+        text: async () => "<h1>Page</h1>",
+      };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "discovery-accept-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/docs/",
+      discovery: "sitemap",
+      discoveryUrl: "https://example.com/sitemap.xml",
+      urlPattern: "example\\.com/docs/",
+    });
+
+    await ingestor.ingest(src, tmpDir);
+
+    const sitemapCall = calls.find((c) => c.url.endsWith("sitemap.xml"));
+    const pageCall = calls.find((c) => c.url.includes("intro"));
+    expect(sitemapCall).toBeDefined();
+    expect(pageCall).toBeDefined();
+    // Sitemap fetch must NOT advertise markdown preference.
+    expect(sitemapCall!.accept).toBeUndefined();
+    // Page fetch MUST advertise markdown preference.
+    expect(pageCall!.accept).toBe("text/markdown, text/html;q=0.9");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("handles Content-Type with charset suffix and mixed case", async () => {
+    // RFC 7763 defines text/markdown but servers vary on capitalisation
+    // and parameters. All of these must be recognised as markdown.
+    const variants = [
+      "text/markdown",
+      "text/markdown; charset=utf-8",
+      "text/markdown;version=GFM",
+      "Text/Markdown; charset=UTF-8",
+      "TEXT/MARKDOWN",
+      "text/x-markdown",
+    ];
+
+    for (const ct of variants) {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          headers: new Headers({ "content-type": ct }),
+          text: async () => "# Page".padEnd(500, " "),
+        }),
+      );
+
+      const src = new DocSource({
+        name: `ct-test-${ct.replace(/\W+/g, "-")}`,
+        type: "http",
+        format: "html",
+        url: "https://example.com/",
+        urls: ["https://example.com/page"],
+      });
+
+      const set = await ingestor.ingest(src, tmpDir);
+      const [file] = [...set.files.values()];
+      expect(file.preNormalised, `failed for Content-Type: ${ct}`).toBe(true);
+
+      await fs.rm(tmpDir, { recursive: true });
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("rewrites .html → .md path when origin returns markdown", async () => {
+    // Regression: trailing-slash URLs default to `index.html` via
+    // urlToPath, and URLs without an extension also get `.html` when
+    // they don't already end in `.md` or `.html`. When the response
+    // body is markdown (preNormalised=true), the file MUST be written
+    // with a `.md` extension — otherwise MarkdownCleaner's
+    // `file.extension === "md"` gate skips cleanup, and the on-disk
+    // filename misleads operators/agents.
+    //
+    // Mirrors HtmlNormaliser's path rename at the end of its pass.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: new Headers({ "content-type": "text/markdown" }),
+        text: async () =>
+          "# Page title\n\nA real markdown document with body text.".padEnd(500, " "),
+      }),
+    );
+
+    const src = new DocSource({
+      name: "path-rewrite-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: [
+        "https://example.com/page/",         // trailing slash → would become page/index.html
+        "https://example.com/article.html",  // explicit .html
+        "https://example.com/about",         // no extension → would become about.md already
+      ],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const paths = [...set.files.keys()].sort();
+
+    // All three should now have .md extension (markdown content).
+    expect(paths).toEqual([
+      "about.md",
+      "article.md",
+      "page/index.md",
+    ]);
+
+    // And the preNormalised flag is intact, so Pass 1 will skip
+    // Turndown and Pass 3 (which gates on .md) will run cleanup.
+    for (const file of set.files.values()) {
+      expect(file.preNormalised).toBe(true);
+    }
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("keeps .html path when origin returns HTML (Turndown will rename later)", async () => {
+    // Counterpart: when the response is HTML, urlToPath's `.html`
+    // assignment is correct. HtmlNormaliser's Pass 1 handles the
+    // rename to `.md` after conversion. Verify ingestor does NOT
+    // pre-rename in that case.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: new Headers({ "content-type": "text/html" }),
+        text: async () => "<h1>Page</h1>",
+      }),
+    );
+
+    const src = new DocSource({
+      name: "no-rewrite-html-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/page/"],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const [file] = [...set.files.values()];
+    expect(file.path).toBe("page/index.html"); // unchanged
+    expect(file.preNormalised).toBe(false);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("honours application/markdown even though RFC 7763 only standardises text/markdown", async () => {
+    // Some less-compliant origins emit application/markdown. The body
+    // shape is identical so we accept it — downstream parsers care
+    // about content, not the bikeshed.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: new Headers({ "content-type": "application/markdown" }),
+        text: async () => "# Hello\n\nA markdown document.".padEnd(500, " "),
+      }),
+    );
+
+    const src = new DocSource({
+      name: "application-markdown-ct",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/page"],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const [file] = [...set.files.values()];
+    expect(file.preNormalised).toBe(true);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("does not treat text/plain or application/octet-stream as markdown", async () => {
+    // Belt-and-braces: ambiguous content types must not be coerced into
+    // the markdown branch. text/plain in particular is what some origins
+    // send for llms-style dumps and we'd corrupt them by skipping
+    // Turndown only to find raw HTML inside.
+    const ambiguous = ["text/plain", "text/plain; charset=utf-8", "application/octet-stream"];
+
+    for (const ct of ambiguous) {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          headers: new Headers({ "content-type": ct }),
+          text: async () => "<h1>Page</h1>",
+        }),
+      );
+
+      const src = new DocSource({
+        name: `ambiguous-ct-${ct.replace(/\W+/g, "-")}`,
+        type: "http",
+        format: "html",
+        url: "https://example.com/",
+        urls: ["https://example.com/page"],
+      });
+
+      const set = await ingestor.ingest(src, tmpDir);
+      const [file] = [...set.files.values()];
+      expect(file.preNormalised, `failed for Content-Type: ${ct}`).toBe(false);
+
+      await fs.rm(tmpDir, { recursive: true });
+      vi.unstubAllGlobals();
+    }
+  });
+
+  // ─── Body-content sniffing (lying Content-Type) ────────────────────
+
+  it("treats HTML body as HTML even when Content-Type claims markdown", async () => {
+    // Some origins misconfigure their CDN and respond with the wrong
+    // Content-Type. Body shape is the tie-breaker. Tests several common
+    // HTML preambles.
+    const htmlBodies = [
+      "<!doctype html>\n<html><body>...</body></html>",
+      "<!DOCTYPE HTML PUBLIC ...>\n<html>...",
+      "<html><body><h1>Page</h1></body></html>",
+      "  \n  <html lang=\"en\">...",  // leading whitespace
+    ];
+
+    for (const body of htmlBodies) {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          headers: new Headers({ "content-type": "text/markdown" }),
+          text: async () => body.padEnd(500, " "),
+        }),
+      );
+
+      const src = new DocSource({
+        name: `lying-ct-${body.slice(0, 20).replace(/\W+/g, "-")}`,
+        type: "http",
+        format: "html",
+        url: "https://example.com/",
+        urls: ["https://example.com/page"],
+      });
+
+      const set = await ingestor.ingest(src, tmpDir);
+      const [file] = [...set.files.values()];
+      expect(
+        file.preNormalised,
+        `body sniff should have overridden for: ${body.slice(0, 30)}…`,
+      ).toBe(false);
+
+      await fs.rm(tmpDir, { recursive: true });
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not body-sniff false-positive on legitimate markdown with HTML mentions", async () => {
+    // The sniff only checks the leading ~200 chars after trim. A
+    // markdown doc that talks about HTML in its body shouldn't be
+    // mistakenly downgraded.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+    const body =
+      "# HTML primer\n\n" +
+      "This page describes the `<!doctype html>` declaration:\n\n" +
+      "```html\n<!doctype html>\n<html>...</html>\n```\n\n" +
+      "Note how the doctype must appear first in the document.";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: new Headers({ "content-type": "text/markdown" }),
+        text: async () => body,
+      }),
+    );
+
+    const src = new DocSource({
+      name: "md-talking-about-html",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/page"],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const [file] = [...set.files.values()];
+    expect(file.preNormalised).toBe(true);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── Telemetry: x-markdown-tokens + per-source adoption log ─────
+
+  it("logs negotiation stats when markdown was negotiated", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({
+        "content-type": "text/markdown; charset=utf-8",
+        "x-markdown-tokens": "1368",
+      }),
+      text: async () => "# Page".padEnd(500, " "),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+
+    try {
+      const src = new DocSource({
+        name: "telemetry-test",
+        type: "http",
+        format: "html",
+        url: "https://example.com/",
+        urls: ["https://example.com/a", "https://example.com/b"],
+      });
+      await ingestor.ingest(src, tmpDir);
+    } finally {
+      console.log = origLog;
+    }
+
+    const stats = logs.find((l) => l.includes("negotiated markdown"));
+    expect(stats).toBeDefined();
+    // Adoption rate (2/2 = 100%)
+    expect(stats).toContain("2/2");
+    expect(stats).toContain("100%");
+    // Token count surfaced from header (1368 tokens per page)
+    expect(stats).toMatch(/~1368 tokens\/page/);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("does NOT log negotiation stats for pure-HTML sources (no noise)", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+        text: async () => "<h1>Page</h1>",
+      }),
+    );
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+
+    try {
+      const src = new DocSource({
+        name: "html-only-noisy-test",
+        type: "http",
+        format: "html",
+        url: "https://example.com/",
+        urls: ["https://example.com/a"],
+      });
+      await ingestor.ingest(src, tmpDir);
+    } finally {
+      console.log = origLog;
+    }
+
+    // Should NOT print a negotiation-stats line — keeps the build log
+    // readable for the majority of sources that don't negotiate.
+    expect(logs.find((l) => l.includes("negotiated markdown"))).toBeUndefined();
+    expect(logs.find((l) => l.includes("via HTML fallback"))).toBeUndefined();
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("counts fallback branches separately in negotiation stats", async () => {
+    // 4 URLs:
+    //   /good       → markdown
+    //   /openapi    → 404 with markdown Accept → recovered via HTML
+    //   /thin       → markdown but body is empty → swapped to HTML
+    //   /lying      → markdown CT but body is HTML → routed to HTML pipeline
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string, init: RequestInit) => {
+      const accept = (init.headers as Record<string, string>)?.Accept ?? "";
+      if (url.endsWith("/good")) {
+        return {
+          ok: true,
+          headers: new Headers({ "content-type": "text/markdown" }),
+          text: async () => "# Good".padEnd(500, " "),
+        };
+      }
+      if (url.endsWith("/openapi")) {
+        if (accept.startsWith("text/markdown,")) {
+          return { ok: false, status: 404 };
+        }
+        return {
+          ok: true,
+          headers: new Headers({ "content-type": "text/html" }),
+          text: async () => "<h1>OpenAPI</h1>".padEnd(500, " "),
+        };
+      }
+      if (url.endsWith("/thin")) {
+        if (accept.startsWith("text/markdown,")) {
+          return {
+            ok: true,
+            headers: new Headers({ "content-type": "text/markdown" }),
+            text: async () => "# stub", // < 256 chars
+          };
+        }
+        return {
+          ok: true,
+          headers: new Headers({ "content-type": "text/html" }),
+          text: async () => "<h1>Real thin page</h1>".padEnd(500, " "),
+        };
+      }
+      if (url.endsWith("/lying")) {
+        return {
+          ok: true,
+          headers: new Headers({ "content-type": "text/markdown" }),
+          text: async () => "<!doctype html><html>".padEnd(500, " "),
+        };
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+
+    try {
+      const src = new DocSource({
+        name: "fallback-count-test",
+        type: "http",
+        format: "html",
+        url: "https://example.com/",
+        urls: [
+          "https://example.com/good",
+          "https://example.com/openapi",
+          "https://example.com/thin",
+          "https://example.com/lying",
+        ],
+      });
+      const set = await ingestor.ingest(src, tmpDir);
+      expect(set.size).toBe(4);
+    } finally {
+      console.log = origLog;
+    }
+
+    const stats = logs.find((l) => l.includes("[fallback-count-test]") && l.includes("negotiated"));
+    expect(stats).toBeDefined();
+    expect(stats).toContain("1/4");
+    expect(stats).toContain("1 via HTML fallback (404)");
+    expect(stats).toContain("1 via HTML fallback (thin body)");
+    expect(stats).toContain("1 via HTML fallback (lying CT)");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("skips broken-server fallback when signal is already aborted", async () => {
+    // If the caller aborts between the initial 404 response and the
+    // fallback decision, we should not waste a fetch attempt.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const ctrl = new AbortController();
+    let callCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) {
+        // Trigger abort immediately after the first response is decided.
+        ctrl.abort(new Error("source deadline exceeded"));
+        return { ok: false, status: 404 };
+      }
+      // Should never reach here — abort should prevent the fallback.
+      return { ok: false, status: 404 };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "abort-fallback-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: ["https://example.com/page"],
+    });
+
+    // The page fetch fails with 404 (no fallback fires because of abort),
+    // so this single page is recorded as an error. With only one URL, the
+    // ingestor throws "all fetches failed".
+    await expect(ingestor.ingest(src, tmpDir, ctrl.signal)).rejects.toThrow();
+    // Exactly one fetch: the initial markdown attempt. No fallback retry.
+    expect(callCount).toBe(1);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("does NOT send Accept: text/markdown on llms.txt discovery", async () => {
+    // Same regression guard for the llms-txt discovery path.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const llmsTxt = `# Docs
+- [Intro](https://example.com/intro)
+`;
+    const calls: Array<{ url: string; accept?: string }> = [];
+    const mockFetch = vi.fn().mockImplementation(async (url: string, init: RequestInit) => {
+      const headers = (init.headers as Record<string, string>) ?? {};
+      calls.push({ url, accept: headers.Accept });
+      if (url.endsWith("llms.txt")) {
+        return {
+          ok: true,
+          headers: new Headers({ "content-type": "text/plain" }),
+          text: async () => llmsTxt,
+        };
+      }
+      return {
+        ok: true,
+        headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+        text: async () => "<h1>Page</h1>",
+      };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "llms-discovery-accept-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      discovery: "llms-txt",
+      discoveryUrl: "https://example.com/llms.txt",
+    });
+
+    await ingestor.ingest(src, tmpDir);
+
+    const llmsCall = calls.find((c) => c.url.endsWith("llms.txt"));
+    expect(llmsCall).toBeDefined();
+    expect(llmsCall!.accept).toBeUndefined();
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  // ─── AbortSignal handling (existing test) ──────────────────────────
 
   it("aborts in-flight fetches when signal is triggered between batches", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
