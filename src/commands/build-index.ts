@@ -188,7 +188,12 @@ export function buildRow(relpath: string, raw: string, opts: ParseOptions = {}):
   } else {
     summary = `${signals.headings.slice(0, o.summaryMax)} ${signals.content.slice(0, o.titleMax)}`;
   }
-  summary = sanitise(summary).slice(0, o.summaryMax);
+  // Trim before sanitising + capping. When a file has no ATX headings,
+  // `signals.headings` is empty and the template above leaves a leading
+  // space ahead of the prose snippet. Functionally invisible to ripgrep
+  // and `cut`, but the inconsistency between files-with-headings and
+  // files-without is ugly; trim once here keeps the column shape stable.
+  summary = sanitise(summary.trim()).slice(0, o.summaryMax);
 
   return { path: relpath, title, summary };
 }

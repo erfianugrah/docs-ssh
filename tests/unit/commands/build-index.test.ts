@@ -247,6 +247,20 @@ describe("build-index: buildRow", () => {
     expect(row.summary).toContain("Real prose here.");
   });
 
+  it("trims leading/trailing whitespace from summary regardless of file shape", () => {
+    // Files without ATX headings hit the `headings + content` branch
+    // with an empty headings string, which would otherwise leave a
+    // leading space ahead of the prose snippet.
+    const headingless = buildRow("readme.md", "Some standalone prose without a heading.");
+    expect(headingless.summary).toBe("Some standalone prose without a heading.");
+    expect(headingless.summary.startsWith(" ")).toBe(false);
+
+    // Files with headings AND prose stay clean too.
+    const withHeading = buildRow("p.md", "# Title\n\nBody text here.");
+    expect(withHeading.summary.startsWith(" ")).toBe(false);
+    expect(withHeading.summary.endsWith(" ")).toBe(false);
+  });
+
   it("requires at least 3 alpha chars in the first prose line", () => {
     // Lines like `42` or `[](url)` shouldn't qualify
     const md = [
