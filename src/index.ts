@@ -1,3 +1,4 @@
+import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { GitIngestor } from "./ingestors/GitIngestor.js";
@@ -8,6 +9,7 @@ import { MarkdownCleaner } from "./normaliser/MarkdownCleaner.js";
 import { ContentSanitiser } from "./normaliser/ContentSanitiser.js";
 import { UpdateDocSets } from "./application/UpdateDocSets.js";
 import { SOURCES } from "./application/sources.js";
+import { SOURCE_TAGS, buildSourceGroupsPayload } from "./application/source-tags.js";
 
 const OUT_DIR = process.env.DOCS_OUT_DIR ?? path.join(process.cwd(), "docs");
 const WORK_DIR = process.env.DOCS_WORK_DIR ?? path.join(os.tmpdir(), "docs-ssh-work");
@@ -47,24 +49,16 @@ if (skipped.length > 0) parts.push(`${skipped.length} cached`);
 if (errors.length > 0) parts.push(`${errors.length} failed`);
 console.log(`\n${results.length} sources: ${parts.join(", ")}.`);
 
-// Generate source groups JSON for agents.sh
-import { SOURCE_TAGS, TAG_LABELS, buildSourceGroups } from "./application/source-tags.js";
-const groups = buildSourceGroups();
+// Write _source_groups.json for agents.sh. Same payload the standalone
+// `commands/generate-source-groups.ts` produces — both use the shared
+// pure builder so they never drift.
 const sourceNames = new Set(SOURCES.map((s) => s.name));
-const groupsOutput: Record<string, { label: string; sources: string[] }> = {};
-for (const [tag, names] of groups) {
-  const existing = names.filter((n) => sourceNames.has(n));
-  if (existing.length) {
-    groupsOutput[tag] = { label: TAG_LABELS[tag] ?? tag, sources: existing };
-  }
-}
+const groupsPayload = buildSourceGroupsPayload(sourceNames);
 const groupsPath = path.join(OUT_DIR, "_source_groups.json");
-await import("node:fs/promises").then((fs) =>
-  fs.writeFile(groupsPath, JSON.stringify(groupsOutput, null, 2) + "\n"),
-);
-console.log(`Generated ${groupsPath} (${Object.keys(groupsOutput).length} groups)`);
+await fs.writeFile(groupsPath, JSON.stringify(groupsPayload, null, 2) + "\n");
+console.log(`Generated ${groupsPath} (${Object.keys(groupsPayload).length} groups)`);
 
-// Validate: warn about untagged sources
+// Validate: warn about untagged sources (parity with the standalone CLI).
 const untagged = SOURCES.filter((s) => !SOURCE_TAGS[s.name]).map((s) => s.name);
 if (untagged.length) {
   console.warn(`\nWARNING: ${untagged.length} untagged sources: ${untagged.join(", ")}`);

@@ -279,3 +279,26 @@ export function buildSourceGroups(): Map<string, string[]> {
   }
   return groups;
 }
+
+/**
+ * Build the `_source_groups.json` payload (label + filtered sources)
+ * for the given set of source names. Pure function — no I/O, no
+ * filesystem. Both `commands/generate-source-groups.ts` (standalone
+ * CLI) and `index.ts` (in-process post-fetch) call this.
+ *
+ * Drops empty groups (no surviving sources) so the JSON output stays
+ * compact.
+ */
+export function buildSourceGroupsPayload(
+  sourceNames: ReadonlySet<string>,
+): Record<string, { label: string; sources: string[] }> {
+  const groups = buildSourceGroups();
+  const out: Record<string, { label: string; sources: string[] }> = {};
+  for (const [tag, names] of groups) {
+    const existing = names.filter((n) => sourceNames.has(n));
+    if (existing.length) {
+      out[tag] = { label: TAG_LABELS[tag] ?? tag, sources: existing };
+    }
+  }
+  return out;
+}

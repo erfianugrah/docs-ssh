@@ -142,4 +142,22 @@ describe("HtmlNormaliser", () => {
     const h1Count = (result.content.match(/^# /gm) ?? []).length;
     expect(h1Count).toBe(1);
   });
+
+  it("strips <script> whose body contains a literal '</script>' substring", async () => {
+    // The previous regex-based strip `/<script[\s\S]*?<\/script>/gi`
+    // terminated at the first `</script>` substring inside a JS string
+    // literal, leaking the rest of the script (and any post-script
+    // markup interpreted as JS source). Turndown's HTML parser
+    // recognises that the inner `</script>` is inside a script body
+    // and only closes on a real `</script>` element boundary.
+    const file = new DocFile(
+      "page.html",
+      `<h1>Title</h1><script>const s = "<\\/script>"; console.log(s);</script><p>After.</p>`,
+    );
+    const result = await normaliser.normalise(file);
+    expect(result.content).toContain("# Title");
+    expect(result.content).toContain("After.");
+    expect(result.content).not.toContain("console.log");
+    expect(result.content).not.toContain("const s");
+  });
 });

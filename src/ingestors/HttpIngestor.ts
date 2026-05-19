@@ -4,19 +4,19 @@ import { execFileSync } from "node:child_process";
 import { DocFile } from "../domain/DocFile.js";
 import { DocSet, type NegotiationStats } from "../domain/DocSet.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
-import type { DocSource, DiscoveryMethod } from "../domain/DocSource.js";
+import type { DocSource } from "../domain/DocSource.js";
 import { splitLlmsFull } from "./llms-splitter.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { walkDir } from "../shared/walkDir.js";
-import { retryWithBackoff } from "../shared/retry.js";
+import {
+  BULK_TIMEOUT,
+  CONCURRENCY,
+  MAX_RETRIES,
+  fetchWithRetry,
+} from "./http-client.js";
+import { discover } from "./discovery/index.js";
 
-const CONCURRENCY = 15;
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
-const UA = "docs-ssh/0.8 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
-const MAX_RETRIES = 2;
-
-const REQUEST_TIMEOUT = 30_000; // 30s per page fetch
-const BULK_TIMEOUT = 120_000;   // 120s for large single-file downloads (llms-full, tarball, specs)
 
 /**
  * Accept header for page fetches. Per RFC 7231 §5.3.2, the q-value
@@ -81,106 +81,6 @@ function looksLikeHtml(body: string): boolean {
 }
 
 /**
- * Combine an external AbortSignal with a per-attempt timeout, so a
- * caller can cancel in-flight retries (e.g. UpdateDocSets.withDeadline)
- * without losing the per-fetch timeout safety net.
- */
-function combineSignals(timeoutMs: number, external?: AbortSignal): AbortSignal {
-  const timeout = AbortSignal.timeout(timeoutMs);
-  if (!external) return timeout;
-  if (typeof AbortSignal.any === "function") {
-    return AbortSignal.any([timeout, external]);
-  }
-  // Pre-Node-20 fallback (not needed today, but cheap to keep).
-  const ctrl = new AbortController();
-  for (const s of [timeout, external]) {
-    if (s.aborted) ctrl.abort(s.reason);
-    s.addEventListener("abort", () => ctrl.abort(s.reason), { once: true });
-  }
-  return ctrl.signal;
-}
-
-/**
- * Fetch with User-Agent header, per-attempt timeout, and retry on
- * transient failures (network errors, 5xx, 413, 429). Uses exponential
- * backoff with jitter so concurrent failures don't retry in lockstep.
- *
- * A thrown Response (on non-retryable status codes like 404) escapes
- * the retry loop via shouldRetry=false. All other throws and retryable
- * responses are retried.
- *
- * If `signal` is provided, abortion stops both the in-flight fetch
- * and the retry loop (via shouldRetry).
- */
-async function fetchWithRetry(
-  url: string,
-  retries = MAX_RETRIES,
-  timeout = REQUEST_TIMEOUT,
-  signal?: AbortSignal,
-  extraHeaders?: Record<string, string>,
-): Promise<Response> {
-  return retryWithBackoff(
-    async () => {
-      const res = await fetch(url, {
-        headers: { "User-Agent": UA, ...(extraHeaders ?? {}) },
-        signal: combineSignals(timeout, signal),
-      });
-      // OK responses return directly.
-      if (res.ok) return res;
-      // Non-retryable 4xx (404, 403, etc.) — return so caller can
-      // inspect status. Throwing a special marker so retryWithBackoff
-      // doesn't retry, then rethrowing to the caller is overkill;
-      // instead we use a sentinel error whose shouldRetry returns false.
-      if (res.status < 500 && res.status !== 413 && res.status !== 429) {
-        return res;
-      }
-      // Retryable status — throw so retryWithBackoff can retry.
-      throw new RetryableHttpError(`HTTP ${res.status} for ${url}`, res);
-    },
-    {
-      retries,
-      // Stop retrying immediately if the caller aborts.
-      shouldRetry: () => !signal?.aborted,
-      // Honour Retry-After when the upstream provides one (429/503).
-      // Falls through to exponential backoff otherwise.
-      delayFromError: (err) =>
-        err instanceof RetryableHttpError ? err.retryAfterMs : undefined,
-      onRetry: (_attempt, err, delay) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        const hinted =
-          err instanceof RetryableHttpError && err.retryAfterMs !== undefined
-            ? " (Retry-After honoured)"
-            : "";
-        console.warn(`  [retry] ${url} → ${msg}, waiting ${Math.round(delay)}ms${hinted}…`);
-      },
-    },
-  ).catch((err: unknown) => {
-    // If the last error was a RetryableHttpError (status code), return
-    // its Response so the caller can still inspect it. Otherwise rethrow.
-    if (err instanceof RetryableHttpError) return err.response;
-    throw err;
-  });
-}
-
-/** Thrown to signal a retryable HTTP status; caller unwraps on final attempt. */
-class RetryableHttpError extends Error {
-  /** Server-suggested delay (ms), parsed from Retry-After header if present. */
-  readonly retryAfterMs?: number;
-
-  constructor(
-    message: string,
-    public readonly response: Response,
-  ) {
-    super(message);
-    this.name = "RetryableHttpError";
-    // Defensive: mocked Response objects in unit tests may lack a
-    // `headers` property. Real `fetch` always provides Headers.
-    const header = response.headers?.get?.("retry-after") ?? null;
-    this.retryAfterMs = parseRetryAfter(header);
-  }
-}
-
-/**
  * Fetch a content page with markdown content negotiation.
  *
  * Sends `Accept: text/markdown, text/html;q=0.9` and sniffs
@@ -210,9 +110,9 @@ class RetryableHttpError extends Error {
 type FetchOutcome =
   | "markdown" // origin honoured Accept and returned text/markdown
   | "html" // origin returned text/html (most common)
-  | "html-fallback-404" // 404/406 with markdown Accept → recovered via text/html
-  | "html-fallback-thin" // markdown body suspiciously thin → swapped to text/html
-  | "html-fallback-lying-ct"; // Content-Type said markdown but body was HTML
+  | "fallback404" // 404/406 with markdown Accept → recovered via text/html
+  | "fallbackThin" // markdown body suspiciously thin → swapped to text/html
+  | "fallbackLyingCt"; // Content-Type said markdown but body was HTML
 
 interface FetchPageResult {
   body: string;
@@ -251,7 +151,7 @@ async function fetchPage(
     });
     if (retry.ok) {
       res = retry;
-      outcome = "html-fallback-404";
+      outcome = "fallback404";
     }
   }
 
@@ -268,7 +168,7 @@ async function fetchPage(
   // route through the HTML pipeline so Turndown runs. No extra fetch.
   if (isMarkdown && looksLikeHtml(body)) {
     isMarkdown = false;
-    outcome = "html-fallback-lying-ct";
+    outcome = "fallbackLyingCt";
   } else if (isMarkdown && outcome === "html") {
     outcome = "markdown";
   }
@@ -296,7 +196,7 @@ async function fetchPage(
           return {
             body: fallbackBody,
             preNormalised: false,
-            outcome: "html-fallback-thin",
+            outcome: "fallbackThin",
           };
         }
       }
@@ -317,34 +217,6 @@ async function fetchPage(
     outcome,
     tokens: Number.isFinite(tokens) ? tokens : undefined,
   };
-}
-
-/**
- * RFC 7231 §7.1.3 Retry-After is either a non-negative integer
- * (seconds) or an HTTP-date. Returns a delay in milliseconds, or
- * undefined when the header is absent / malformed / in the past.
- *
- * We cap at 5 minutes — any longer and the source-deadline is going
- * to fire anyway, so it's better to fail fast than block the whole
- * batch on a single rate-limited URL.
- */
-const RETRY_AFTER_MAX_MS = 5 * 60_000;
-function parseRetryAfter(header: string | null): number | undefined {
-  if (!header) return undefined;
-  const trimmed = header.trim();
-  // Numeric: seconds.
-  if (/^\d+$/.test(trimmed)) {
-    const ms = parseInt(trimmed, 10) * 1000;
-    return Math.min(ms, RETRY_AFTER_MAX_MS);
-  }
-  // HTTP-date.
-  const at = Date.parse(trimmed);
-  if (!Number.isNaN(at)) {
-    const delta = at - Date.now();
-    if (delta <= 0) return 0;
-    return Math.min(delta, RETRY_AFTER_MAX_MS);
-  }
-  return undefined;
 }
 
 /**
@@ -423,9 +295,9 @@ export class HttpIngestor implements DocIngestor {
     const outcomes: Record<FetchOutcome, number> = {
       markdown: 0,
       html: 0,
-      "html-fallback-404": 0,
-      "html-fallback-thin": 0,
-      "html-fallback-lying-ct": 0,
+      fallback404: 0,
+      fallbackThin: 0,
+      fallbackLyingCt: 0,
     };
     let totalTokens = 0;
 
@@ -479,14 +351,10 @@ export class HttpIngestor implements DocIngestor {
 
     logNegotiationStats(source.name, files.size, outcomes, totalTokens);
 
-    const negotiation: NegotiationStats = {
-      markdown: outcomes.markdown,
-      html: outcomes.html,
-      fallback404: outcomes["html-fallback-404"],
-      fallbackThin: outcomes["html-fallback-thin"],
-      fallbackLyingCt: outcomes["html-fallback-lying-ct"],
-      totalTokens,
-    };
+    // `outcomes` (Record<FetchOutcome, number>) is structurally identical
+    // to NegotiationStats sans `totalTokens` — keep them in lockstep so
+    // there's no manual rename layer to drift.
+    const negotiation: NegotiationStats = { ...outcomes, totalTokens };
 
     return new DocSet(source, files, new Date(), undefined, negotiation);
   }
@@ -570,300 +438,6 @@ export class HttpIngestor implements DocIngestor {
   }
 }
 
-// ─── Discovery (URL-based methods) ──────────────────────────────────
-
-async function discover(source: DocSource): Promise<string[]> {
-  const { discovery, discoveryUrl, url: baseUrl } = source;
-  if (!discoveryUrl) return [];
-
-  switch (discovery) {
-    case "sitemap":
-      return discoverFromSitemap(discoveryUrl, source.urlPattern);
-    case "sitemap-index":
-      return discoverFromSitemapIndex(discoveryUrl, source.urlPattern);
-    case "toc":
-      return discoverFromToc(discoveryUrl, baseUrl);
-    case "mediawiki":
-      return discoverFromMediaWiki(discoveryUrl, baseUrl);
-    case "llms-index":
-      return discoverFromLlmsIndex(discoveryUrl, source.urlPattern);
-    case "llms-txt":
-      return discoverFromLlmsTxt(discoveryUrl);
-    case "rss":
-      return discoverFromRss(discoveryUrl);
-    default:
-      return [];
-  }
-}
-
-async function discoverFromSitemap(sitemapUrl: string, urlPattern?: string): Promise<string[]> {
-  const res = await fetchWithRetry(sitemapUrl);
-  if (!res.ok) throw new Error(`Failed to fetch sitemap ${sitemapUrl}: HTTP ${res.status}`);
-  const xml = await res.text();
-
-  // Auto-detect: if this is actually a sitemapindex, delegate transparently
-  if (xml.includes("<sitemapindex") || xml.includes("</sitemapindex>")) {
-    console.log(`  [auto-detect] ${sitemapUrl} is a sitemapindex, not a sitemap`);
-    return discoverFromSitemapIndex(sitemapUrl, urlPattern);
-  }
-
-  return resolveLocs(extractLocs(xml), sitemapUrl);
-}
-
-async function discoverFromSitemapIndex(
-  indexUrl: string,
-  urlPattern?: string,
-): Promise<string[]> {
-  const res = await fetchWithRetry(indexUrl);
-  if (!res.ok) throw new Error(`Failed to fetch sitemap index ${indexUrl}: HTTP ${res.status}`);
-  let childUrls = resolveLocs(extractLocs(await res.text()), indexUrl);
-
-  // Pre-filter child sitemaps using the alternation group from urlPattern.
-  // Only apply if the filter actually matches some URLs (skip for generic
-  // sitemap names like sitemap_12_of_180.xml that don't contain keywords).
-  if (urlPattern) {
-    const altMatch = urlPattern.match(/\(([^)]+)\)/);
-    if (altMatch) {
-      const keywords = altMatch[1].split("|");
-      const filtered = childUrls.filter((u) =>
-        keywords.some((kw) => u.toLowerCase().includes(kw.toLowerCase())),
-      );
-      if (filtered.length > 0) {
-        childUrls = filtered;
-      }
-    }
-  }
-
-  console.log(`  sitemap-index: ${childUrls.length} child sitemaps to fetch`);
-
-  const allUrls: string[] = [];
-  for (let i = 0; i < childUrls.length; i += CONCURRENCY) {
-    const batch = childUrls.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(
-      batch.map(async (url) => {
-        const r = await fetchWithRetry(url);
-        if (!r.ok) return [];
-        return resolveLocs(extractLocs(await r.text()), url);
-      }),
-    );
-    for (const result of results) {
-      if (result.status === "fulfilled") allUrls.push(...result.value);
-    }
-  }
-
-  return allUrls;
-}
-
-const SKIP_EXTENSIONS = /\.(css|js|json|xml|png|jpe?g|gif|svg|ico|woff2?|ttf|eot|zip|tar|gz|pdf)$/i;
-
-async function discoverFromToc(tocUrl: string, baseUrl: string): Promise<string[]> {
-  const res = await fetchWithRetry(tocUrl);
-  if (!res.ok) throw new Error(`Failed to fetch TOC ${tocUrl}: HTTP ${res.status}`);
-  const html = await res.text();
-
-  // Match all hrefs (case-insensitive for XHTML/DocBook), strip #fragments
-  const hrefRegex = /href="([^"\s]+)"/gi;
-  const urls = new Set<string>();
-  let match;
-  while ((match = hrefRegex.exec(html)) !== null) {
-    let href = match[1].split("#")[0];
-    if (!href || SKIP_EXTENSIONS.test(href)) continue;
-    if (!href.startsWith("http")) {
-      try { href = new URL(href, tocUrl).href; } catch { continue; }
-    }
-    if (href.startsWith(baseUrl)) {
-      urls.add(href);
-    }
-  }
-
-  return [...urls];
-}
-
-/**
- * Enumerates all pages from a MediaWiki API (action=query&list=allpages).
- * Paginates automatically via `apcontinue` tokens.
- * Returns full page URLs like https://wiki.example.org/wiki/PageName.
- */
-async function discoverFromMediaWiki(apiUrl: string, baseUrl: string): Promise<string[]> {
-  const urls: string[] = [];
-  let continueFrom = "";
-
-  for (let i = 0; i < 20; i++) {
-    const params = new URLSearchParams({
-      action: "query",
-      list: "allpages",
-      apnamespace: "0",
-      aplimit: "500",
-      apfilterredir: "nonredirects",
-      format: "json",
-    });
-    if (continueFrom) params.set("apcontinue", continueFrom);
-
-    const url = `${apiUrl}?${params}`;
-    const res = await fetchWithRetry(url);
-    if (!res.ok) throw new Error(`MediaWiki API error: HTTP ${res.status}`);
-    const data = JSON.parse(await res.text());
-
-    for (const page of data.query?.allpages ?? []) {
-      const title = page.title.replace(/ /g, "_");
-      urls.push(`${baseUrl}${encodeURIComponent(title)}`);
-    }
-
-    if (data.continue?.apcontinue) {
-      continueFrom = data.continue.apcontinue;
-    } else {
-      break;
-    }
-  }
-
-  return urls;
-}
-
-/**
- * Parses a top-level llms.txt to find per-service llms.txt URLs,
- * then fetches each service's llms.txt and extracts page URLs.
- */
-async function discoverFromLlmsIndex(
-  indexUrl: string,
-  urlPattern?: string,
-): Promise<string[]> {
-  const res = await fetchWithRetry(indexUrl);
-  if (!res.ok) throw new Error(`Failed to fetch llms index ${indexUrl}: HTTP ${res.status}`);
-  const text = await res.text();
-
-  // Extract all URLs from the index
-  const urlRegex = /https?:\/\/[^\s)>]+/g;
-  const allLinks = text.match(urlRegex) ?? [];
-
-  // Find child llms.txt URLs
-  let childLlmsUrls = allLinks.filter((u) => u.endsWith("/llms.txt") && u !== indexUrl);
-
-  // Pre-filter by urlPattern
-  if (urlPattern) {
-    const altMatch = urlPattern.match(/\(([^)]+)\)/);
-    if (altMatch) {
-      const keywords = altMatch[1].split("|");
-      childLlmsUrls = childLlmsUrls.filter((u) =>
-        keywords.some((kw) => u.toLowerCase().includes(kw.toLowerCase())),
-      );
-    }
-  }
-
-  console.log(`  llms-index: ${childLlmsUrls.length} child llms.txt files to fetch`);
-
-  // Fetch each child llms.txt and extract page URLs from them
-  const allUrls: string[] = [];
-  for (let i = 0; i < childLlmsUrls.length; i += CONCURRENCY) {
-    const batch = childLlmsUrls.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(
-      batch.map(async (url) => {
-        const r = await fetchWithRetry(url);
-        if (!r.ok) return [];
-        const childText = await r.text();
-        const childLinks = childText.match(urlRegex) ?? [];
-        // Page URLs are anything ending in .md or .html and not a
-        // sibling llms.txt. AWS migrated from .html to .md in 2026 —
-        // we accept both so older mirrors still work.
-        return childLinks.filter(
-          (l) =>
-            (l.endsWith(".md") || l.endsWith(".html")) &&
-            !l.endsWith("/llms.txt") &&
-            !l.endsWith("/llms-full.txt"),
-        );
-      }),
-    );
-    for (const result of results) {
-      if (result.status === "fulfilled") allUrls.push(...result.value);
-    }
-  }
-
-  return allUrls;
-}
-
-/**
- * Parses a llms.txt file for page URLs and returns them directly.
- * Unlike llms-index (which looks for child llms.txt files), this treats
- * all extracted URLs as pages to fetch.
- *
- * Supports both absolute URLs (https://...) and relative paths in markdown
- * links like [Title](/path.md) or [Title](relative.md), resolving them
- * against the llms.txt URL's origin.
- */
-async function discoverFromLlmsTxt(llmsTxtUrl: string): Promise<string[]> {
-  const res = await fetchWithRetry(llmsTxtUrl);
-  if (!res.ok) throw new Error(`Failed to fetch llms.txt ${llmsTxtUrl}: HTTP ${res.status}`);
-  const text = await res.text();
-
-  const urls = new Set<string>();
-
-  // Extract absolute URLs
-  const absRegex = /https?:\/\/[^\s)>\]]+/g;
-  let match;
-  while ((match = absRegex.exec(text)) !== null) {
-    urls.add(match[0]);
-  }
-
-  // Extract relative paths from markdown links: [text](path)
-  const mdLinkRegex = /\]\(([^)]+)\)/g;
-  const base = new URL(llmsTxtUrl);
-  while ((match = mdLinkRegex.exec(text)) !== null) {
-    const href = match[1];
-    if (href.startsWith("http") || href.startsWith("#") || href.startsWith("mailto:")) continue;
-    try {
-      urls.add(new URL(href, base).href);
-    } catch { /* skip malformed */ }
-  }
-
-  // Return all page URLs (exclude the llms.txt URL itself and other llms*.txt files)
-  return [...urls].filter((u) => !u.endsWith("/llms.txt") && !u.endsWith("/llms-full.txt") && u !== llmsTxtUrl);
-}
-
-/**
- * Parses an RSS feed for page URLs from <link> elements within <item> blocks.
- */
-async function discoverFromRss(rssUrl: string): Promise<string[]> {
-  const res = await fetchWithRetry(rssUrl);
-  if (!res.ok) throw new Error(`Failed to fetch RSS ${rssUrl}: HTTP ${res.status}`);
-  const xml = await res.text();
-
-  // Extract <link> URLs from within <item> blocks only (skip channel <link>)
-  const urls: string[] = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  const linkRegex = /<link>\s*(?:<!\[CDATA\[)?\s*(https?:\/\/[^\s<\]]+?)\s*(?:\]\]>)?\s*<\/link>/;
-  let match;
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const linkMatch = match[1].match(linkRegex);
-    if (linkMatch) {
-      urls.push(linkMatch[1]);
-    }
-  }
-
-  return urls;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────
-
-function extractLocs(xml: string): string[] {
-  const locRegex = /<loc>\s*(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?\s*<\/loc>/g;
-  const urls: string[] = [];
-  let match;
-  while ((match = locRegex.exec(xml)) !== null) {
-    // Decode common XML entities
-    const url = match[1]
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&apos;/g, "'");
-    urls.push(url);
-  }
-  return urls;
-}
-
-/** Resolve relative URLs against a base (sitemaps should use absolute URLs but some don't). */
-function resolveLocs(urls: string[], baseUrl: string): string[] {
-  return urls.map((u) => (u.startsWith("http") ? u : new URL(u, baseUrl).href));
-}
 
 function urlToPath(url: string, baseUrl: string): string {
   let relative = url;
@@ -894,9 +468,9 @@ function logNegotiationStats(
   totalTokens: number,
 ): void {
   const md = outcomes.markdown;
-  const fb404 = outcomes["html-fallback-404"];
-  const fbThin = outcomes["html-fallback-thin"];
-  const fbLying = outcomes["html-fallback-lying-ct"];
+  const fb404 = outcomes.fallback404;
+  const fbThin = outcomes.fallbackThin;
+  const fbLying = outcomes.fallbackLyingCt;
   const anyFallback = fb404 + fbThin + fbLying;
 
   // Stay quiet when there's nothing interesting to report — keeps the

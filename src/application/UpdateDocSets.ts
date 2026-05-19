@@ -342,20 +342,22 @@ export class UpdateDocSets {
       };
     }
 
+    // Read the previous stamp once; freshness check and regression
+    // guard both want it. Cheap (single file read) but a redundant
+    // re-read here was masking the data flow between the two phases.
+    const prevStamp = await this.readStamp(source.name);
+
     // ─── Freshness check ──────────────────────────────────────────
     try {
-      if (this.maxAge > 0) {
-        const stamp = await this.readStamp(source.name);
-        if (stamp) {
-          const ageMs = Date.now() - new Date(stamp.fetchedAt).getTime();
-          if (ageMs < this.maxAge * 1000) {
-            progress.update(source.name, "checking freshness…");
-            const fresh = await this.checkRemoteFreshness(source, stamp);
-            if (fresh) {
-              const mins = Math.round(ageMs / 60_000);
-              progress.done(source.name, `cached (${mins}min ago)`);
-              return { source: source.name, status: "skipped" };
-            }
+      if (this.maxAge > 0 && prevStamp) {
+        const ageMs = Date.now() - new Date(prevStamp.fetchedAt).getTime();
+        if (ageMs < this.maxAge * 1000) {
+          progress.update(source.name, "checking freshness…");
+          const fresh = await this.checkRemoteFreshness(source, prevStamp);
+          if (fresh) {
+            const mins = Math.round(ageMs / 60_000);
+            progress.done(source.name, `cached (${mins}min ago)`);
+            return { source: source.name, status: "skipped" };
           }
         }
       }
@@ -371,22 +373,29 @@ export class UpdateDocSets {
       progress.update(source.name, `normalising ${raw.size} files…`);
       const normalised = await this.normalise(raw);
 
-      // Regression guard: if the previous successful fetch produced
-      // significantly more files, this is almost certainly an upstream
-      // format change rather than a real content shrink. Fail loudly
-      // so a human investigates instead of writing a stamp that
-      // becomes the new (degraded) baseline.
-      const prevStamp = await this.readStamp(source.name);
+      // Regression guard: if this fetch's file count diverges from the
+      // previous successful one by more than the configured ratio
+      // (either direction), this is almost certainly an upstream
+      // format change rather than a real content shift. Fail loudly so
+      // a human investigates instead of writing a stamp that becomes
+      // the new (degraded or duplicated) baseline.
+      //
+      // Symmetric on purpose: a >2× growth ("regression" reading it
+      // both ways) is just as suspicious as a >50% shrink — both
+      // signal upstream restructuring. Default threshold 0.5 → fail
+      // on <50% or >200% of the prior count.
       if (
         this.regressionThreshold > 0 &&
         prevStamp?.fileCount &&
         prevStamp.fileCount > 0
       ) {
         const ratio = normalised.size / prevStamp.fileCount;
-        if (ratio < this.regressionThreshold) {
+        const upperBound = 1 / this.regressionThreshold;
+        if (ratio < this.regressionThreshold || ratio > upperBound) {
+          const direction = ratio < this.regressionThreshold ? "shrink" : "growth";
           throw new Error(
-            `regression: ${normalised.size} files vs previous ${prevStamp.fileCount} ` +
-              `(${(ratio * 100).toFixed(0)}% — threshold ${(this.regressionThreshold * 100).toFixed(0)}%). ` +
+            `regression (${direction}): ${normalised.size} files vs previous ${prevStamp.fileCount} ` +
+              `(${(ratio * 100).toFixed(0)}% — accepted band ${(this.regressionThreshold * 100).toFixed(0)}%-${(upperBound * 100).toFixed(0)}%). ` +
               `Likely an upstream format change; investigate before accepting.`,
           );
         }

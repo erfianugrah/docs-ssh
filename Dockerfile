@@ -25,6 +25,11 @@ RUN if [ "$DOCS_PREBUILT" = "true" ] && [ -d "/docs-ctx" ] && [ "$(ls -A /docs-c
   fi && \
   rm -rf /docs-ctx
 
+# Build the search index while we still have Node + the source on disk.
+# Output is part of the docs artefact copied to stage 2.
+RUN find /docs -name '.stamp.json' -delete \
+ && node --import tsx/esm src/commands/build-index.ts /docs /docs/_index.tsv
+
 # ─── Stage 2: SSH server ──────────────────────────────────────────────────────
 FROM alpine:3.21
 
@@ -37,19 +42,17 @@ RUN apk add --no-cache openssh bash ripgrep jq busybox-extras bat tree less
 RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
   && passwd -d docs
 
-# Copy docs — owned by root, readable by all (docs user cannot modify)
-# Remove freshness stamps (.stamp.json) — only needed during fetch, not at runtime.
+# Copy docs (now including the pre-built /docs/_index.tsv produced in
+# stage 1 by build-index.ts) — owned by root, readable by all.
 COPY --from=fetcher /docs /docs
-RUN find /docs -name '.stamp.json' -delete
 
-# Build search index: one line per file with path, title, and headings summary.
-# This lets agents search the index (~10-20MB) instead of grepping ~300MB of raw docs.
-# Health check reports quality warnings but never fails the build.
-COPY build-index.sh build-sources-json.sh build-health-check.sh /tmp/
-RUN sh /tmp/build-index.sh /docs > /docs/_index.tsv \
- && sh /tmp/build-sources-json.sh /docs > /docs/_sources.json \
+# Build the per-source sources.json and the post-build health report.
+# These two are tiny POSIX-sh scripts and don't justify Node in the
+# runtime stage; the heavier _index.tsv build runs in stage 1 instead.
+COPY build-sources-json.sh build-health-check.sh /tmp/
+RUN sh /tmp/build-sources-json.sh /docs > /docs/_sources.json \
  && sh /tmp/build-health-check.sh /docs /docs/_index.tsv \
- && rm /tmp/build-index.sh /tmp/build-sources-json.sh /tmp/build-health-check.sh
+ && rm /tmp/build-sources-json.sh /tmp/build-health-check.sh
 
 # sshd configuration + command logger + built-in commands + entrypoint
 RUN mkdir -p /var/run/sshd /var/log /usr/local/lib/docs-ssh/lib

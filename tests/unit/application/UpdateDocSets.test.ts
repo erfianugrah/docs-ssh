@@ -325,6 +325,83 @@ describe("UpdateDocSets", () => {
       await fs.rm(tmpDir, { recursive: true });
     });
 
+    it("rejects a fetch that grows beyond the upper bound (1 / threshold)", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-reg-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const source = makeOfflineSource("regtest-grow");
+      const stampDir = path.join(outDir, "regtest-grow");
+      await fs.mkdir(stampDir, { recursive: true });
+      await fs.writeFile(
+        path.join(stampDir, ".stamp.json"),
+        JSON.stringify({ fetchedAt: new Date().toISOString(), fileCount: 10 }),
+      );
+
+      // 30 files — 300% of previous, above the default upper band (200%).
+      // Symmetric guard: a sudden tripling is just as suspicious as a halving.
+      const files = new Map();
+      for (let i = 0; i < 30; i++) {
+        files.set(`p${i}.md`, new DocFile(`p${i}.md`, `# Page ${i}`));
+      }
+      const docSet = new DocSet(source, files);
+
+      const updater = new UpdateDocSets({
+        sources: [source],
+        ingestors: [mockIngestor(docSet)],
+        normalisers: [noopNormaliser],
+        outDir,
+        workDir,
+        maxAge: 0,
+      });
+
+      const results = await updater.run();
+      expect(results[0].status).toBe("error");
+      expect(results[0].error).toMatch(/regression \(growth\)/);
+      expect(results[0].error).toMatch(/30 files vs previous 10/);
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+
+    it("accepts a fetch that grows within the upper band", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-reg-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      const source = makeOfflineSource("regtest-grow-ok");
+      const stampDir = path.join(outDir, "regtest-grow-ok");
+      await fs.mkdir(stampDir, { recursive: true });
+      await fs.writeFile(
+        path.join(stampDir, ".stamp.json"),
+        JSON.stringify({ fetchedAt: new Date().toISOString(), fileCount: 10 }),
+      );
+
+      // 15 files — 150% of previous, inside the default 50%-200% band.
+      const files = new Map();
+      for (let i = 0; i < 15; i++) {
+        files.set(`p${i}.md`, new DocFile(`p${i}.md`, `# Page ${i}`));
+      }
+      const docSet = new DocSet(source, files);
+
+      const updater = new UpdateDocSets({
+        sources: [source],
+        ingestors: [mockIngestor(docSet)],
+        normalisers: [noopNormaliser],
+        outDir,
+        workDir,
+        maxAge: 0,
+      });
+
+      const results = await updater.run();
+      expect(results[0].status).toBe("ok");
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
+
     it("disabled when regressionThreshold is 0", async () => {
       const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-reg-"));
       const outDir = path.join(tmpDir, "out");

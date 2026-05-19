@@ -27,6 +27,15 @@ export class HtmlNormaliser implements DocNormaliser {
       codeBlockStyle: "fenced",
       bulletListMarker: "-",
     });
+    // Drop noisy elements via Turndown's own HTML parser so we don't
+    // have to regex-strip them upstream. Handles edge cases the
+    // previous `<script[\s\S]*?</script>` regex got wrong (e.g. JS
+    // source containing the literal string "</script>").
+    // `title` listed separately: Turndown's inline HTML parser
+    // doesn't always nest <title> under <head> when given fragmentary
+    // input, so removing <head> alone leaks the page-title text as
+    // a paragraph. Listing it directly catches both shapes.
+    this.td.remove(["head", "title", "nav", "header", "footer", "script", "style"]);
   }
 
   supports(file: DocFile): boolean {
@@ -41,21 +50,18 @@ export class HtmlNormaliser implements DocNormaliser {
     let html = file.content;
     const originalSize = html.length;
 
-    // Extract <title> before stripping — inject as H1 if Turndown misses it
+    // Extract <title> before Turndown strips <head> — used as H1 fallback
+    // when the rendered markdown doesn't start with one. Site suffixes
+    // like "Page | Site", "Page — Site", "Page - Site" stripped (the
+    // hyphen pattern requires surrounding spaces to keep "Self-hosted").
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    // Strip site suffixes like "Page | Site", "Page — Site", "Page - Site"
-    // Requires spaces around hyphen to avoid truncating "Self-hosted guide"
     const htmlTitle = titleMatch?.[1]?.trim().replace(/\s*(?:\||–|—)\s.*$/, "").replace(/\s+-\s+.*$/, "") ?? "";
 
-    // Strip elements that add noise for agents
-    html = html.replace(/<head[\s\S]*?<\/head>/gi, "");
-    html = html.replace(/<nav[\s\S]*?<\/nav>/gi, "");
-    html = html.replace(/<header[\s\S]*?<\/header>/gi, "");
-    html = html.replace(/<footer[\s\S]*?<\/footer>/gi, "");
-    html = html.replace(/<script[\s\S]*?<\/script>/gi, "");
-    html = html.replace(/<style[\s\S]*?<\/style>/gi, "");
-
-    // If there's a <main> or <article> element, use only its contents
+    // If there's a <main> or <article> element, use only its contents.
+    // This is a *selection*, not a removal — Turndown has no native
+    // equivalent — so it stays as regex. Noise elements (head, nav,
+    // header, footer, script, style) are dropped by the constructor's
+    // td.remove() registration via Turndown's real HTML parser.
     const mainMatch = html.match(/<(?:main|article)[^>]*>([\s\S]*?)<\/(?:main|article)>/i);
     if (mainMatch) {
       html = mainMatch[1];
