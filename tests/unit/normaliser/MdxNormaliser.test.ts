@@ -24,6 +24,77 @@ describe("MdxNormaliser", () => {
     expect(result.content).toContain("Content here.");
   });
 
+  it("strips multi-line export const object literals (Tailwind blog shape)", async () => {
+    // Tailwind blog MDX files declare metadata as `export const meta = {...};`
+    // The previous regex `^export\s+.*?(?:\n|$)` matched only the first
+    // line, leaving the object literal's `title: "..."` and other props
+    // in the output — which then leaked into the search index summary.
+    const file = new DocFile(
+      "blog.mdx",
+      [
+        `import { adamwathan } from "@/authors"`,
+        ``,
+        `export const meta = {`,
+        `  title: "Tailwind UI is now Tailwind Plus",`,
+        `  description: \`We just shipped a huge rebrand project\`,`,
+        `  date: "2025-03-04T16:00:00.000Z",`,
+        `  authors: [adamwathan],`,
+        `};`,
+        ``,
+        `We just shipped a huge rebrand.`,
+        ``,
+        `- **No subscription pricing** — one-time purchase.`,
+      ].join("\n"),
+    );
+    const result = await normaliser.normalise(file);
+    expect(result.content).not.toContain("title:");
+    expect(result.content).not.toContain("export");
+    expect(result.content).not.toContain("adamwathan");
+    expect(result.content).toContain("We just shipped");
+    expect(result.content).toContain("No subscription pricing");
+  });
+
+  it("strips multi-line `export let` and `export var` object literals", async () => {
+    const file = new DocFile(
+      "x.mdx",
+      [
+        `export let config = {`,
+        `  foo: "bar",`,
+        `};`,
+        ``,
+        `export var legacy = {`,
+        `  baz: 1,`,
+        `};`,
+        ``,
+        `# Real Heading`,
+        ``,
+        `Body.`,
+      ].join("\n"),
+    );
+    const result = await normaliser.normalise(file);
+    expect(result.content).not.toContain("foo:");
+    expect(result.content).not.toContain("baz:");
+    expect(result.content).toContain("# Real Heading");
+  });
+
+  it("does not over-strip when an export object literal lacks a trailing semicolon", async () => {
+    const file = new DocFile(
+      "x.mdx",
+      [
+        `export const meta = {`,
+        `  title: "No semicolon"`,
+        `}`,
+        ``,
+        `# Body Heading`,
+        ``,
+        `Body.`,
+      ].join("\n"),
+    );
+    const result = await normaliser.normalise(file);
+    expect(result.content).not.toContain("title:");
+    expect(result.content).toContain("# Body Heading");
+  });
+
   it("strips JSX component tags", async () => {
     const file = new DocFile(
       "x.mdx",

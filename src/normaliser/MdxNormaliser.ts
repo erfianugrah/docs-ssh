@@ -44,8 +44,20 @@ export class MdxNormaliser implements DocNormaliser {
     content = content.replace(/^import\s+\{[^}]*\}\s+from\s+[^\n]+(?:\n|$)/gm, "");
     content = content.replace(/^import\s+.*?(?:\n|$)/gm, "");
 
-    // Strip export statements (single-line and multi-line default/named)
+    // Strip export statements (multi-line then single-line — order matters).
+    //
+    // Order rationale: the single-line regex `^export\s+.*?(?:\n|$)` is
+    // greedy enough to match the first line of `export const meta = {`
+    // and stop at the newline, leaving the object literal stranded as
+    // garbage in the output. Tailwind blog MDX files exposed this on
+    // ~16 prod pages where the literal's `title: "..."` leaked into
+    // index summaries. So strip the multi-line forms first.
+    //
+    // Multi-line forms use `^\}` (column-0 closing brace) as the
+    // terminator — same heuristic the default-function strip uses to
+    // tolerate nested indented braces inside the body.
     content = content.replace(/^export\s+default\s+function[^{]*\{[\s\S]*?^\}/gm, "");
+    content = content.replace(/^export\s+(?:const|let|var)\s+\w+\s*=\s*\{[\s\S]*?^\};?/gm, "");
     content = content.replace(/^export\s+.*?(?:\n|$)/gm, "");
 
     // Strip JSX component tags. Treat opening, closing, and
