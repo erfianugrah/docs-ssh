@@ -254,6 +254,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
 
   // ─── Other ──────────────────────────────────────────────────────
   opencode: ["build-tools"],
+  pi: ["build-tools"],
   fastapi: ["languages", "frontend"],
   "erfi-technical-blog": ["blogs"],
   "erfi-personal-blog": ["blogs"],

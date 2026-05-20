@@ -736,6 +736,21 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "packages/web/src/content/docs",
   }),
 
+  // ─── Pi (Earendil) ──────────────────────────────────────────────
+
+  // Git sparse — earendil-works/pi monorepo. Site `pi.dev/docs/latest`
+  // maps 1:1 to packages/coding-agent/docs/*.md; packages/agent/docs/
+  // covers the underlying harness internals (hooks, durable runs,
+  // observability). No llms.txt / sitemap; markdown straight from
+  // source.
+  new DocSource({
+    name: "pi",
+    type: "git",
+    url: "https://github.com/earendil-works/pi",
+    format: "markdown",
+    paths: ["packages/coding-agent/docs", "packages/agent/docs"],
+  }),
+
   // ─── Vitest ────────────────────────────────────────────────────
 
   // llms-full.txt — complete testing framework docs (~1.1MB)
