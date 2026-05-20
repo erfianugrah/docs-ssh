@@ -1833,6 +1833,137 @@ export const SOURCES: readonly DocSource[] = [
     format: "markdown",
   }),
 
+  // ─── Unraid ────────────────────────────────────────────────────
+
+  // Git sparse — Docusaurus 3 MDX source for docs.unraid.net (~300 files)
+  new DocSource({
+    name: "unraid",
+    type: "git",
+    url: "https://github.com/unraid/docs",
+    format: "mdx",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── CachyOS Wiki ──────────────────────────────────────────────
+
+  // Git sparse — Astro Starlight MDX. Default branch is `next`; English
+  // content lives in topic-specific dirs at root of src/content/docs
+  // (language-code subdirs hold translations — excluded here).
+  new DocSource({
+    name: "cachyos",
+    type: "git",
+    url: "https://github.com/CachyOS/wiki",
+    format: "mdx",
+    paths: [
+      "src/content/docs/cachyos_basic",
+      "src/content/docs/configuration",
+      "src/content/docs/features",
+      "src/content/docs/installation",
+      "src/content/docs/policy",
+      "src/content/docs/support",
+      "src/content/docs/virtualization",
+    ],
+    rootPath: "src/content/docs",
+  }),
+
+  // ─── OpenZFS ───────────────────────────────────────────────────
+
+  // TOC — ZFS on Linux/FreeBSD docs (Sphinx, hosted on GitHub Pages).
+  // Repo docs/ is .rst (no native RST normaliser); the Sphinx index page
+  // links the full tree. Readthedocs-style sitemap only lists versions
+  // and per-version 404 stubs.
+  new DocSource({
+    name: "openzfs",
+    type: "http",
+    url: "https://openzfs.github.io/openzfs-docs/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://openzfs.github.io/openzfs-docs/",
+    urlPattern: "openzfs\\.github\\.io/openzfs-docs/",
+    urlExclude: "(/en/v[0-9]|/404\\.html|genindex|search\\.html|_static/|_sources/|#)",
+  }),
+
+  // ─── Btrfs ─────────────────────────────────────────────────────
+
+  // TOC — btrfs-progs Documentation/ is .rst; readthedocs sitemap only
+  // lists version index pages, so we scrape the Sphinx index for the
+  // full per-page list.
+  new DocSource({
+    name: "btrfs",
+    type: "http",
+    url: "https://btrfs.readthedocs.io/en/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://btrfs.readthedocs.io/en/latest/",
+    urlPattern: "btrfs\\.readthedocs\\.io/en/latest/",
+    urlExclude: "(genindex|search\\.html|_static/|_sources/|#)",
+  }),
+
+  // ─── Linux Kernel Filesystems ──────────────────────────────────
+
+  // TOC — covers xfs, ntfs/ntfs3, ext4, f2fs, btrfs (kernel-side), tmpfs,
+  // fuse, overlayfs, etc. docs.kernel.org has no sitemap; the filesystems
+  // index page lists all per-filesystem HTML files.
+  new DocSource({
+    name: "linux-fs",
+    type: "http",
+    url: "https://docs.kernel.org/filesystems/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.kernel.org/filesystems/index.html",
+    urlPattern: "docs\\.kernel\\.org/filesystems/",
+    urlExclude: "(genindex|search\\.html|_static/|_sources/|#)",
+  }),
+
+  // ─── Samba ─────────────────────────────────────────────────────
+
+  // MediaWiki — wiki.samba.org has the canonical setup/AD-DC/file-server
+  // guides; project source-tree docs are XML manpages.
+  new DocSource({
+    name: "samba",
+    type: "http",
+    url: "https://wiki.samba.org/index.php/",
+    format: "html",
+    discovery: "mediawiki",
+    discoveryUrl: "https://wiki.samba.org/api.php",
+    urlPattern: "wiki\\.samba\\.org/index\\.php/",
+    urlExclude:
+      "(Special:|Talk:|User:|File:|Template:|Category:|Help:|MediaWiki:|SambaWiki:)",
+  }),
+
+  // ─── restic ────────────────────────────────────────────────────
+
+  // TOC — fast, encrypted, deduplicating backup program. Repo doc/ is
+  // .rst; readthedocs sitemap only lists per-version index pages, so
+  // we scrape the Sphinx index for per-page URLs.
+  new DocSource({
+    name: "restic",
+    type: "http",
+    url: "https://restic.readthedocs.io/en/stable/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://restic.readthedocs.io/en/stable/",
+    urlPattern: "restic\\.readthedocs\\.io/en/stable/",
+    urlExclude: "(genindex|search\\.html|_static/|_sources/|#)",
+  }),
+
+  // ─── BorgBackup ────────────────────────────────────────────────
+
+  // TOC — deduplicating archiver with compression + authenticated
+  // encryption. Repo docs/ is .rst; same readthedocs sitemap limitation
+  // as restic, so we use the Sphinx index.
+  new DocSource({
+    name: "borgbackup",
+    type: "http",
+    url: "https://borgbackup.readthedocs.io/en/stable/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://borgbackup.readthedocs.io/en/stable/",
+    urlPattern: "borgbackup\\.readthedocs\\.io/en/stable/",
+    urlExclude: "(genindex|search\\.html|_static/|_sources/|#)",
+  }),
+
   // ─── AWS, sharded per service (kept last — slowest tier) ──────
   //
   // Each AWS service publishes its own llms.txt with .md page URLs.

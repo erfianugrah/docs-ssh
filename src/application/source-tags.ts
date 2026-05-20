@@ -226,6 +226,20 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   exiftool: ["osint"],
   yacy: ["osint"],
 
+  // ─── Linux distros ──────────────────────────────────────────────
+  cachyos: ["linux"],
+
+  // ─── Filesystems ────────────────────────────────────────────────
+  openzfs: ["filesystems", "nas"],
+  btrfs: ["filesystems"],
+  "linux-fs": ["filesystems", "linux"],
+  samba: ["filesystems", "networking", "nas"],
+
+  // ─── Backups & NAS ──────────────────────────────────────────────
+  restic: ["backup"],
+  borgbackup: ["backup"],
+  unraid: ["nas", "filesystems", "infrastructure"],
+
   // ─── Other ──────────────────────────────────────────────────────
   opencode: ["build-tools"],
   fastapi: ["languages", "frontend"],
@@ -262,6 +276,10 @@ export const TAG_LABELS: Record<string, string> = {
   blogs: "Blogs & changelogs",
   "api-specs": "API specs",
   osint: "OSINT & reconnaissance",
+  linux: "Linux distros",
+  filesystems: "Filesystems",
+  backup: "Backups",
+  nas: "NAS & home server",
 };
 
 /**
