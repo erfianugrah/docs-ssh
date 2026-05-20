@@ -1964,6 +1964,125 @@ export const SOURCES: readonly DocSource[] = [
     urlExclude: "(genindex|search\\.html|_static/|_sources/|#)",
   }),
 
+  // ─── Servarr (*arr stack) ──────────────────────────────────────
+
+  // Servarr Wiki — unified MkDocs source for Sonarr, Radarr, Lidarr,
+  // Readarr, Prowlarr, Whisparr + the shared 'servarr' platform docs.
+  new DocSource({
+    name: "servarr",
+    type: "git",
+    url: "https://github.com/Servarr/Wiki",
+    format: "markdown",
+    paths: ["servarr", "sonarr", "radarr", "lidarr", "readarr", "prowlarr", "whisparr"],
+  }),
+
+  // ─── TRaSH-Guides ──────────────────────────────────────────────
+
+  // MkDocs source — canonical quality-profile / custom-format / hardlink
+  // guides for the *arr stack (~90MB repo, docs/ tree is markdown).
+  new DocSource({
+    name: "trash-guides",
+    type: "git",
+    url: "https://github.com/TRaSH-Guides/Guides",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── Recyclarr ─────────────────────────────────────────────────
+
+  // CLI that syncs TRaSH-Guides config into Sonarr/Radarr. docs/ tree
+  // has architecture, decisions, reference sections.
+  new DocSource({
+    name: "recyclarr",
+    type: "git",
+    url: "https://github.com/recyclarr/recyclarr",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── Bazarr ────────────────────────────────────────────────────
+
+  // GitHub wiki — subtitle automation for Sonarr/Radarr libraries.
+  new DocSource({
+    name: "bazarr",
+    type: "git",
+    url: "https://github.com/morpheus65535/bazarr.wiki",
+    format: "markdown",
+  }),
+
+  // ─── Jellyfin ──────────────────────────────────────────────────
+
+  // Docusaurus source for jellyfin.org (the previous jellyfin-docs
+  // repo is archived; jellyfin.org is the live source).
+  new DocSource({
+    name: "jellyfin",
+    type: "git",
+    url: "https://github.com/jellyfin/jellyfin.org",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── Overseerr ─────────────────────────────────────────────────
+
+  // In-tree docs/ for the Plex-native request manager (markdown).
+  new DocSource({
+    name: "overseerr",
+    type: "git",
+    url: "https://github.com/sct/overseerr",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── Jellyseerr ────────────────────────────────────────────────
+
+  // Jellyfin/Emby-native Overseerr fork; in-tree docs/ mixes .mdx + .md.
+  new DocSource({
+    name: "jellyseerr",
+    type: "git",
+    url: "https://github.com/fallenbagel/jellyseerr",
+    format: "mdx",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── qBittorrent ───────────────────────────────────────────────
+
+  // GitHub wiki — BitTorrent client setup, Web UI API, search plugins.
+  new DocSource({
+    name: "qbittorrent",
+    type: "git",
+    url: "https://github.com/qbittorrent/qBittorrent.wiki",
+    format: "markdown",
+  }),
+
+  // ─── SABnzbd ───────────────────────────────────────────────────
+
+  // Jekyll source for sabnzbd.org — wiki/ subdir holds the canonical
+  // setup/configuration/scripts docs.
+  new DocSource({
+    name: "sabnzbd",
+    type: "git",
+    url: "https://github.com/sabnzbd/sabnzbd.github.io",
+    format: "markdown",
+    paths: ["wiki"],
+    rootPath: "wiki",
+  }),
+
+  // ─── Gluetun ───────────────────────────────────────────────────
+
+  // VPN container commonly fronting the *arr stack. Whole wiki repo
+  // (setup/, faq/, errors/, contributing/).
+  new DocSource({
+    name: "gluetun",
+    type: "git",
+    url: "https://github.com/qdm12/gluetun-wiki",
+    format: "markdown",
+  }),
+
   // ─── AWS, sharded per service (kept last — slowest tier) ──────
   //
   // Each AWS service publishes its own llms.txt with .md page URLs.

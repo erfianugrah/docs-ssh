@@ -240,6 +240,18 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   borgbackup: ["backup"],
   unraid: ["nas", "filesystems", "infrastructure"],
 
+  // ─── Media servers & automation ────────────────────────────────
+  servarr: ["media"],
+  "trash-guides": ["media"],
+  recyclarr: ["media", "cli-tools"],
+  bazarr: ["media"],
+  jellyfin: ["media"],
+  overseerr: ["media"],
+  jellyseerr: ["media"],
+  qbittorrent: ["media"],
+  sabnzbd: ["media"],
+  gluetun: ["media", "networking"],
+
   // ─── Other ──────────────────────────────────────────────────────
   opencode: ["build-tools"],
   fastapi: ["languages", "frontend"],
@@ -280,6 +292,7 @@ export const TAG_LABELS: Record<string, string> = {
   filesystems: "Filesystems",
   backup: "Backups",
   nas: "NAS & home server",
+  media: "Media servers & automation",
 };
 
 /**
