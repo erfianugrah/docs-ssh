@@ -72,7 +72,13 @@ jobs:
 
       - name: Deploy to Composer
         run: |
-          curl -sf --retry 3 --retry-delay 10 -X POST \
+          curl -sf \
+            --connect-timeout 30 \
+            --max-time 600 \
+            --retry 2 \
+            --retry-delay 15 \
+            --retry-connrefused \
+            -X POST \
             "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy" \
             -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
             -H "X-Requested-With: XMLHttpRequest"
