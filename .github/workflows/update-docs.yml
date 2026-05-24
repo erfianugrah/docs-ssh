@@ -70,15 +70,54 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Composer
+      - name: Deploy to Composer (async)
+        id: deploy
         run: |
-          curl -sf \
+          response=$(curl -sf \
             --connect-timeout 30 \
-            --max-time 600 \
+            --max-time 60 \
             --retry 2 \
             --retry-delay 15 \
             --retry-connrefused \
             -X POST \
-            "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy" \
+            "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy?async=true" \
             -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
-            -H "X-Requested-With: XMLHttpRequest"
+            -H "X-Requested-With: XMLHttpRequest")
+          echo "composer response: $response"
+          job_id=$(echo "$response" | jq -r '.job_id // empty')
+          if [ -z "$job_id" ]; then
+            echo "::error::composer accepted deploy but returned no job_id"
+            exit 1
+          fi
+          echo "Deploy queued, job_id=$job_id"
+          echo "job_id=$job_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Composer job to finish
+        run: |
+          job_id="${{ steps.deploy.outputs.job_id }}"
+          for i in $(seq 1 120); do
+            job=$(curl -sf \
+              --connect-timeout 10 --max-time 20 \
+              -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
+              "${{ secrets.COMPOSER_URL }}/api/v1/jobs/$job_id" || echo '{}')
+            status=$(echo "$job" | jq -r '.status // "unknown"')
+            case "$status" in
+              completed)
+                echo "job $job_id completed in $((i*5))s"
+                exit 0 ;;
+              failed)
+                echo "::error::composer job failed"
+                echo "--- error ---"
+                echo "$job" | jq -r '.error // "(no error field)"'
+                echo "--- output (last 4KB) ---"
+                echo "$job" | jq -r '.output // ""' | tail -c 4096
+                exit 1 ;;
+              pending|running)
+                : ;;
+              *)
+                echo "::warning::unexpected job status '$status' (raw: $job)" ;;
+            esac
+            sleep 5
+          done
+          echo "::error::composer job $job_id did not finish within 10 minutes"
+          exit 1

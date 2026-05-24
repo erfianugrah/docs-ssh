@@ -106,18 +106,63 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Composer
+      - name: Deploy to Composer (async)
+        id: deploy
+        # ?async=true returns {job_id} immediately; we poll the job in the
+        # next step so failures surface composer's actual error rather than
+        # a generic SSH-banner timeout 60s later.
         run: |
-          curl -sf \
+          response=$(curl -sf \
             --connect-timeout 30 \
-            --max-time 600 \
+            --max-time 60 \
             --retry 2 \
             --retry-delay 15 \
             --retry-connrefused \
             -X POST \
-            "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy" \
+            "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy?async=true" \
             -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
-            -H "X-Requested-With: XMLHttpRequest"
+            -H "X-Requested-With: XMLHttpRequest")
+          echo "composer response: $response"
+          job_id=$(echo "$response" | jq -r '.job_id // empty')
+          if [ -z "$job_id" ]; then
+            echo "::error::composer accepted deploy but returned no job_id"
+            exit 1
+          fi
+          echo "Deploy queued, job_id=$job_id"
+          echo "job_id=$job_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for Composer job to finish
+        # Polls /api/v1/jobs/{id} every 5s for up to 10 minutes. On 'failed'
+        # surfaces composer's error+output to the CI log so we don't have to
+        # SSH to the host to find out what went wrong.
+        run: |
+          job_id="${{ steps.deploy.outputs.job_id }}"
+          for i in $(seq 1 120); do
+            job=$(curl -sf \
+              --connect-timeout 10 --max-time 20 \
+              -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
+              "${{ secrets.COMPOSER_URL }}/api/v1/jobs/$job_id" || echo '{}')
+            status=$(echo "$job" | jq -r '.status // "unknown"')
+            case "$status" in
+              completed)
+                echo "job $job_id completed in $((i*5))s"
+                exit 0 ;;
+              failed)
+                echo "::error::composer job failed"
+                echo "--- error ---"
+                echo "$job" | jq -r '.error // "(no error field)"'
+                echo "--- output (last 4KB) ---"
+                echo "$job" | jq -r '.output // ""' | tail -c 4096
+                exit 1 ;;
+              pending|running)
+                : ;;
+              *)
+                echo "::warning::unexpected job status '$status' (raw: $job)" ;;
+            esac
+            sleep 5
+          done
+          echo "::error::composer job $job_id did not finish within 10 minutes"
+          exit 1
 
   smoke:
     name: Post-deploy smoke against live
@@ -139,13 +184,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Wait for Composer deploy to settle
-        # Composer's deploy endpoint returns immediately and the
-        # container restart takes some seconds. Poll the live SSH
-        # endpoint for connectivity (max ~60s) before running the
-        # smoke suite. SSH 'echo ok' is the cheapest health probe.
+      - name: Wait for live SSH banner
+        # Composer's job is already 'completed' by the time we get here
+        # (build-and-push only finishes after the job poll succeeds), but
+        # the new container still needs ~5-15s for sshd inside it to be
+        # ready. Bounded poll on banner exchange.
         run: |
-          for i in $(seq 1 30); do
+          for i in $(seq 1 15); do
             if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                    -o LogLevel=ERROR -o ConnectTimeout=2 \
                    -p 2222 docs@${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }} \
@@ -155,7 +200,7 @@ jobs:
             fi
             sleep 2
           done
-          echo "::error::live server unreachable after 60s; aborting smoke"
+          echo "::error::live server unreachable after 30s; aborting smoke"
           exit 1
 
       - name: Smoke against live
