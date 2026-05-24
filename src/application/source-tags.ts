@@ -72,6 +72,12 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   traefik: ["networking"],
   wireguard: ["networking"],
 
+  // ─── DNS servers ────────────────────────────────────────────────
+  nsd: ["dns", "networking"],
+  "knot-dns": ["dns", "networking"],
+  powerdns: ["dns", "networking"],
+  bind9: ["dns", "networking"],
+
   // ─── Frontend frameworks ────────────────────────────────────────
   nextjs: ["frontend"],
   react: ["frontend"],
@@ -272,6 +278,7 @@ export const TAG_LABELS: Record<string, string> = {
   "postgres-ha": "Postgres HA & ops",
   infrastructure: "Infrastructure",
   networking: "Reverse proxy & networking",
+  dns: "DNS servers",
   frontend: "Frontend frameworks",
   languages: "Languages & runtimes",
   cloud: "Cloud platforms",

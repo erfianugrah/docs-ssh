@@ -1165,6 +1165,60 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://www.wireguard.com/sitemap.xml",
   }),
 
+  // ─── DNS servers ────────────────────────────────────────────────
+
+  // NSD (NLnet Labs) — authoritative-only DNS server.
+  // Sphinx-built docs; the published sitemap.xml only lists the root,
+  // so we use TOC discovery against the index page instead.
+  new DocSource({
+    name: "nsd",
+    type: "http",
+    url: "https://nsd.docs.nlnetlabs.nl/en/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://nsd.docs.nlnetlabs.nl/en/latest/index.html",
+    urlPattern: "nsd\\.docs\\.nlnetlabs\\.nl/en/latest/",
+    urlExclude: "(genindex|py-modindex|search)\\.html",
+  }),
+
+  // Knot DNS (CZ.NIC) — authoritative DNS server.
+  // No sitemap on knot-dns.cz; Sphinx HTML is published under
+  // /docs/latest/html/. TOC discovery against the index page.
+  new DocSource({
+    name: "knot-dns",
+    type: "http",
+    url: "https://www.knot-dns.cz/docs/latest/html/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://www.knot-dns.cz/docs/latest/html/index.html",
+    urlPattern: "knot-dns\\.cz/docs/latest/html/",
+    urlExclude: "(genindex|search)\\.html",
+  }),
+
+  // PowerDNS Authoritative — sitemap-based (~156 pages).
+  new DocSource({
+    name: "powerdns",
+    type: "http",
+    url: "https://doc.powerdns.com/authoritative/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://doc.powerdns.com/authoritative/sitemap.xml",
+  }),
+
+  // BIND 9 (ISC) — Sphinx docs on readthedocs.
+  // The sitemap lists every published version (v9.21.x, stable, latest),
+  // so we use TOC discovery against /en/latest/ to stay on one version.
+  new DocSource({
+    name: "bind9",
+    type: "http",
+    url: "https://bind9.readthedocs.io/en/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://bind9.readthedocs.io/en/latest/",
+    urlPattern: "bind9\\.readthedocs\\.io/en/latest/",
+    urlExclude: "(genindex|search|_static/|_sources/|#)",
+  }),
+
   // ─── Nix ───────────────────────────────────────────────────────
 
   // Git sparse — nix.dev community docs source (55 md files)
