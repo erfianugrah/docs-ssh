@@ -4,11 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231d1f28'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='18' font-weight='700' fill='%23c574dd' text-anchor='middle'%3E%3E_%3C/text%3E%3C/svg%3E" type="image/svg+xml">
-  <title>docs-ssh — Documentation over SSH for AI Agents</title>
+  <title>docs-ssh — Documentation over SSH for AI coding agents</title>
   <meta name="description" content="Self-hosted SSH docs server serving __SOURCE_COUNT__+ documentation sources as searchable markdown over SSH.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:title" content="docs-ssh — Documentation over SSH for AI coding agents">
+  <meta property="og:description" content="Self-hosted SSH docs server serving __SOURCE_COUNT__+ documentation sources as searchable markdown over SSH.">
+  <meta property="og:url" content="https://__HOST__/">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
   <style>
     :root {
       --bg: #1d1f28;
@@ -26,8 +29,8 @@
       --peach: #f1a171;
       --blue: #8796f4;
       --cyan: #79e6f3;
-      --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif;
-      --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, SFMono-Regular, Consolas, monospace;
+      --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
       --radius: 0.5rem;
     }
 
@@ -41,19 +44,6 @@
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
-    }
-
-    /* Subtle backdrop glow */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 600px;
-      background: radial-gradient(ellipse 600px 400px at 50% 0%, rgba(197,116,221,0.06) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
     }
 
     .container {
@@ -70,9 +60,6 @@
       font-weight: 700;
       letter-spacing: 0.02em;
       margin-bottom: 0.5rem;
-      text-shadow: 0 0 10px rgba(197,116,221,0.5),
-                   0 0 20px rgba(197,116,221,0.3),
-                   0 0 40px rgba(197,116,221,0.1);
       color: var(--purple);
     }
 
@@ -142,11 +129,10 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 1.5rem 2rem;
+      padding: 1.25rem 1.5rem;
       margin: 1.5rem 0 2rem;
       font-family: var(--font-mono);
       font-size: 1.1rem;
-      text-align: center;
       letter-spacing: 0.02em;
     }
     .hero-cmd .prompt { color: var(--green); margin-right: 0.5rem; }
@@ -156,34 +142,14 @@
 
     /* Steps */
     .steps {
-      counter-reset: step;
-      list-style: none;
-      margin: 1rem 0;
-    }
-    .steps li {
-      counter-increment: step;
-      margin-bottom: 1.5rem;
-      padding-left: 2.25rem;
-      position: relative;
+      margin: 1rem 0 1rem 1.5rem;
       color: var(--fg-muted);
     }
-    .steps li::before {
-      content: counter(step);
-      position: absolute;
-      left: 0;
-      top: 1px;
-      width: 1.5rem;
-      height: 1.5rem;
-      background: rgba(197,116,221,0.15);
-      border: 1px solid rgba(197,116,221,0.3);
-      border-radius: 50%;
-      font-size: 0.7rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--purple);
+    .steps li {
+      margin-bottom: 1.5rem;
+      padding-left: 0.25rem;
     }
+    .steps li::marker { color: var(--purple); font-weight: 600; }
     .steps li strong { color: var(--fg); display: block; margin-bottom: 0.5rem; }
 
     /* Sources grid */
@@ -202,8 +168,15 @@
       font-size: 0.75rem;
       color: var(--fg);
       transition: border-color 0.15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+      min-width: 0;
     }
     .source:hover { border-color: var(--purple); }
+    .source .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .source .count { color: var(--fg-muted); font-size: 0.7rem; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 
     /* Token efficiency table */
     .table-wrap {
@@ -263,31 +236,14 @@
     footer a { color: var(--fg-muted); }
     footer a:hover { color: var(--purple); opacity: 1; }
 
-    /* Animations */
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
+    /* Single page-level fade, gated on prefers-reduced-motion */
+    @media (prefers-reduced-motion: no-preference) {
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      .container { animation: fadeIn 0.2s ease-out both; }
     }
-    .container > * {
-      animation: fadeInUp 0.4s ease-out both;
-    }
-    .container > *:nth-child(1) { animation-delay: 0s; }
-    .container > *:nth-child(2) { animation-delay: 0.05s; }
-    .container > *:nth-child(3) { animation-delay: 0.1s; }
-    .container > *:nth-child(4) { animation-delay: 0.15s; }
-    .container > *:nth-child(5) { animation-delay: 0.2s; }
-    .container > *:nth-child(6) { animation-delay: 0.25s; }
-    .container > *:nth-child(7) { animation-delay: 0.3s; }
-    .container > *:nth-child(8) { animation-delay: 0.35s; }
-    .container > *:nth-child(9) { animation-delay: 0.4s; }
-    .container > *:nth-child(10) { animation-delay: 0.45s; }
-    .container > *:nth-child(11) { animation-delay: 0.5s; }
-    .container > *:nth-child(12) { animation-delay: 0.55s; }
-    .container > *:nth-child(13) { animation-delay: 0.6s; }
-    .container > *:nth-child(14) { animation-delay: 0.65s; }
-    .container > *:nth-child(15) { animation-delay: 0.7s; }
-    .container > *:nth-child(16) { animation-delay: 0.75s; }
-    .container > *:nth-child(17) { animation-delay: 0.8s; }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -303,7 +259,7 @@
   </style>
 </head>
 <body>
-  <div class="container">
+  <main class="container">
     <h1>docs-ssh</h1>
     <p class="tagline">Documentation over SSH for AI coding agents</p>
 
@@ -313,8 +269,8 @@
 
     <p>
       A self-hosted SSH server serving <strong id="source-count">__SOURCE_COUNT__+</strong> <strong>documentation sources</strong>
-      as searchable markdown. Your AI agent connects over SSH and uses standard
-      Unix tools &mdash; <code>grep</code>, <code>find</code>, <code>cat</code> &mdash;
+      as searchable markdown. Your AI agent connects over SSH and uses the
+      tools it already knows &mdash; <code>rg</code>, <code>bat</code>, <code>tree</code> &mdash;
       to search and read docs with the same interface it uses for your code.
     </p>
 
@@ -367,6 +323,9 @@
     <p>
       Custom tools use a <strong>search &rarr; summary &rarr; targeted read</strong>
       workflow. Output capped at 51K chars (~12K tokens) with truncation hints.
+      Numbers below are representative; see
+      <a href="https://github.com/erfianugrah/docs-ssh/tree/main/tests/benchmark">tests/benchmark/</a>
+      for the harness.
     </p>
     <div class="table-wrap">
       <table>
@@ -403,7 +362,7 @@
       &nbsp;&middot;&nbsp;
       Passwordless by design &mdash; serves public documentation
     </footer>
-  </div>
+  </main>
   <script>
     // Fallback: fetch version from GitHub tags API if not injected at build time
     if (document.getElementById("version").textContent === "__VERSION__") {
@@ -412,21 +371,29 @@
         .then(d => { if (d?.[0]?.name) document.getElementById("version").textContent = d[0].name; })
         .catch(() => { document.getElementById("version").textContent = "dev"; });
     }
-    fetch("/_sources.json")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (!d) return;
-        const total = (d.docs?.length || 0) + (d.api?.length || 0);
-        const el = document.getElementById("source-count");
-        if (el) el.textContent = total;
-        const docsGrid = document.getElementById("docs-grid");
-        if (docsGrid && d.docs) docsGrid.innerHTML = d.docs.map(s =>
-          `<div class="source">${s.name}</div>`).join("");
-        const apiGrid = document.getElementById("api-grid");
-        if (apiGrid && d.api) apiGrid.innerHTML = d.api.map(s =>
-          `<div class="source">${s.name}</div>`).join("");
-      })
-      .catch(() => {});
+    (function () {
+      const escape = (s) => String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+      const fallback = (g) => { if (g) g.innerHTML = `<div class="source"><span class="name">run <code>ssh __HOST__ sources</code></span></div>`; };
+      const docsGrid = document.getElementById("docs-grid");
+      const apiGrid = document.getElementById("api-grid");
+      fetch("/_sources.json")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d) { fallback(docsGrid); fallback(apiGrid); return; }
+          const total = (d.docs?.length || 0) + (d.api?.length || 0);
+          const el = document.getElementById("source-count");
+          if (el) el.textContent = total;
+          const render = (items) => items.map(s => {
+            const n = escape(s.name);
+            const cnt = Number.isFinite(s.count) ? `<span class="count">${s.count}</span>` : '';
+            const title = Number.isFinite(s.count) ? `${n} — ${s.count} files` : n;
+            return `<div class="source" title="${title}"><span class="name">${n}</span>${cnt}</div>`;
+          }).join("");
+          if (docsGrid && d.docs) docsGrid.innerHTML = render(d.docs);
+          if (apiGrid && d.api)  apiGrid.innerHTML  = render(d.api);
+        })
+        .catch(() => { fallback(docsGrid); fallback(apiGrid); });
+    })();
   </script>
 </body>
 </html>
