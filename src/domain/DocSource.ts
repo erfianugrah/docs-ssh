@@ -1,4 +1,4 @@
-export type DocFormat = "markdown" | "mdx" | "html" | "openapi";
+export type DocFormat = "markdown" | "mdx" | "html" | "openapi" | "godoc";
 export type DocSourceType = "git" | "http";
 
 /**

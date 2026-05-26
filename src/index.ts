@@ -5,6 +5,7 @@ import { GitIngestor } from "./ingestors/GitIngestor.js";
 import { HttpIngestor } from "./ingestors/HttpIngestor.js";
 import { MdxNormaliser } from "./normaliser/MdxNormaliser.js";
 import { HtmlNormaliser } from "./normaliser/HtmlNormaliser.js";
+import { GoNormaliser } from "./normaliser/GoNormaliser.js";
 import { MarkdownCleaner } from "./normaliser/MarkdownCleaner.js";
 import { ContentSanitiser } from "./normaliser/ContentSanitiser.js";
 import { UpdateDocSets } from "./application/UpdateDocSets.js";
@@ -19,7 +20,7 @@ const MAX_AGE = parseInt(process.env.DOCS_MAX_AGE ?? "86400", 10) || 0;
 const update = new UpdateDocSets({
   sources: SOURCES,
   ingestors: [new GitIngestor(), new HttpIngestor()],
-  normalisers: [new MdxNormaliser(), new HtmlNormaliser(), new MarkdownCleaner(), new ContentSanitiser()],
+  normalisers: [new MdxNormaliser(), new HtmlNormaliser(), new GoNormaliser(), new MarkdownCleaner(), new ContentSanitiser()],
   outDir: OUT_DIR,
   workDir: WORK_DIR,
   concurrency: CONCURRENCY,

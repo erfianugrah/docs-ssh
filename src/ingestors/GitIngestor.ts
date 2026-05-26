@@ -13,7 +13,30 @@ import { retryWithBackoff, type RetryOptions } from "../shared/retry.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
+const GO_EXTENSIONS = new Set(["go"]);
 const OPENAPI_FILENAMES = new Set(["openapi.yaml", "openapi.json", "swagger.yaml", "swagger.json"]);
+
+/**
+ * Generated-file patterns to skip when ingesting Go source.
+ *   - *_test.go        : test code, not API surface
+ *   - z*.go            : kohya/miekg-style generated files (no useful comments)
+ *   - *.pb.go          : protobuf-generated
+ *   - *_string.go      : stringer-generated
+ *   - *_generate.go    : not generated, but `go run *_generate.go` source
+ *                       for generators — typically gnarly templates,
+ *                       skip them too
+ */
+const GO_SKIP_FILENAME_PATTERNS: readonly RegExp[] = [
+  /_test\.go$/,
+  /^z[a-z_0-9]*\.go$/,
+  /\.pb\.go$/,
+  /_string\.go$/,
+  /_generate\.go$/,
+];
+
+function shouldSkipGoFile(name: string): boolean {
+  return GO_SKIP_FILENAME_PATTERNS.some((re) => re.test(name));
+}
 
 /** Timeout for heavy git operations (clone, pull) */
 const GIT_CLONE_TIMEOUT = 120_000;
@@ -162,11 +185,18 @@ export class GitIngestor implements DocIngestor {
 
     const files = new Map<string, DocFile>();
 
+    // godoc sources walk .go files (excluding tests and generated
+     // code); everything else walks markdown.
+    const isGodoc = source.format === "godoc";
+    const walkExtensions = isGodoc ? GO_EXTENSIONS : MARKDOWN_EXTENSIONS;
+    const walkSkipFile = isGodoc ? shouldSkipGoFile : undefined;
+
     for (const root of scanRoots) {
       const rootExists = await exists(root);
       if (!rootExists) continue;
       await walkDir(root, cloneDir, files, {
-        extensions: MARKDOWN_EXTENSIONS,
+        extensions: walkExtensions,
+        skipFile: walkSkipFile,
         pathTransform,
       });
     }

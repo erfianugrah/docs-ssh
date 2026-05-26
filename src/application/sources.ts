@@ -1219,6 +1219,29 @@ export const SOURCES: readonly DocSource[] = [
     urlExclude: "(genindex|search|_static/|_sources/|#)",
   }),
 
+  // ─── miekg/dns (Go DNS library) ────────────────────────────────
+
+  // v1 — the original Go DNS library on GitHub. Maintenance-only
+  // upstream (fixes only, will eventually be archived) but still what
+  // most existing Go DNS code imports. `format: "godoc"` walks .go
+  // files and extracts package doc + exported decls via GoNormaliser.
+  new DocSource({
+    name: "miekg-dns",
+    type: "git",
+    url: "https://github.com/miekg/dns",
+    format: "godoc",
+  }),
+
+  // v2 — the active rewrite on Codeberg. ~2x faster, package split
+  // (rdata / dnsutil / dnstest / svcb / deleg / dnshttp / pkg/pool /
+  // cmd/atomdns). Same godoc extraction — see GoNormaliser.
+  new DocSource({
+    name: "miekg-dns-v2",
+    type: "git",
+    url: "https://codeberg.org/miekg/dns",
+    format: "godoc",
+  }),
+
   // ─── Nix ───────────────────────────────────────────────────────
 
   // Git sparse — nix.dev community docs source (55 md files)

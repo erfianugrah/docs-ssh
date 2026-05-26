@@ -12,7 +12,7 @@ import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
 import type { DocSource, DocFormat } from "../domain/DocSource.js";
 
-const FORMAT_VALUES: readonly DocFormat[] = ["html", "mdx", "markdown"];
+const FORMAT_VALUES: readonly DocFormat[] = ["html", "mdx", "markdown", "godoc"];
 const UA = "docs-ssh/0.8 (freshness-check; +https://github.com/erfianugrah/docs-ssh)";
 const HEAD_TIMEOUT = 10_000;
 const HEAD_RETRIES = 2;

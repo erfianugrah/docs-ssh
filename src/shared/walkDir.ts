@@ -12,6 +12,13 @@ const SKIP_FILENAMES = new Set([
 export interface WalkDirOptions {
   /** Only include files whose extension is in this set. If undefined, include all files. */
   extensions?: ReadonlySet<string>;
+  /**
+   * Additional per-filename skip predicate (applied after the static
+   * SKIP_FILENAMES set and the extension filter). Useful for skipping
+   * generated / test files identified by a pattern rather than a
+   * fixed name (e.g. `*_test.go`, `z*.go` in Go sources).
+   */
+  skipFile?: (basename: string) => boolean;
   /** Transform the relative path before storing. Receives the path relative to `root`. */
   pathTransform?: (relativePath: string) => string;
 }
@@ -46,6 +53,9 @@ export async function walkDir(
         const ext = entry.name.split(".").pop() ?? "";
         if (!options.extensions.has(ext)) continue;
       }
+
+      // Per-filename skip predicate (for *_test.go, z*.go, etc.)
+      if (options?.skipFile?.(entry.name)) continue;
 
       const content = await fs.readFile(fullPath, "utf-8");
       let relativePath = path.relative(root, fullPath);

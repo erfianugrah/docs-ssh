@@ -77,6 +77,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "knot-dns": ["dns", "networking"],
   powerdns: ["dns", "networking"],
   bind9: ["dns", "networking"],
+  "miekg-dns": ["dns", "languages"],
+  "miekg-dns-v2": ["dns", "languages"],
 
   // ─── Frontend frameworks ────────────────────────────────────────
   nextjs: ["frontend"],
