@@ -259,6 +259,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   jellyseerr: ["media"],
   qbittorrent: ["media"],
   sabnzbd: ["media"],
+  slskd: ["media"],
   gluetun: ["media", "networking"],
 
   // ─── Other ──────────────────────────────────────────────────────

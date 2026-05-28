@@ -2189,6 +2189,21 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs",
   }),
 
+  // ─── slskd ─────────────────────────────────────────────────────
+
+  // Modern client-server daemon for the Soulseek file-sharing network
+  // (the headless counterpart to the closed-source SoulseekQt client).
+  // No site docs / llms.txt / sitemap — docs/ in the upstream repo is
+  // the canonical source (config, docker, relay, reverse-proxy, vpn).
+  new DocSource({
+    name: "slskd",
+    type: "git",
+    url: "https://github.com/slskd/slskd",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
   // ─── AWS, sharded per service (kept last — slowest tier) ──────
   //
   // Each AWS service publishes its own llms.txt with .md page URLs.
