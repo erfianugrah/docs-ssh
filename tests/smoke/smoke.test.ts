@@ -13,14 +13,39 @@ import { execSync } from "node:child_process";
 
 const HOST = process.env.DOCS_SSH_HOST ?? "localhost";
 const PORT = process.env.DOCS_SSH_PORT ?? "2222";
-const SSH_OPTS = `-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p ${PORT}`;
+const SSH_OPTS = `-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5 -p ${PORT}`;
 
-/** Run an SSH command. Uses single-quoted wrapping to prevent local shell expansion. */
+/**
+ * Run an SSH command. Uses single-quoted wrapping to prevent local shell expansion.
+ *
+ * Retries on transient connection failures (Connection refused / reset / timed out)
+ * up to 3 times with 2s backoff. The host-mode Caddy proxy that fronts :2222 can be
+ * recreated by a cascade Composer job mid-test (e.g. after a docs-ssh deploy triggers
+ * a sync_redeploy on caddy), opening a ~10s window where the listener is gone. The
+ * release workflow waits for cascade jobs to settle before smoke, but this is cheap
+ * insurance against any future unrelated blip (cert renewal, sshd reload, etc).
+ */
 function ssh(cmd: string): string {
-  return execSync(`ssh ${SSH_OPTS} docs@${HOST} '${cmd.replace(/'/g, "'\\''")}'`, {
-    timeout: 15_000,
-    encoding: "utf-8",
-  }).trim();
+  const fullCmd = `ssh ${SSH_OPTS} docs@${HOST} '${cmd.replace(/'/g, "'\\''")}'`;
+  const maxAttempts = 3;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return execSync(fullCmd, {
+        timeout: 15_000,
+        encoding: "utf-8",
+      }).trim();
+    } catch (err) {
+      lastErr = err;
+      const e = err as { stderr?: Buffer | string; stdout?: Buffer | string };
+      const out = `${e.stderr?.toString() ?? ""}${e.stdout?.toString() ?? ""}`;
+      const transient = /Connection refused|Connection reset|Connection timed out|kex_exchange_identification/.test(out);
+      if (!transient || attempt === maxAttempts) throw err;
+      // Synchronous 2s backoff before retry (no async sleep available in execSync flow).
+      execSync("sleep 2");
+    }
+  }
+  throw lastErr;
 }
 
 /** Parse "name: count" lines into structured data. */

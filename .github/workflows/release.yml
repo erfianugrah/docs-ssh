@@ -184,6 +184,49 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Wait for cascade redeploys to settle
+        # build-and-push waits on its own deploy job_id, but composer can queue
+        # *cascade* sync_redeploy jobs on dependent stacks ~30-60s later. The
+        # canonical case: host-mode caddy on the same host fronts docs-ssh:2222
+        # and is auto-redeployed when docs-ssh changes, which tears down the
+        # public listener for ~10s mid-smoke. Poll the jobs API for any
+        # in-flight job whose target is docs-ssh or caddy, and require a stable
+        # window of clean polls before proceeding.
+        env:
+          COMPOSER_URL: ${{ secrets.COMPOSER_URL }}
+          COMPOSER_API_KEY: ${{ secrets.COMPOSER_API_KEY }}
+        run: |
+          stable_window=6     # need 6 consecutive clean polls (~30s)
+          max_iterations=72   # cap total wait at ~6 minutes
+          poll_interval=5
+          clean=0
+          for i in $(seq 1 $max_iterations); do
+            jobs=$(curl -sf \
+              --connect-timeout 10 --max-time 20 \
+              -H "Authorization: Bearer ${COMPOSER_API_KEY}" \
+              "${COMPOSER_URL}/api/v1/jobs?limit=50" || echo '{"jobs":[]}')
+            in_flight=$(echo "$jobs" | jq -r '
+              .jobs[]?
+              | select((.target == "docs-ssh" or .target == "caddy")
+                       and (.status == "running" or .status == "pending"))
+              | "\(.type)/\(.target)/\(.status)/\(.id)"' | head -5)
+            if [ -n "$in_flight" ]; then
+              echo "iter $i: in-flight related jobs:"
+              echo "$in_flight" | sed 's/^/  /'
+              clean=0
+            else
+              clean=$((clean + 1))
+              echo "iter $i: no related in-flight jobs (clean=$clean/$stable_window)"
+              if [ $clean -ge $stable_window ]; then
+                echo "settled after $((i * poll_interval))s"
+                exit 0
+              fi
+            fi
+            sleep $poll_interval
+          done
+          echo "::error::cascade jobs did not settle within $((max_iterations * poll_interval))s"
+          exit 1
+
       - name: Wait for live SSH banner
         # Composer's job is already 'completed' by the time we get here
         # (build-and-push only finishes after the job poll succeeds), but
