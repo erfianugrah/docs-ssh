@@ -157,6 +157,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   prometheus: ["monitoring"],
   opentelemetry: ["monitoring"],
   grafana: ["monitoring"],
+  ntfy: ["monitoring"],
 
   // ─── Secrets & encryption ───────────────────────────────────────
   age: ["secrets"],

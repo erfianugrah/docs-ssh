@@ -2175,6 +2175,20 @@ export const SOURCES: readonly DocSource[] = [
     format: "markdown",
   }),
 
+  // ─── ntfy ──────────────────────────────────────────────────────
+
+  // Pub/sub push-notification service (HTTP POST → phone/desktop).
+  // Site docs.ntfy.sh is mkdocs material — no llms.txt / sitemap —
+  // but docs/ in the upstream repo is canonical markdown.
+  new DocSource({
+    name: "ntfy",
+    type: "git",
+    url: "https://github.com/binwiederhier/ntfy",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
   // ─── AWS, sharded per service (kept last — slowest tier) ──────
   //
   // Each AWS service publishes its own llms.txt with .md page URLs.
