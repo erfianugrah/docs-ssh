@@ -11,6 +11,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   supabase: ["auth", "databases", "cloud"],
   keycloak: ["auth"],
   authentik: ["auth"],
+  "better-auth": ["auth"],
+  clerk: ["auth", "cloud"],
   openid: ["auth", "apis"],
   saml: ["auth", "apis"],
   bitwarden: ["auth", "secrets"],
@@ -27,6 +29,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "modern-sql": ["databases"],
   "use-the-index-luke": ["databases"],
   sqlstyle: ["databases"],
+  duckdb: ["databases"],
+  planetscale: ["databases", "cloud"],
 
   // ─── Postgres ecosystem ─────────────────────────────────────────
   pgvector: ["postgres-ecosystem"],
@@ -40,6 +44,11 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "index-advisor": ["postgres-ecosystem", "supabase-ecosystem"],
   supavisor: ["postgres-ecosystem", "supabase-ecosystem"],
   "supabase-grafana": ["postgres-ecosystem", "supabase-ecosystem", "monitoring"],
+  "supabase-wrappers": ["postgres-ecosystem", "supabase-ecosystem", "databases"],
+  "supabase-etl": ["postgres-ecosystem", "supabase-ecosystem", "databases"],
+  "supabase-cli": ["supabase-ecosystem"],
+  postgrest: ["postgres-ecosystem", "supabase-ecosystem"],
+  pgloader: ["postgres-ecosystem", "databases"],
   multigres: ["postgres-ecosystem"],
   "multigres-dev": ["postgres-ecosystem"],
 

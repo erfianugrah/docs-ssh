@@ -51,6 +51,42 @@ export const SOURCES: readonly DocSource[] = [
     format: "markdown",
   }),
 
+  // Foreign Data Wrappers catalog (mkdocs). The `supabase` docs tarball ships
+  // only wrappers/overview.md; the per-wrapper catalog pages (s3, bigquery,
+  // iceberg, snowflake, clickhouse, …) live in this repo under docs/.
+  new DocSource({
+    name: "supabase-wrappers",
+    type: "git",
+    url: "https://github.com/supabase/wrappers",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // Supabase ETL — the engine behind managed external replication (Astro
+  // Starlight). The main docs cover only the Dashboard UX; architecture,
+  // events, schema-changes and destination guides live here.
+  new DocSource({
+    name: "supabase-etl",
+    type: "git",
+    url: "https://github.com/supabase/etl",
+    format: "markdown",
+    paths: ["docs/src/content/docs"],
+    rootPath: "docs/src/content/docs",
+  }),
+
+  // Supabase CLI reference — auto-generated per-command markdown (db dump/push,
+  // config push, …). Not in the docs tarball (the reference tree is generated
+  // separately). Default branch is `develop`, which carries apps/cli-go/docs.
+  new DocSource({
+    name: "supabase-cli",
+    type: "git",
+    url: "https://github.com/supabase/cli",
+    format: "markdown",
+    paths: ["apps/cli-go/docs"],
+    rootPath: "apps/cli-go/docs",
+  }),
+
   // ─── Cloudflare ────────────────────────────────────────────────────
 
   // llms-full.txt — entire docs in one 40MB file, pre-split into pages
@@ -130,6 +166,65 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://www.postgresql.org/docs/current/bookindex.html",
     urlPattern: "postgresql\\.org/docs/current/",
     urlExclude: "(bookindex|biblio|errcodes|features|acronyms)\\.html",
+  }),
+
+  // ─── PostgREST ─────────────────────────────────────────────────
+
+  // The REST API layer behind Supabase's auto-generated API. Docs are
+  // Sphinx/RST (no markdown source, no per-page sitemap) → scrape the stable
+  // TOC as HTML.
+  new DocSource({
+    name: "postgrest",
+    type: "http",
+    url: "https://docs.postgrest.org/en/stable/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.postgrest.org/en/stable/",
+    urlPattern: "docs\\.postgrest\\.org/en/stable/",
+    urlExclude: "(genindex|search|_sources)\\.html",
+  }),
+
+  // ─── pgloader ──────────────────────────────────────────────────
+
+  // Bulk MySQL/MSSQL→Postgres migration tool referenced across the Supabase
+  // migration guides. ReadTheDocs/Sphinx (RST) → scrape the latest TOC as HTML.
+  new DocSource({
+    name: "pgloader",
+    type: "http",
+    url: "https://pgloader.readthedocs.io/en/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://pgloader.readthedocs.io/en/latest/",
+    urlPattern: "pgloader\\.readthedocs\\.io/en/latest/",
+    urlExclude: "(genindex|search|_sources)\\.html",
+  }),
+
+  // ─── DuckDB ────────────────────────────────────────────────────
+
+  // In-process analytical DB; reads/writes Parquet/CSV/JSON and Iceberg. Docs
+  // are Jekyll markdown in duckdb-web; pin to the LTS docs dir to avoid the
+  // per-version duplication (docs/0.10 … docs/current all coexist in-repo).
+  new DocSource({
+    name: "duckdb",
+    type: "git",
+    url: "https://github.com/duckdb/duckdb-web",
+    format: "markdown",
+    paths: ["docs/lts"],
+    rootPath: "docs/lts",
+  }),
+
+  // ─── PlanetScale ───────────────────────────────────────────────
+
+  // MySQL/Postgres-compatible serverless DB platform. Docs are a Next.js site;
+  // ingest via the docs sitemap as HTML (origin doesn't serve markdown).
+  new DocSource({
+    name: "planetscale",
+    type: "http",
+    url: "https://planetscale.com/docs",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://planetscale.com/docs/sitemap.xml",
+    urlPattern: "planetscale\\.com/docs/",
   }),
 
   // (AWS sources moved to end of file — they're the slowest to fetch
@@ -549,6 +644,31 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://www.keycloak.org/sitemap.xml",
     urlPattern:
       "keycloak\\.org/(server|getting-started|high-availability|securing-apps|operator|observability|ui-customization|migration)/",
+  }),
+
+  // ─── Better Auth ───────────────────────────────────────────────
+
+  // Framework-agnostic TypeScript auth library. Fumadocs MDX content in-repo.
+  new DocSource({
+    name: "better-auth",
+    type: "git",
+    url: "https://github.com/better-auth/better-auth",
+    format: "mdx",
+    paths: ["docs/content/docs"],
+    rootPath: "docs/content/docs",
+  }),
+
+  // ─── Clerk ─────────────────────────────────────────────────────
+
+  // Auth / user-management platform. MDX docs in clerk/clerk-docs under docs/
+  // (the separate clerk-typedoc/ tree is excluded by the sparse path).
+  new DocSource({
+    name: "clerk",
+    type: "git",
+    url: "https://github.com/clerk/clerk-docs",
+    format: "mdx",
+    paths: ["docs"],
+    rootPath: "docs",
   }),
 
   // ─── OpenID Connect ───────────────────────────────────────────
