@@ -2204,6 +2204,27 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs",
   }),
 
+  // ─── Liftosaur ─────────────────────────────────────────────────
+
+  // Open-source weightlifting tracker PWA driven by Liftoscript, a
+  // JavaScript-like DSL for describing workout programs / progressions.
+  // No site llms.txt / sitemap — but the repo carries two canonical
+  // markdown trees:
+  //   docs/content/ — the published docs (liftoscript, REST api, mcp)
+  //   llms/         — LLM-targeted reference (condensed Liftoscript ref,
+  //                   worked examples, built-in exercise list)
+  // Both are pulled; the subdir prefix keeps the tutorial docs distinct
+  // from the LLM reference and avoids the liftoscript.md name collision.
+  new DocSource({
+    name: "liftosaur",
+    type: "git",
+    url: "https://github.com/astashov/liftosaur",
+    format: "markdown",
+    paths: ["docs/content", "llms"],
+    description:
+      "Liftosaur weightlifting tracker — Liftoscript DSL, REST API, MCP server, exercise reference",
+  }),
+
   // ─── AWS, sharded per service (kept last — slowest tier) ──────
   //
   // Each AWS service publishes its own llms.txt with .md page URLs.
