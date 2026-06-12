@@ -363,6 +363,7 @@ describe("E2E smoke tests", () => {
 
   it("help: shows agents subcommand variants", () => {
     const out = run(`${SSH_CMD} help`);
+    expect(out).toContain("agents pi");
     expect(out).toContain("agents opencode");
     expect(out).toContain("agents claude");
     expect(out).toContain("agents skill");
@@ -437,6 +438,27 @@ describe("E2E smoke tests", () => {
     expect(out).toContain("Reverse proxy");
   });
 
+  it("agents pi: references docs_* extension tools", () => {
+    const out = run(`${SSH_CMD} "agents pi"`);
+    expect(out).toContain("## Documentation");
+    expect(out).toContain("docs_search");
+    expect(out).toContain("docs_read");
+    expect(out).toContain("docs_grep");
+    expect(out).toContain("docs_find");
+    expect(out).toContain("docs_summary");
+    expect(out).toContain("docs_sources");
+    // Should NOT contain raw SSH examples
+    expect(out).not.toContain("ssh -p");
+    expect(out).not.toContain("rg -i");
+  });
+
+  it("agents pi: includes related source groups", () => {
+    const out = run(`${SSH_CMD} "agents pi"`);
+    expect(out).toContain("Related source groups");
+    expect(out).toContain("Auth & identity");
+    expect(out).toContain("Databases");
+  });
+
   it("agents claude: outputs CLAUDE.md with header and raw SSH", () => {
     const out = run(`${SSH_CMD} "agents claude"`);
     expect(out).toContain("# CLAUDE.md");
@@ -470,6 +492,7 @@ describe("E2E smoke tests", () => {
 
   it("agents help: shows all format options", () => {
     const out = run(`${SSH_CMD} "agents help"`);
+    expect(out).toContain("pi");
     expect(out).toContain("opencode");
     expect(out).toContain("claude");
     expect(out).toContain("cursor");
@@ -505,6 +528,20 @@ describe("E2E smoke tests", () => {
     expect(out).toContain("|| sed");
   });
 
+  it("tools pi: outputs valid TypeScript Pi extension (TypeBox)", () => {
+    const out = run(`${SSH_CMD} "tools pi"`);
+    expect(out).toContain("@earendil-works/pi-coding-agent");
+    expect(out).toContain("defineTool");
+    expect(out).toContain("docs_search");
+    expect(out).toContain("docs_read");
+    expect(out).toContain("docs_grep");
+    expect(out).toContain("docs_find");
+    expect(out).toContain("docs_summary");
+    expect(out).toContain("docs_sources");
+    expect(out).toContain("SSH_HOST");
+    expect(out).toContain("SSH_PORT");
+  });
+
   it("setup: outputs setup guide with all options", () => {
     const out = run(`${SSH_CMD} setup`);
     expect(out).toContain("docs-ssh setup");
@@ -524,6 +561,7 @@ describe("E2E smoke tests", () => {
 
   it("setup: documents agents subcommands for each tool", () => {
     const out = run(`${SSH_CMD} setup`);
+    expect(out).toContain("agents pi");
     expect(out).toContain("agents claude");
     expect(out).toContain("agents cursor");
     expect(out).toContain("agents gemini");

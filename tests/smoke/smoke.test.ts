@@ -324,6 +324,24 @@ describe("builtins", () => {
     expect(out).toContain("rg");
   });
 
+  it("agents pi references docs_* extension tools", () => {
+    const out = ssh("agents pi");
+    expect(out).toContain("docs_search");
+    expect(out).toContain("docs_read");
+    expect(out).toContain("docs_grep");
+    expect(out).toContain("docs_find");
+    expect(out).toContain("docs_summary");
+    expect(out).toContain("docs_sources");
+    expect(out).not.toContain("ssh -p");
+  });
+
+  it("agents pi includes related source groups", () => {
+    const out = ssh("agents pi");
+    expect(out).toContain("Related source groups");
+    expect(out).toContain("Auth & identity");
+    expect(out).toContain("Databases");
+  });
+
   it("agents opencode references custom tools", () => {
     const out = ssh("agents opencode");
     expect(out).toContain("docs_search");
@@ -370,6 +388,16 @@ describe("builtins", () => {
     expect(out).toContain("export const grep");
     expect(out).toContain("export const summary");
     expect(out).toContain("export const sources");
+  });
+
+  it("tools pi outputs valid TypeScript Pi extension (TypeBox)", () => {
+    const out = ssh("tools pi");
+    expect(out).toContain("@earendil-works/pi-coding-agent");
+    expect(out).toContain("defineTool");
+    expect(out).toContain("docs_search");
+    expect(out).toContain("docs_read");
+    expect(out).toContain("SSH_HOST");
+    expect(out).toContain("SSH_PORT");
   });
 });
 
