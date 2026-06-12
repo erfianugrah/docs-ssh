@@ -3,7 +3,8 @@
 #
 # Usage:
 #   ssh ... agents                → AGENTS.md (raw SSH patterns for any agent)
-#   ssh ... agents opencode       → AGENTS.md tuned for OpenCode (references custom tools)
+#   ssh ... agents pi             → AGENTS.md tuned for Pi (references docs_* extension tools)
+#   ssh ... agents opencode       → AGENTS.md tuned for OpenCode (references custom docs_* tools)
 #   ssh ... agents claude         → CLAUDE.md format (raw SSH)
 #   ssh ... agents cursor         → .cursorrules format (raw SSH)
 #   ssh ... agents gemini         → GEMINI.md format (raw SSH)
@@ -20,7 +21,7 @@ DOC_SOURCES=$(echo "$ALL_SOURCES" | grep -v '\-api$' | tr '\n' ', ' | sed 's/,$/
 API_SOURCES=$(echo "$ALL_SOURCES" | grep '\-api$' | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
 SOURCES=$(echo "$ALL_SOURCES" | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
 SOURCE_COUNT=$(echo "$ALL_SOURCES" | wc -l | tr -d ' ')
-FILE_COUNT=$(find /docs -type f | wc -l | tr -d ' ')
+FILE_COUNT=$(find /docs -mindepth 2 -type f | wc -l | tr -d ' ')
 SSH="ssh -p $PORT $USER@$HOST"
 GROUPS_FILE="/docs/_source_groups.json"
 
@@ -293,6 +294,10 @@ EOF
 # ─── Format routing ──────────────────────────────────────────────────
 
 case "$FORMAT" in
+  pi)
+    # Pi coding agent — same docs_* tool names as OpenCode, TypeBox extension API
+    emit_tools_instructions
+    ;;
   opencode)
     # OpenCode has custom tools — tell agent to use them, not raw SSH
     emit_tools_instructions
@@ -315,11 +320,12 @@ case "$FORMAT" in
     emit_ssh_instructions
     ;;
   help|--help|-h)
-    cat << 'USAGE'
-Usage: ssh ... agents [format]
+    cat << USAGE
+Usage: $SSH agents [format]
 
 Formats:
   (default)    AGENTS.md — raw SSH patterns for any agent
+  pi           AGENTS.md tuned for Pi (references docs_* extension tools)
   opencode     AGENTS.md tuned for OpenCode (references custom docs_* tools)
   claude       CLAUDE.md with header
   cursor       .cursorrules format
@@ -327,12 +333,13 @@ Formats:
   skill        SKILL.md with YAML frontmatter (on-demand skill for any tool)
 
 Examples:
-  ssh ... agents >> AGENTS.md
-  ssh ... agents opencode > ~/.config/opencode/AGENTS.md
-  ssh ... agents claude >> CLAUDE.md
-  ssh ... agents cursor >> .cursorrules
-  ssh ... agents gemini >> GEMINI.md
-  ssh ... agents skill > .opencode/skills/docs-ssh/SKILL.md
+  $SSH agents pi >> ~/.pi/agent/AGENTS.md
+  $SSH agents >> AGENTS.md
+  $SSH agents opencode > ~/.config/opencode/AGENTS.md
+  $SSH agents claude >> CLAUDE.md
+  $SSH agents cursor >> .cursorrules
+  $SSH agents gemini >> GEMINI.md
+  $SSH agents skill > .opencode/skills/docs-ssh/SKILL.md
 USAGE
     ;;
   default|*)

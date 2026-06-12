@@ -37,6 +37,8 @@ printf '  %ssources%s          %sList available doc sets and file counts%s\n' \
   "${C_GREEN}" "${C_RESET}" "${C_MUTED}" "${C_RESET}"
 printf '  %sagents%s           %sAGENTS.md snippet (raw SSH patterns)%s\n' \
   "${C_GREEN}" "${C_RESET}" "${C_MUTED}" "${C_RESET}"
+printf '  %sagents pi%s        %sPi format (docs_* extension tools)%s\n' \
+  "${C_GREEN}" "${C_RESET}" "${C_MUTED}" "${C_RESET}"
 printf '  %sagents opencode%s  %sOpenCode format (custom docs_* tools)%s\n' \
   "${C_GREEN}" "${C_RESET}" "${C_MUTED}" "${C_RESET}"
 printf '  %sagents claude%s    %sCLAUDE.md format%s\n' \
@@ -45,7 +47,11 @@ printf '  %sagents skill%s     %sSKILL.md with YAML frontmatter%s\n' \
   "${C_GREEN}" "${C_RESET}" "${C_MUTED}" "${C_RESET}"
 printf '  %sagents help%s      %sShow all output formats%s\n' \
   "${C_GREEN}" "${C_RESET}" "${C_MUTED}" "${C_RESET}"
-printf '  %stools%s            %sOpenCode custom tools (rg --json, bat)%s\n' \
+printf '  %stools%s            %sOpenCode custom tools (TypeScript / Zod)%s\n' \
+  "${C_GREEN}" "${C_RESET}" "${C_MUTED}" "${C_RESET}"
+printf '  %stools pi%s         %sPi extension (TypeScript / TypeBox)%s\n' \
+  "${C_GREEN}" "${C_RESET}" "${C_MUTED}" "${C_RESET}"
+printf '  %stools help%s       %sShow tools format options%s\n' \
   "${C_GREEN}" "${C_RESET}" "${C_MUTED}" "${C_RESET}"
 printf '  %ssetup%s            %sInteractive setup guide%s\n\n' \
   "${C_GREEN}" "${C_RESET}" "${C_MUTED}" "${C_RESET}"
@@ -72,16 +78,18 @@ printf '  %shead%s -20 /docs/postgres/indexes.md  %sskim a file%s\n\n' \
 
 # ─── Examples ───────────────────────────────────────────────────────
 
+SSH_CMD="ssh -p ${PORT} docs@${HOST}"
+
 printf '%s%sExamples%s\n' "${C_BOLD}" "${C_BLUE}" "${C_RESET}"
-printf '  %s$%s ssh docs.erfi.io %sagents >> AGENTS.md%s\n' \
-  "${C_GREEN}" "${C_RESET}" "${C_DIM}" "${C_RESET}"
-printf '  %s$%s ssh docs.erfi.io %sagents opencode > ~/.config/opencode/AGENTS.md%s\n' \
-  "${C_GREEN}" "${C_RESET}" "${C_DIM}" "${C_RESET}"
-printf '  %s$%s ssh docs.erfi.io %stools > .opencode/tools/docs.ts%s\n' \
-  "${C_GREEN}" "${C_RESET}" "${C_DIM}" "${C_RESET}"
-printf '  %s$%s ssh docs.erfi.io %ssetup | opencode%s\n' \
-  "${C_GREEN}" "${C_RESET}" "${C_DIM}" "${C_RESET}"
-printf '  %s$%s ssh docs.erfi.io %s"rg -i '\''RLS'\'' /docs/supabase/"%s\n' \
-  "${C_GREEN}" "${C_RESET}" "${C_CYAN}" "${C_RESET}"
-printf '  %s$%s ssh docs.erfi.io %s"tree /docs/cloudflare/ -L 2"%s\n' \
-  "${C_GREEN}" "${C_RESET}" "${C_CYAN}" "${C_RESET}"
+printf '  %s$%s %s %sagents >> AGENTS.md%s\n' \
+  "${C_GREEN}" "${C_RESET}" "$SSH_CMD" "${C_DIM}" "${C_RESET}"
+printf '  %s$%s %s %sagents opencode > ~/.config/opencode/AGENTS.md%s\n' \
+  "${C_GREEN}" "${C_RESET}" "$SSH_CMD" "${C_DIM}" "${C_RESET}"
+printf '  %s$%s %s %stools > .opencode/tools/docs.ts%s\n' \
+  "${C_GREEN}" "${C_RESET}" "$SSH_CMD" "${C_DIM}" "${C_RESET}"
+printf '  %s$%s %s %ssetup | opencode%s\n' \
+  "${C_GREEN}" "${C_RESET}" "$SSH_CMD" "${C_DIM}" "${C_RESET}"
+printf '  %s$%s %s %s"rg -i '\''RLS'\'' /docs/supabase/"%s\n' \
+  "${C_GREEN}" "${C_RESET}" "$SSH_CMD" "${C_CYAN}" "${C_RESET}"
+printf '  %s$%s %s %s"tree /docs/cloudflare/ -L 2"%s\n' \
+  "${C_GREEN}" "${C_RESET}" "$SSH_CMD" "${C_CYAN}" "${C_RESET}"

@@ -61,6 +61,10 @@ case "$FIRST_WORD" in
     # No forced color; plain text is correct.
     log_json "builtin" "$SSH_ORIGINAL_COMMAND"
     export SSH_ORIGINAL_COMMAND
+    # Sub-dispatch: "tools pi" → tools-pi.sh (Pi extension, TypeBox format)
+    if [ "$SSH_ORIGINAL_COMMAND" = "tools pi" ]; then
+      exec sh "$CMD_DIR/tools-pi.sh"
+    fi
     exec sh "$CMD_DIR/${FIRST_WORD}.sh"
     ;;
 esac
