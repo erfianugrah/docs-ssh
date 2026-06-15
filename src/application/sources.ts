@@ -4,7 +4,7 @@ import { DocSource } from "../domain/DocSource.js";
  * Canonical definitions of all doc sources.
  *
  * Each source uses the best available fetch method:
- * - Supabase: official pre-built tarball (cleanest)
+ * - Supabase: git sparse-checkout of apps/docs/content (789 MDX files, full coverage)
  * - Cloudflare: llms-full.txt (40MB full dump) + git repo for raw MDX
  * - Vercel: llms-full.txt (11MB full dump)
  * - Next.js: llms-full.txt (full dump)
@@ -21,14 +21,16 @@ import { DocSource } from "../domain/DocSource.js";
 export const SOURCES: readonly DocSource[] = [
   // ─── Supabase ──────────────────────────────────────────────────────
 
-  // Pre-built tarball — the same approach supabase.sh uses
+  // Git sparse-checkout of apps/docs/content — covers all guides, troubleshooting,
+  // and reference pages including realtime/broadcast, postgres-changes, authorization,
+  // etc. that the official tarball omits (~789 MDX files vs ~553 in the tarball).
   new DocSource({
     name: "supabase",
-    type: "http",
-    url: "https://supabase.com/docs/",
-    format: "markdown",
-    discovery: "tarball",
-    discoveryUrl: "https://supabase.com/docs/docs.tar.gz",
+    type: "git",
+    url: "https://github.com/supabase/supabase",
+    format: "mdx",
+    paths: ["apps/docs/content"],
+    rootPath: "apps/docs/content",
   }),
 
   // Blog — MDX source from the supabase/supabase repo
