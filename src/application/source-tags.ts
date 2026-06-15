@@ -222,8 +222,25 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "vercel-blog": ["blogs"],
   "vercel-changelog": ["blogs"],
 
-  // ─── API specs ──────────────────────────────────────────────────
+  // ─── Azure ────────────────────────────────────────────────────────────────
+  "azure-app-service":         ["cloud"],
+  "azure-functions":           ["cloud"],
+  "azure-container-apps":      ["cloud", "infrastructure"],
+  "azure-aks":                 ["cloud", "infrastructure"],
+  "azure-storage":             ["cloud"],
+  "azure-service-bus":         ["cloud"],
+  "azure-event-hubs":          ["cloud"],
+  "azure-event-grid":          ["cloud"],
+  "azure-api-management":      ["cloud"],
+  "azure-virtual-machines":    ["cloud", "infrastructure"],
+  "azure-container-instances": ["cloud", "infrastructure"],
+  "azure-key-vault":           ["cloud", "secrets"],
+  "azure-monitor":             ["cloud", "monitoring"],
+  "azure-entra":               ["cloud", "auth"],
+
+    // ─── API specs ──────────────────────────────────────────────────
   "aws-api": ["api-specs"],
+  "gcp-api": ["api-specs"],
   "cloudflare-api": ["api-specs"],
   "docker-api": ["api-specs"],
   "kubernetes-api": ["api-specs"],
@@ -236,6 +253,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
 
   // ─── Supabase ecosystem (non-Postgres) ──────────────────────────
   "supabase-server": ["supabase-ecosystem", "auth"],
+  logflare: ["supabase-ecosystem", "monitoring"],
 
   // ─── OSINT & reconnaissance ─────────────────────────────────────
   searxng: ["osint"],

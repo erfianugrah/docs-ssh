@@ -89,6 +89,19 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "apps/cli-go/docs",
   }),
 
+  // ─── Logflare ─────────────────────────────────────────────────────
+
+  // Git sparse — Supabase's logging platform. Docs live inside the
+  // main logflare repo as a Docusaurus site.
+  new DocSource({
+    name: "logflare",
+    type: "git",
+    url: "https://github.com/Logflare/logflare",
+    format: "markdown",
+    paths: ["docs/docs.logflare.com/docs"],
+    rootPath: "docs/docs.logflare.com/docs",
+  }),
+
   // ─── Cloudflare ────────────────────────────────────────────────────
 
   // llms-full.txt — entire docs in one 40MB file, pre-split into pages
@@ -2427,5 +2440,113 @@ export const SOURCES: readonly DocSource[] = [
       "^(lambda|s3|cloudfront|iam|dynamodb|cloudformation|ec2|rds|sqs|sns|ecs|eks|secretsmanager|apigateway|apigatewayv2|eventbridge|stepfunctions|wafv2|elasticloadbalancingv2|cognito-idp|cognito-identity)$",
   }),
 
-  // GCP: skipped — sitemap-index has 180 generic child sitemaps (3.4M URLs).
+  // ─── Azure, sharded per service ──────────────────────────────────────────
+  //
+  // MicrosoftDocs publishes Azure documentation across several GitHub
+  // repos as Markdown. We use blobless git sparse-checkout to pull only
+  // the service subdirectory from each repo, so even repos like the
+  // main azure-docs monorepo (27 GB history) are cheap to fetch.
+  //
+  // Services from the main azure-docs monorepo:
+  ...((): readonly DocSource[] => {
+    type AzureShard = readonly [name: string, articlesPath: string];
+    const shards: readonly AzureShard[] = [
+      ["azure-app-service",    "articles/app-service"],
+      ["azure-functions",      "articles/azure-functions"],
+      ["azure-container-apps", "articles/container-apps"],
+      ["azure-storage",        "articles/storage"],
+      ["azure-service-bus",    "articles/service-bus-messaging"],
+      ["azure-event-hubs",     "articles/event-hubs"],
+      ["azure-event-grid",     "articles/event-grid"],
+      ["azure-api-management", "articles/api-management"],
+    ];
+    return shards.map(([name, p]) => new DocSource({
+      name,
+      type: "git",
+      url: "https://github.com/MicrosoftDocs/azure-docs",
+      format: "markdown",
+      paths: [p],
+      rootPath: p,
+    }));
+  })(),
+
+  // Azure Kubernetes Service — lives in its own repo.
+  new DocSource({
+    name: "azure-aks",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/azure-aks-docs",
+    format: "markdown",
+    paths: ["articles/aks"],
+    rootPath: "articles/aks",
+  }),
+
+  // Azure Virtual Machines + Container Instances — azure-compute-docs repo.
+  new DocSource({
+    name: "azure-virtual-machines",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/azure-compute-docs",
+    format: "markdown",
+    paths: ["articles/virtual-machines"],
+    rootPath: "articles/virtual-machines",
+  }),
+
+  new DocSource({
+    name: "azure-container-instances",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/azure-compute-docs",
+    format: "markdown",
+    paths: ["articles/container-instances"],
+    rootPath: "articles/container-instances",
+  }),
+
+  // Azure Key Vault — azure-security-docs repo.
+  new DocSource({
+    name: "azure-key-vault",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/azure-security-docs",
+    format: "markdown",
+    paths: ["articles/key-vault"],
+    rootPath: "articles/key-vault",
+  }),
+
+  // Azure Monitor — azure-monitor-docs repo.
+  new DocSource({
+    name: "azure-monitor",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/azure-monitor-docs",
+    format: "markdown",
+    paths: ["articles/azure-monitor"],
+    rootPath: "articles/azure-monitor",
+  }),
+
+  // Microsoft Entra (Azure Active Directory) — entra-docs repo.
+  new DocSource({
+    name: "azure-entra",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/entra-docs",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── GCP API ─────────────────────────────────────────────────────
+  //
+  // GCP prose docs (cloud.google.com) have no llms.txt and no per-product
+  // sitemap — the global sitemap-index covers 3.4M URLs across 180 child
+  // sitemaps so it remains skipped.
+  //
+  // API reference: multi-spec OpenAPI from APIs-guru/openapi-directory.
+  // Sparse-clones APIs/googleapis.com, converts the latest spec for each
+  // core service to per-tag markdown (same pattern as aws-api).
+  new DocSource({
+    name: "gcp-api",
+    type: "git",
+    url: "https://github.com/APIs-guru/openapi-directory",
+    format: "openapi",
+    paths: ["APIs/googleapis.com"],
+    rootPath: "APIs/googleapis.com",
+    discovery: "openapi-dir",
+    urlPattern:
+      "^(run|storage|bigquery|container|pubsub|iam|cloudfunctions|sqladmin|compute|secretmanager|cloudbuild|cloudkms|logging|monitoring|spanner|firestore|artifactregistry)$",
+  }),
 ];
