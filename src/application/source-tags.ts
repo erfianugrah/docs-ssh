@@ -207,6 +207,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   mdn: ["diagrams"],
   d2: ["diagrams"],
   mermaid: ["diagrams"],
+  quarto: ["diagrams"],
   starlight: ["diagrams"],
   excalidraw: ["diagrams"],
 

@@ -422,6 +422,18 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "packages/mermaid/src/docs",
   }),
 
+  // ─── Quarto ─────────────────────────────────────────────────
+
+  // llms.txt — Quarto publishing system docs (329 pages as text/markdown)
+  new DocSource({
+    name: "quarto",
+    type: "http",
+    url: "https://quarto.org/docs/",
+    format: "markdown",
+    discovery: "llms-txt",
+    discoveryUrl: "https://quarto.org/llms.txt",
+  }),
+
   // ─── Bun ───────────────────────────────────────────────────────
 
   // llms.txt — comprehensive docs with .md URLs
