@@ -163,7 +163,7 @@ const searchTool = defineTool({
   promptSnippet: "docs_search — search documentation index (titles+summaries).",
   promptGuidelines: [
     "Pass source= when known (e.g. 'supabase', 'cloudflare'). Index is ~15x smaller than raw docs.",
-    "After 2 calls with no drill-in, stop and docs_read the top hit.",
+    "After 2 calls with no drill-in, stop and docs_read the top hit (or docs_grep path=/docs/<source>/ to escalate after a zero-results search).",
   ],
   description:
     "Search docs.erfi.io title+summary index. Searches a pre-built index instead of scanning all files. Use this FIRST to find relevant docs.",
