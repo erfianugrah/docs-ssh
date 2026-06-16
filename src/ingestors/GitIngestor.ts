@@ -140,9 +140,11 @@ export class GitIngestor implements DocIngestor {
         cwd: cloneDir,
         timeout: GIT_FAST_TIMEOUT,
       });
+      // git checkout fetches blob content for the sparse paths over the
+      // network — use the longer clone timeout, not the fast one.
       await execFileAsync("git", ["checkout"], {
         cwd: cloneDir,
-        timeout: GIT_FAST_TIMEOUT,
+        timeout: GIT_CLONE_TIMEOUT,
       });
     }
 
