@@ -246,7 +246,7 @@ const readTool = defineTool({
     }
 
     const result = await ssh(cmd)
-    const text = capOutput(result, argPath)
+    const text = capOutput(\`[source] \${argPath}\\n\\n\` + result, argPath)
     return {
       content: [{ type: "text", text }],
       details: { path: argPath, offset: params.offset, lines: params.lines },
@@ -353,15 +353,16 @@ const summaryTool = defineTool({
   }),
 
   async execute(_id, params) {
-    const p = safePath(resolvePath(params))
+    const argPath = resolvePath(params)
+    const p = safePath(argPath)
     const [headings, lineCount, byteCount] = await Promise.all([
       ssh(\`rg -n '^#' '\${sq(p)}'\`),
       ssh(\`wc -l < '\${sq(p)}'\`),
       ssh(\`wc -c < '\${sq(p)}'\`),
     ])
     return {
-      content: [{ type: "text", text: \`\${lineCount.trim()} lines, \${byteCount.trim()} bytes\\n\\n\${headings}\` }],
-      details: { path: p, lines: parseInt(lineCount) || 0, bytes: parseInt(byteCount) || 0 },
+      content: [{ type: "text", text: \`[source] \${argPath}\\n\\n\${lineCount.trim()} lines, \${byteCount.trim()} bytes\\n\\n\${headings}\` }],
+      details: { path: argPath, lines: parseInt(lineCount) || 0, bytes: parseInt(byteCount) || 0 },
     }
   },
 })
