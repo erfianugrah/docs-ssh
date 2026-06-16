@@ -92,7 +92,7 @@ export class GitIngestor implements DocIngestor {
       }
       const sparseArgs =
         source.paths.length > 0
-          ? ["--no-checkout", "--filter=blob:none"]
+          ? ["--depth", "1", "--no-checkout", "--filter=blob:none"]
           : ["--depth", "1"];
       await retryWithBackoff(
         async () => {
