@@ -223,15 +223,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "vercel-changelog": ["blogs"],
 
   // ─── Azure ────────────────────────────────────────────────────────────────
-  "azure-app-service":         ["cloud"],
-  "azure-functions":           ["cloud"],
-  "azure-container-apps":      ["cloud", "infrastructure"],
+  azure:                       ["cloud"],
   "azure-aks":                 ["cloud", "infrastructure"],
-  "azure-storage":             ["cloud"],
-  "azure-service-bus":         ["cloud"],
-  "azure-event-hubs":          ["cloud"],
-  "azure-event-grid":          ["cloud"],
-  "azure-api-management":      ["cloud"],
   "azure-virtual-machines":    ["cloud", "infrastructure"],
   "azure-container-instances": ["cloud", "infrastructure"],
   "azure-key-vault":           ["cloud", "secrets"],

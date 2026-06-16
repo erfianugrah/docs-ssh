@@ -2440,35 +2440,34 @@ export const SOURCES: readonly DocSource[] = [
       "^(lambda|s3|cloudfront|iam|dynamodb|cloudformation|ec2|rds|sqs|sns|ecs|eks|secretsmanager|apigateway|apigatewayv2|eventbridge|stepfunctions|wafv2|elasticloadbalancingv2|cognito-idp|cognito-identity)$",
   }),
 
-  // ─── Azure, sharded per service ──────────────────────────────────────────
+  // ─── Azure ────────────────────────────────────────────────────────────────
   //
   // MicrosoftDocs publishes Azure documentation across several GitHub
   // repos as Markdown. We use blobless git sparse-checkout to pull only
   // the service subdirectory from each repo, so even repos like the
   // main azure-docs monorepo (27 GB history) are cheap to fetch.
   //
-  // Services from the main azure-docs monorepo:
-  ...((): readonly DocSource[] => {
-    type AzureShard = readonly [name: string, articlesPath: string];
-    const shards: readonly AzureShard[] = [
-      ["azure-app-service",    "articles/app-service"],
-      ["azure-functions",      "articles/azure-functions"],
-      ["azure-container-apps", "articles/container-apps"],
-      ["azure-storage",        "articles/storage"],
-      ["azure-service-bus",    "articles/service-bus-messaging"],
-      ["azure-event-hubs",     "articles/event-hubs"],
-      ["azure-event-grid",     "articles/event-grid"],
-      ["azure-api-management", "articles/api-management"],
-    ];
-    return shards.map(([name, p]) => new DocSource({
-      name,
-      type: "git",
-      url: "https://github.com/MicrosoftDocs/azure-docs",
-      format: "markdown",
-      paths: [p],
-      rootPath: p,
-    }));
-  })(),
+  // Services from the main azure-docs monorepo are fetched as ONE source
+  // with multiple sparse-checkout paths. Sharding into per-service sources
+  // caused 8 parallel blobless clones of the same repo which exhausted
+  // GitHub's concurrency throttle and all failed after retries.
+  new DocSource({
+    name: "azure",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/azure-docs",
+    format: "markdown",
+    paths: [
+      "articles/app-service",
+      "articles/azure-functions",
+      "articles/container-apps",
+      "articles/storage",
+      "articles/service-bus-messaging",
+      "articles/event-hubs",
+      "articles/event-grid",
+      "articles/api-management",
+    ],
+    rootPath: "articles",
+  }),
 
   // Azure Kubernetes Service — lives in its own repo.
   new DocSource({
