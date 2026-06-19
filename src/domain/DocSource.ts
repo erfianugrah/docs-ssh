@@ -55,6 +55,12 @@ export interface DocSourceConfig {
   readonly tags?: readonly string[];
   /** Short human-readable description for README table */
   readonly description?: string;
+  /**
+   * Resolve Supabase `<$Partial path="..." />` transclusion directives by
+   * inlining `_partials/**` content into referencing pages, then drop the
+   * partials from the served set. Only meaningful for the supabase source.
+   */
+  readonly resolvePartials?: boolean;
 }
 
 /**
@@ -76,6 +82,7 @@ export class DocSource {
   readonly urlSuffix: string | undefined;
   readonly tags: readonly string[];
   readonly description: string | undefined;
+  readonly resolvePartials: boolean;
 
   constructor(config: DocSourceConfig) {
     if (!config.name || config.name.trim() === "") {
@@ -98,6 +105,7 @@ export class DocSource {
     this.urlSuffix = config.urlSuffix;
     this.tags = config.tags ?? [];
     this.description = config.description;
+    this.resolvePartials = config.resolvePartials ?? false;
   }
 
   equals(other: DocSource): boolean {

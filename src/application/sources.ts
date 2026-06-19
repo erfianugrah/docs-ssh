@@ -31,6 +31,10 @@ export const SOURCES: readonly DocSource[] = [
     format: "mdx",
     paths: ["apps/docs/content"],
     rootPath: "apps/docs/content",
+    // Inline `<$Partial path="..." />` transclusions from `_partials/` and
+    // drop the fragments from the served set (otherwise referencing pages
+    // lose content and the raw directive leaks as noise).
+    resolvePartials: true,
   }),
 
   // Blog — MDX source from the supabase/supabase repo

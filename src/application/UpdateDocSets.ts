@@ -10,6 +10,7 @@ import { walkDir } from "../shared/walkDir.js";
 import { retryWithBackoff } from "../shared/retry.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
+import { resolvePartials } from "../normaliser/resolvePartials.js";
 import type { DocSource, DocFormat } from "../domain/DocSource.js";
 
 const FORMAT_VALUES: readonly DocFormat[] = ["html", "mdx", "markdown", "godoc"];
@@ -556,7 +557,14 @@ export class UpdateDocSets {
   private async normalise(set: DocSet): Promise<DocSet> {
     const normalised = new Map<string, DocFile>();
 
-    for (const [, file] of set.files) {
+    // Cross-file pre-pass: inline `<$Partial>` transclusions and drop the
+    // `_partials/**` fragments. Must run BEFORE per-file normalisation so the
+    // inlined raw MDX is cleaned together with its host page.
+    const sourceFiles = set.source.resolvePartials
+      ? resolvePartials(set.files)
+      : set.files;
+
+    for (const [, file] of sourceFiles) {
       let current = file;
 
       // Pass 1: format-based normalisation (HTML→md, MDX→md).
