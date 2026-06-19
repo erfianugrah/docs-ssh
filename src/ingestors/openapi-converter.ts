@@ -285,6 +285,22 @@ function schemaToType(schema: unknown, depth = 0): string {
 
 // ─── Markdown Rendering ─────────────────────────────────────────────
 
+// Above this many total operations, the flat per-endpoint index is omitted to
+// keep overview.md within the docs server's ~51K read cap (e.g. cloudflare-api
+// has 2500+ endpoints across 515 groups). Smaller specs (supabase-api=165,
+// fly/docker/gitea/k8s/authentik/keycloak) get the full flat index so a keyword
+// search against overview.md surfaces individual endpoints by their summary —
+// without it, a search for "compute"/"resize"/"scale" never finds
+// `PATCH /v1/projects/{ref}/billing/addons` hidden behind "billing — 3 endpoints".
+const FLAT_INDEX_MAX_ENDPOINTS = 400;
+
+/** One-line summary for the flat index: summary, else first line of description. */
+function endpointSummary(op: OperationInfo): string {
+  const raw = (op.summary || op.description || "").replace(/\s+/g, " ").trim();
+  if (raw.length <= 120) return raw;
+  return `${raw.slice(0, 117)}…`;
+}
+
 function renderOverview(
   info: Record<string, unknown>,
   groups: Map<string, OperationInfo[]>,
@@ -294,13 +310,38 @@ function renderOverview(
   lines.push(`# ${info.title ?? "API Reference"}`);
   if (info.description) lines.push("", String(info.description));
   lines.push("", `Version: ${info.version ?? "unknown"} (${specVersion})`);
-  lines.push("", "## Endpoint Groups", "");
 
+  let total = 0;
+  for (const ops of groups.values()) total += ops.length;
+
+  lines.push("", "## Endpoint Groups", "");
   for (const [tag, ops] of groups) {
     lines.push(`- **${tag}** — ${ops.length} endpoints`);
   }
 
-  return lines.join("\n");
+  if (total <= FLAT_INDEX_MAX_ENDPOINTS) {
+    // Flat per-endpoint index — every operation greppable by method/path/summary
+    // in one place. This is the "enumerate the full surface" primitive: a single
+    // read or grep of overview.md is sufficient to decide whether the API can do X.
+    lines.push("", "## Endpoints", "");
+    for (const [tag, ops] of groups) {
+      lines.push(`### ${tag}`, "");
+      for (const op of ops) {
+        const deprecated = op.deprecated ? " ~~DEPRECATED~~" : "";
+        const summary = endpointSummary(op);
+        lines.push(`- \`${op.method} ${op.path}\`${deprecated}${summary ? ` — ${summary}` : ""}`);
+      }
+      lines.push("");
+    }
+  } else {
+    lines.push(
+      "",
+      `_${total} endpoints total — flat index omitted (over ${FLAT_INDEX_MAX_ENDPOINTS}). ` +
+        "Grep the per-group files (`api/<group>.md`) for a specific method/path/capability._",
+    );
+  }
+
+  return lines.join("\n").trimEnd();
 }
 
 function renderTagGroup(tag: string, operations: OperationInfo[]): string {

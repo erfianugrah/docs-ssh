@@ -39,6 +39,55 @@ describe("openapi-converter", () => {
     expect(overview.content).toContain("**beta** — 1 endpoints");
   });
 
+  it("overview includes a flat per-endpoint index with method/path/summary", () => {
+    // Regression: the resize lever was hidden behind a bare group count.
+    // A keyword search against overview.md must surface individual endpoints.
+    const spec = makeSpec({
+      "/v1/projects/{ref}/billing/addons": {
+        patch: {
+          tags: ["billing"],
+          summary: "Apply or update billing addons, including compute instance size",
+          responses: {},
+        },
+        get: { tags: ["billing"], summary: "List billing addons", responses: {} },
+      },
+    });
+    const files = convertOpenApiToMarkdown(spec, "test");
+    const overview = files.find((f) => f.path === "api/overview.md")!;
+    expect(overview.content).toContain("## Endpoints");
+    expect(overview.content).toContain(
+      "`PATCH /v1/projects/{ref}/billing/addons` — Apply or update billing addons, including compute instance size",
+    );
+    // The capability keyword is now reachable from the index alone.
+    expect(overview.content).toContain("compute instance size");
+  });
+
+  it("omits the flat index for very large specs (keeps counts + grep hint)", () => {
+    const paths: Record<string, unknown> = {};
+    for (let i = 0; i < 401; i++) {
+      paths[`/p${i}`] = {
+        get: { tags: [`g${i}`], summary: `op ${i}`, responses: {} },
+      };
+    }
+    const files = convertOpenApiToMarkdown(makeSpec(paths), "test");
+    const overview = files.find((f) => f.path === "api/overview.md")!;
+    expect(overview.content).toContain("## Endpoint Groups");
+    expect(overview.content).not.toContain("## Endpoints\n");
+    expect(overview.content).toContain("401 endpoints total");
+    expect(overview.content).toContain("flat index omitted");
+  });
+
+  it("truncates over-long endpoint summaries in the flat index", () => {
+    const long = "x".repeat(200);
+    const spec = makeSpec({
+      "/a": { get: { tags: ["alpha"], summary: long, responses: {} } },
+    });
+    const files = convertOpenApiToMarkdown(spec, "test");
+    const overview = files.find((f) => f.path === "api/overview.md")!;
+    expect(overview.content).toContain("…");
+    expect(overview.content).not.toContain(long);
+  });
+
   // ─── $ref resolution ───────────────────────────────────────────
 
   it("resolves simple $ref in response schema", () => {
