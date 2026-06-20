@@ -48,7 +48,7 @@ jobs:
           path: |
             probe-report.tsv
             probe-progress.log
-          retention-days: 90
+          retention-days: 7
 
       - name: Diff against last week
         id: diff
