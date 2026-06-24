@@ -246,6 +246,44 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern: "planetscale\\.com/docs/",
   }),
 
+  // ─── MySQL ─────────────────────────────────────────────────────
+
+  // The MySQL Reference Manual is not published as markdown or in any
+  // git repo — dev.mysql.com is HTML-only with no sitemap/llms.txt and
+  // doesn't honour content negotiation. The single mirror-able form is
+  // the GNU info build (texinfo), shipped as `mysql-X.info.zip`: one
+  // 4MB archive unpacking to the complete manual (~2,400 nodes). The
+  // `texinfo` discovery splits it into per-node markdown. Pinned to the
+  // 8.4 LTS series; bump the URL for a newer LTS when one ships.
+  new DocSource({
+    name: "mysql",
+    type: "http",
+    url: "https://dev.mysql.com/doc/refman/8.4/en/",
+    format: "markdown",
+    discovery: "texinfo",
+    discoveryUrl: "https://downloads.mysql.com/docs/mysql-8.4.info.zip",
+    description: "MySQL 8.4 Reference Manual (from the GNU info build)",
+  }),
+
+  // ─── Debezium ───────────────────────────────────────────────
+
+  // Change-data-capture platform. Docs are Antora-flavoured AsciiDoc in
+  // the main repo (`documentation/`), not markdown — the `adoc` format
+  // routes the git checkout through asciidoc-converter.ts, which renders
+  // each page with Asciidoctor (resolving include::/ifdef/xref against
+  // the on-disk partials) and converts to markdown. Connector config
+  // property tables that Debezium generates from Java at build time are
+  // absent from git; those few fragments don't appear in the mirror.
+  new DocSource({
+    name: "debezium",
+    type: "git",
+    url: "https://github.com/debezium/debezium",
+    format: "adoc",
+    paths: ["documentation"],
+    rootPath: "documentation",
+    description: "Debezium CDC connectors and platform",
+  }),
+
   // (AWS sources moved to end of file — they're the slowest to fetch
   //  and we don't want them blocking faster sources in early batches.)
 

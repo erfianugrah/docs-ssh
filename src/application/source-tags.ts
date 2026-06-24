@@ -20,6 +20,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
 
   // ─── Databases & SQL ────────────────────────────────────────────
   postgres: ["databases"],
+  mysql: ["databases"],
+  debezium: ["databases"],
   "postgres-wiki": ["databases", "postgres-ecosystem"],
   drizzle: ["databases"],
   prisma: ["databases"],

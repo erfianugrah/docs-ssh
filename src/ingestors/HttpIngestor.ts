@@ -5,7 +5,9 @@ import { DocFile } from "../domain/DocFile.js";
 import { DocSet, type NegotiationStats } from "../domain/DocSet.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocSource } from "../domain/DocSource.js";
+import { unzipSync } from "fflate";
 import { splitLlmsFull } from "./llms-splitter.js";
+import { splitTexinfo } from "./info-splitter.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { walkDir } from "../shared/walkDir.js";
 import {
@@ -235,6 +237,9 @@ export class HttpIngestor implements DocIngestor {
     if (source.discovery === "tarball" && source.discoveryUrl) {
       return this.ingestFromTarball(source, workDir, signal);
     }
+    if (source.discovery === "texinfo" && source.discoveryUrl) {
+      return this.ingestFromTexinfo(source, signal);
+    }
     if (source.discovery === "llms-full" && source.discoveryUrl) {
       return this.ingestFromLlmsFull(source, signal);
     }
@@ -388,6 +393,47 @@ export class HttpIngestor implements DocIngestor {
     await walkDir(extractDir, extractDir, files, { extensions: MARKDOWN_EXTENSIONS });
 
     console.log(`  [${source.name}] extracted ${files.size} files from tarball`);
+    return new DocSet(source, files, new Date());
+  }
+
+  // ─── GNU info (texinfo manual) ────────────────────────────
+
+  /**
+   * Download a GNU info manual archive (e.g. `mysql-8.4.info.zip` from
+   * downloads.mysql.com) and split it into per-node markdown. This is
+   * the only mirror-able representation of the MySQL Reference Manual:
+   * a single durable archive, no page-by-page HTML scraping.
+   *
+   * fflate (pure JS) handles the unzip so dev and the Alpine fetcher
+   * stage behave identically without a system `unzip` dependency.
+   */
+  private async ingestFromTexinfo(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
+    console.log(`  [${source.name}] downloading info archive…`);
+    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch info archive: HTTP ${res.status}`);
+    }
+    const zipBytes = new Uint8Array(await res.arrayBuffer());
+    const entries = unzipSync(zipBytes);
+    // Pick the single `.info` entry (the archive contains exactly one).
+    const infoName = Object.keys(entries).find((n) => n.endsWith(".info"));
+    if (!infoName) {
+      throw new Error(
+        `info archive contained no .info file (entries: ${Object.keys(entries).join(", ")})`,
+      );
+    }
+    const content = Buffer.from(entries[infoName]).toString("utf-8");
+    console.log(`  [${source.name}] info: ${(content.length / 1024 / 1024).toFixed(1)} MB`);
+
+    const files = new Map<string, DocFile>();
+    const pages = splitTexinfo(content);
+    for (const [filePath, pageContent] of pages) {
+      if (source.urlPattern && !new RegExp(source.urlPattern).test(filePath)) continue;
+      if (source.urlExclude && new RegExp(source.urlExclude).test(filePath)) continue;
+      files.set(filePath, new DocFile(filePath, pageContent));
+    }
+
+    console.log(`  [${source.name}] split into ${files.size} pages`);
     return new DocSet(source, files, new Date());
   }
 

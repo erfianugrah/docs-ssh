@@ -11,6 +11,7 @@ import type { DocSource } from "../domain/DocSource.js";
 import { walkDir } from "../shared/walkDir.js";
 import { retryWithBackoff, type RetryOptions } from "../shared/retry.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
+import { convertAsciiDocTree } from "./asciidoc-converter.js";
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
 const GO_EXTENSIONS = new Set(["go"]);
@@ -168,6 +169,11 @@ export class GitIngestor implements DocIngestor {
       return this.ingestOpenApiDir(source, cloneDir, version);
     }
 
+    // ─── adoc: Antora AsciiDoc tree → markdown (e.g. Debezium) ───────
+    if (source.format === "adoc") {
+      return this.ingestAsciiDoc(source, cloneDir, version);
+    }
+
     // Determine which directories to scan
     const scanRoots =
       source.paths.length > 0
@@ -203,6 +209,35 @@ export class GitIngestor implements DocIngestor {
       });
     }
 
+    return new DocSet(source, files, new Date(), version);
+  }
+
+  // ─── AsciiDoc (Antora) ingestion ──────────────────────────
+
+  /**
+   * Convert an Antora AsciiDoc documentation component to markdown. The
+   * component root (the dir containing `antora.yml`) is `rootPath`
+   * within the clone. Output paths are relative to the component's
+   * `modules/ROOT/pages` dir. See `asciidoc-converter.ts` for why this
+   * is an ingestor-side structural transform rather than a normaliser.
+   */
+  private async ingestAsciiDoc(
+    source: DocSource,
+    cloneDir: string,
+    version: string | undefined,
+  ): Promise<DocSet> {
+    const componentRoot = source.rootPath
+      ? path.join(cloneDir, source.rootPath)
+      : cloneDir;
+    const converted = await convertAsciiDocTree(componentRoot);
+    if (converted.length === 0) {
+      throw new Error(`GitIngestor: asciidoc conversion produced 0 pages for ${source.name}`);
+    }
+    const files = new Map<string, DocFile>();
+    for (const cf of converted) {
+      files.set(cf.path, new DocFile(cf.path, cf.content));
+    }
+    console.log(`  [${source.name}] converted ${files.size} AsciiDoc pages`);
     return new DocSet(source, files, new Date(), version);
   }
 

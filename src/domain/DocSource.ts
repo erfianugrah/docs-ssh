@@ -1,10 +1,11 @@
-export type DocFormat = "markdown" | "mdx" | "html" | "openapi" | "godoc";
+export type DocFormat = "markdown" | "mdx" | "html" | "openapi" | "godoc" | "adoc";
 export type DocSourceType = "git" | "http";
 
 /**
  * How to discover/fetch pages for an HTTP source:
  * - "none":          uses explicit source.urls list
  * - "tarball":       downloads a .tar.gz and extracts markdown files
+ * - "texinfo":       downloads a GNU info .zip (texinfo manual) and splits into per-node markdown
  * - "llms-full":     downloads a single llms-full.txt and splits into per-page files
  * - "sitemap":       parses a single XML sitemap for <loc> entries
  * - "sitemap-index": parses a sitemap index, then fetches child sitemaps
@@ -18,6 +19,7 @@ export type DocSourceType = "git" | "http";
 export type DiscoveryMethod =
   | "none"
   | "tarball"
+  | "texinfo"
   | "llms-full"
   | "sitemap"
   | "sitemap-index"

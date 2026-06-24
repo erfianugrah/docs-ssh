@@ -27,7 +27,7 @@ describe("SOURCES configuration", () => {
 
   it("has valid discovery methods", () => {
     const validMethods = new Set([
-      "none", "tarball", "llms-full", "sitemap",
+      "none", "tarball", "texinfo", "llms-full", "sitemap",
       "sitemap-index", "toc", "llms-index", "llms-txt", "rss", "openapi", "openapi-dir", "mediawiki",
     ]);
     for (const source of SOURCES) {
@@ -101,11 +101,11 @@ describe("SOURCES configuration", () => {
     }
   });
 
-  it("git sources use markdown, mdx, openapi, or godoc format", () => {
+  it("git sources use markdown, mdx, openapi, godoc, or adoc format", () => {
     const gitSources = SOURCES.filter((s) => s.type === "git");
     expect(gitSources.length).toBeGreaterThan(0);
     for (const source of gitSources) {
-      expect(["markdown", "mdx", "openapi", "godoc"]).toContain(source.format);
+      expect(["markdown", "mdx", "openapi", "godoc", "adoc"]).toContain(source.format);
     }
   });
 
