@@ -44,4 +44,23 @@ describe("DocSource", () => {
     const b = new DocSource({ name: "y", type: "git", format: "markdown", url: "https://x.com" });
     expect(a.equals(b)).toBe(false);
   });
+
+  it("leaves pageConcurrency and deadlineMs undefined by default", () => {
+    const src = new DocSource({ name: "x", type: "http", format: "html", url: "https://x.com" });
+    expect(src.pageConcurrency).toBeUndefined();
+    expect(src.deadlineMs).toBeUndefined();
+  });
+
+  it("carries pageConcurrency and deadlineMs overrides through", () => {
+    const src = new DocSource({
+      name: "cloudflare-blog",
+      type: "http",
+      format: "html",
+      url: "https://blog.cloudflare.com/",
+      pageConcurrency: 4,
+      deadlineMs: 1_800_000,
+    });
+    expect(src.pageConcurrency).toBe(4);
+    expect(src.deadlineMs).toBe(1_800_000);
+  });
 });

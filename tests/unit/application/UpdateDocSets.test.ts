@@ -487,6 +487,50 @@ describe("UpdateDocSets", () => {
 
       await fs.rm(tmpDir, { recursive: true });
     });
+
+    it("honours a per-source deadlineMs override over the global sourceDeadline", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-deadline-override-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      await fs.mkdir(outDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+
+      // Global deadline is far too short for this source, but its own
+      // override grants enough headroom to finish.
+      const slowSource = new DocSource({
+        name: "slow",
+        type: "http",
+        format: "markdown",
+        url: "https://example.com/",
+        deadlineMs: 2000,
+      });
+
+      const files = new Map([["ok.md", new DocFile("ok.md", "# OK")]]);
+      const slowIngestor: DocIngestor = {
+        name: "SlowIngestor",
+        supports: (s) => s.name === "slow",
+        ingest: async () => {
+          await new Promise((r) => setTimeout(r, 300));
+          return new DocSet(slowSource, files);
+        },
+      };
+
+      const updater = new UpdateDocSets({
+        sources: [slowSource],
+        ingestors: [slowIngestor],
+        normalisers: [noopNormaliser],
+        outDir,
+        workDir,
+        // Would abort the 300ms ingest if the override were ignored.
+        sourceDeadline: 100,
+      });
+
+      const results = await updater.run();
+      const slow = results.find((r) => r.source === "slow");
+      expect(slow?.status).toBe("ok");
+
+      await fs.rm(tmpDir, { recursive: true });
+    });
   });
 
   describe("BatchProgress", () => {

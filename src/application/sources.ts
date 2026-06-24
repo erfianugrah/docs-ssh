@@ -118,7 +118,15 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://developers.cloudflare.com/llms-full.txt",
   }),
 
-  // Blog — HTML pages from sitemap
+  // Blog — HTML pages from sitemap (~3500 posts). blog.cloudflare.com is
+  // itself behind Cloudflare's bot / rate management, so the default
+  // 15-wide burst trips throttling and collapses the source to zero
+  // files (it then blows the 10-min source deadline). Throttle to 4-wide
+  // and grant a 40-min deadline so the gentler scrape completes. Verified
+  // live: 4-wide fetches all 3523 pages with zero retries/429s in ~25min
+  // (40-min deadline leaves margin). The host also honours
+  // `Accept: text/markdown` content negotiation, so every page comes back
+  // as compact markdown (~4k tokens/page) that bypasses Turndown.
   new DocSource({
     name: "cloudflare-blog",
     type: "http",
@@ -126,6 +134,8 @@ export const SOURCES: readonly DocSource[] = [
     format: "html",
     discovery: "sitemap",
     discoveryUrl: "https://blog.cloudflare.com/sitemap-posts.xml",
+    pageConcurrency: 4,
+    deadlineMs: 2_400_000,
   }),
 
   // Changelog — individual post pages discovered via RSS feed

@@ -63,6 +63,21 @@ export interface DocSourceConfig {
    * partials from the served set. Only meaningful for the supabase source.
    */
   readonly resolvePartials?: boolean;
+  /**
+   * Override the global per-page fetch parallelism (http sources only).
+   * Lower it for large scrapes on rate-limit-prone hosts (e.g.
+   * cloudflare-blog) so 15-wide bursts don't trip the upstream's bot /
+   * rate limiter and collapse the whole source to zero files. Falls back
+   * to the shared CONCURRENCY constant when unset.
+   */
+  readonly pageConcurrency?: number;
+  /**
+   * Override the global per-source hard deadline (milliseconds). Raise it
+   * for sources that are both large and deliberately throttled (lower
+   * `pageConcurrency`), so the gentler fetch has time to finish before the
+   * deadline aborts it. Falls back to UpdateDocSets' sourceDeadline default.
+   */
+  readonly deadlineMs?: number;
 }
 
 /**
@@ -85,6 +100,8 @@ export class DocSource {
   readonly tags: readonly string[];
   readonly description: string | undefined;
   readonly resolvePartials: boolean;
+  readonly pageConcurrency: number | undefined;
+  readonly deadlineMs: number | undefined;
 
   constructor(config: DocSourceConfig) {
     if (!config.name || config.name.trim() === "") {
@@ -108,6 +125,8 @@ export class DocSource {
     this.tags = config.tags ?? [];
     this.description = config.description;
     this.resolvePartials = config.resolvePartials ?? false;
+    this.pageConcurrency = config.pageConcurrency;
+    this.deadlineMs = config.deadlineMs;
   }
 
   equals(other: DocSource): boolean {

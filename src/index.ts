@@ -17,8 +17,31 @@ const WORK_DIR = process.env.DOCS_WORK_DIR ?? path.join(os.tmpdir(), "docs-ssh-w
 const CONCURRENCY = parseInt(process.env.DOCS_CONCURRENCY ?? "6", 10) || 6;
 const MAX_AGE = parseInt(process.env.DOCS_MAX_AGE ?? "86400", 10) || 0;
 
+// DOCS_ONLY="name1,name2" restricts the fetch to the named sources.
+// Useful for verifying a single source (e.g. cloudflare-blog) without
+// running the full ~30-min build. Unknown names are reported and ignored.
+const onlyFilter = (process.env.DOCS_ONLY ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+let sources = SOURCES;
+if (onlyFilter.length > 0) {
+  const known = new Set(SOURCES.map((s) => s.name));
+  const unknown = onlyFilter.filter((n) => !known.has(n));
+  if (unknown.length > 0) {
+    console.warn(`DOCS_ONLY: ignoring unknown source(s): ${unknown.join(", ")}`);
+  }
+  const wanted = new Set(onlyFilter);
+  sources = SOURCES.filter((s) => wanted.has(s.name));
+  if (sources.length === 0) {
+    console.error(`DOCS_ONLY matched no known sources: ${onlyFilter.join(", ")}`);
+    process.exit(1);
+  }
+  console.log(`DOCS_ONLY active — fetching ${sources.length} source(s): ${sources.map((s) => s.name).join(", ")}`);
+}
+
 const update = new UpdateDocSets({
-  sources: SOURCES,
+  sources,
   ingestors: [new GitIngestor(), new HttpIngestor()],
   normalisers: [new MdxNormaliser(), new HtmlNormaliser(), new GoNormaliser(), new MarkdownCleaner(), new ContentSanitiser()],
   outDir: OUT_DIR,

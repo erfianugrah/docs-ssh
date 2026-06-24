@@ -47,6 +47,38 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("caps in-flight requests at source.pageConcurrency", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      // Yield so concurrent calls within a batch overlap before resolving.
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight--;
+      return { ok: true, text: async () => "<h1>Post</h1><p>Body.</p>" };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const urls = Array.from({ length: 12 }, (_, i) => `https://blog.example.com/post-${i}/`);
+    const src = new DocSource({
+      name: "throttled-blog",
+      type: "http",
+      format: "html",
+      url: "https://blog.example.com/",
+      urls,
+      pageConcurrency: 3,
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    expect(set.size).toBe(12);
+    expect(maxInFlight).toBeLessThanOrEqual(3);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   it("throws if a url fetch fails", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));

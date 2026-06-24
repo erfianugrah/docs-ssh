@@ -306,13 +306,18 @@ export class HttpIngestor implements DocIngestor {
     };
     let totalTokens = 0;
 
-    for (let i = 0; i < urls.length; i += CONCURRENCY) {
+    // Per-source override lets rate-limit-prone large scrapes (e.g.
+    // cloudflare-blog) throttle below the global 15-wide default so the
+    // upstream's bot / rate limiter doesn't collapse the source to zero.
+    const concurrency =
+      source.pageConcurrency && source.pageConcurrency > 0 ? source.pageConcurrency : CONCURRENCY;
+    for (let i = 0; i < urls.length; i += concurrency) {
       // Bail out between batches if the caller aborted (e.g. source
-      // deadline expired). Saves CONCURRENCY × ~30s of wasted fetches.
+      // deadline expired). Saves concurrency × ~30s of wasted fetches.
       if (signal?.aborted) {
         throw new Error(`fetch aborted: ${signal.reason ?? "deadline exceeded"}`);
       }
-      const batch = urls.slice(i, i + CONCURRENCY);
+      const batch = urls.slice(i, i + concurrency);
       const results = await Promise.allSettled(
         batch.map(async (url) => {
           const { body, preNormalised, outcome, tokens } = await fetchPage(url, signal);

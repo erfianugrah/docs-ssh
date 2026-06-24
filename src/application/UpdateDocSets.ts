@@ -309,13 +309,18 @@ export class UpdateDocSets {
   private async withDeadline(source: DocSource, progress: BatchProgress): Promise<SourceResult> {
     let timer: NodeJS.Timeout | undefined;
     const controller = new AbortController();
+    // Per-source override raises the ceiling for sources that are both
+    // large and deliberately throttled (lower pageConcurrency), so the
+    // gentler fetch isn't aborted before it can finish.
+    const deadlineMs =
+      source.deadlineMs && source.deadlineMs > 0 ? source.deadlineMs : this.sourceDeadline;
     const deadline = new Promise<SourceResult>((resolve) => {
       timer = setTimeout(() => {
-        const msg = `source deadline exceeded (${this.sourceDeadline}ms) — likely unresponsive upstream`;
+        const msg = `source deadline exceeded (${deadlineMs}ms) — likely unresponsive upstream`;
         progress.error(source.name, msg.slice(0, 50));
         controller.abort(new Error(msg));
         resolve({ source: source.name, status: "error", error: msg });
-      }, this.sourceDeadline);
+      }, deadlineMs);
     });
     try {
       return await Promise.race([
