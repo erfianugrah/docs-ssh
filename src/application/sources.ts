@@ -149,6 +149,38 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern: "developers\\.cloudflare\\.com/changelog/post/",
   }),
 
+  // ─── BunnyCDN ──────────────────────────────────────────────────────
+
+  // llms-full.txt - entire docs.bunny.net in one ~1.3MB dump, pre-split
+  // into per-page files. The BunnyWay/docs GitHub repo is only a Mintlify
+  // starter template (15 scaffold files), not the real content, so the
+  // single full-text dump is the cleanest mirror path.
+  new DocSource({
+    name: "bunnycdn",
+    type: "http",
+    url: "https://docs.bunny.net/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://docs.bunny.net/llms-full.txt",
+  }),
+
+  // ─── Fastly ────────────────────────────────────────────────────────
+
+  // llms.txt - curated index of ~67 documentation page URLs under
+  // www.fastly.com/documentation/. Pages are HTML; HttpIngestor's
+  // content-negotiation (Accept: text/markdown) is attempted, falling
+  // back to Turndown. urlPattern keeps only /documentation/ pages and
+  // drops the bare landing + any external links the index references.
+  new DocSource({
+    name: "fastly",
+    type: "http",
+    url: "https://www.fastly.com/documentation/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://www.fastly.com/documentation/llms.txt",
+    urlPattern: "fastly\\.com/documentation/.+",
+  }),
+
   // ─── Vercel ────────────────────────────────────────────────────────
 
   // llms-full.txt — entire docs in one 11MB file
@@ -2437,6 +2469,39 @@ export const SOURCES: readonly DocSource[] = [
   //
   // The previous umbrella source pulled ~14k pages through llms-index
   // discovery; sharding splits that into independent fetches.
+  // ─── Akamai ────────────────────────────────────────────────────────
+  //
+  // techdocs.akamai.com publishes a single top-level llms.txt enumerating
+  // ~8,870 per-page `.md` URLs across every PUBLIC product (Property
+  // Manager, App & API Protector, EdgeWorkers, Edge DNS, NetStorage,
+  // Cloudlets, Linode/cloud-computing, PowerShell, Terraform, all API
+  // references). The `.md` variants return clean markdown directly.
+  //
+  // GATED PRODUCTS ARE EXCLUDED BY UPSTREAM: Bot Manager, Account
+  // Protector, and Content Protector render only behind a Control Center
+  // login - anonymous fetch of e.g. /bot-manager/docs returns a 325-byte
+  // SPA shell titled "Control Center", and they have no llms.txt/sitemap
+  // entry. There is no anonymous mirror path for them. What public
+  // bot/abuse material exists (terraform/docs/bmgr-*, cloud-security
+  // about-bots, security-ctr bot-reports, edgeworkers botscore-object,
+  // ~49 pages) is already inside this index and captured automatically.
+  //
+  // ~8,870 pages makes this the second-largest source after AWS, so it
+  // sits in the slow tier and is throttled (pageConcurrency: 6) with a
+  // generous 40-min deadline. urlPattern keeps only `.md` page URLs and
+  // drops the two stray `.html` links + the index self-reference.
+  new DocSource({
+    name: "akamai",
+    type: "http",
+    url: "https://techdocs.akamai.com/",
+    format: "markdown",
+    discovery: "llms-txt",
+    discoveryUrl: "https://techdocs.akamai.com/llms.txt",
+    urlPattern: "techdocs\\.akamai\\.com/.+\\.md$",
+    pageConcurrency: 6,
+    deadlineMs: 2_400_000,
+  }),
+
   ...((): readonly DocSource[] => {
     type AwsShard = readonly [name: string, llmsPath: string];
     const shards: readonly AwsShard[] = [

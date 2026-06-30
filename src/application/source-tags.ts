@@ -79,6 +79,9 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
 
   // ─── Reverse proxy & networking ─────────────────────────────────
   cloudflare: ["networking", "cloud"],
+  akamai: ["networking", "cloud"],
+  fastly: ["networking", "cloud"],
+  bunnycdn: ["networking", "cloud"],
   caddy: ["networking"],
   traefik: ["networking"],
   wireguard: ["networking"],
