@@ -176,6 +176,15 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   prometheus: ["monitoring"],
   opentelemetry: ["monitoring"],
   grafana: ["monitoring"],
+  loki: ["monitoring"],
+  tempo: ["monitoring"],
+  mimir: ["monitoring"],
+  pyroscope: ["monitoring"],
+  alloy: ["monitoring"],
+  beyla: ["monitoring"],
+  k6: ["monitoring"],
+  oncall: ["monitoring"],
+  faro: ["monitoring"],
   ntfy: ["monitoring"],
 
   // ─── Secrets & encryption ───────────────────────────────────────

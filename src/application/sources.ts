@@ -1244,6 +1244,108 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs/sources",
   }),
 
+  // ─── Grafana LGTM+ stack ───────────────────────────────────────
+  // The rest of the Grafana Labs product line. The core `grafana`
+  // source only covers these as *datasources configured inside
+  // Grafana*; these pull the first-class product docs. All use the
+  // same Hugo `docs/sources` layout as core Grafana, one version per
+  // branch - except k6-docs, which bundles every released version in
+  // one branch (v0.47.x ... + next), so we pull `next` (always-current
+  // tip) to avoid mirroring N stale copies.
+
+  // Git sparse - log aggregation (LogQL, operations, deployment).
+  new DocSource({
+    name: "loki",
+    type: "git",
+    url: "https://github.com/grafana/loki",
+    format: "markdown",
+    paths: ["docs/sources"],
+    rootPath: "docs/sources",
+  }),
+
+  // Git sparse - distributed tracing backend (TraceQL, operations).
+  new DocSource({
+    name: "tempo",
+    type: "git",
+    url: "https://github.com/grafana/tempo",
+    format: "markdown",
+    paths: ["docs/sources"],
+    rootPath: "docs/sources",
+  }),
+
+  // Git sparse - horizontally scalable Prometheus (long-term metrics).
+  new DocSource({
+    name: "mimir",
+    type: "git",
+    url: "https://github.com/grafana/mimir",
+    format: "markdown",
+    paths: ["docs/sources"],
+    rootPath: "docs/sources",
+  }),
+
+  // Git sparse - continuous profiling backend.
+  new DocSource({
+    name: "pyroscope",
+    type: "git",
+    url: "https://github.com/grafana/pyroscope",
+    format: "markdown",
+    paths: ["docs/sources"],
+    rootPath: "docs/sources",
+  }),
+
+  // Git sparse - OpenTelemetry Collector distribution (telemetry agent).
+  new DocSource({
+    name: "alloy",
+    type: "git",
+    url: "https://github.com/grafana/alloy",
+    format: "markdown",
+    paths: ["docs/sources"],
+    rootPath: "docs/sources",
+  }),
+
+  // Git sparse - eBPF auto-instrumentation (zero-code observability).
+  new DocSource({
+    name: "beyla",
+    type: "git",
+    url: "https://github.com/grafana/beyla",
+    format: "markdown",
+    paths: ["docs/sources"],
+    rootPath: "docs/sources",
+  }),
+
+  // Git sparse - load testing (JavaScript API, scenarios, extensions).
+  // k6-docs bundles all versions in one branch; pull `next` only.
+  new DocSource({
+    name: "k6",
+    type: "git",
+    url: "https://github.com/grafana/k6-docs",
+    format: "markdown",
+    paths: ["docs/sources/k6/next"],
+    rootPath: "docs/sources/k6/next",
+  }),
+
+  // Git sparse - on-call management. Upstream default branch is `dev`
+  // (not main); the ingestor clones default HEAD so this resolves
+  // automatically.
+  new DocSource({
+    name: "oncall",
+    type: "git",
+    url: "https://github.com/grafana/oncall",
+    format: "markdown",
+    paths: ["docs/sources"],
+    rootPath: "docs/sources",
+  }),
+
+  // Git sparse - frontend observability web SDK (Faro).
+  new DocSource({
+    name: "faro",
+    type: "git",
+    url: "https://github.com/grafana/faro-web-sdk",
+    format: "markdown",
+    paths: ["docs/sources"],
+    rootPath: "docs/sources",
+  }),
+
   // ─── pnpm ──────────────────────────────────────────────────────
 
   // Git sparse — Docusaurus source for pnpm.io (111 md + 9 mdx files)
