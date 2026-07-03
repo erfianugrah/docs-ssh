@@ -9,6 +9,10 @@ primary_region = "iad"
 [env]
   DOCS_SSH_HOST = "docs-ssh.fly.dev"
   DOCS_SSH_PORT = "2222"
+  # MCP-over-HTTP allowlists (DNS-rebinding protection). Extend if serving
+  # under additional hostnames / consumer origins.
+  MCP_ALLOWED_HOSTS = "docs.erfi.io,docs-ssh.fly.dev,localhost,127.0.0.1"
+  MCP_ALLOWED_ORIGINS = "https://claude.ai,https://chatgpt.com,https://chat.openai.com"
 
 # SSH service — raw TCP passthrough, no handlers (SSH handles its own encryption)
 [[services]]
@@ -26,7 +30,9 @@ primary_region = "iad"
     interval = "30s"
     timeout = "5s"
 
-# HTTP landing page — busybox httpd served from entrypoint.sh
+# HTTP service on 8080 - serves BOTH the static landing page (GET /) and the
+# MCP-over-HTTP endpoint (POST /mcp), from the Bun-compiled docs-mcp binary
+# launched in entrypoint.sh. One listener, so no extra external port needed.
 [[services]]
   internal_port = 8080
   protocol = "tcp"
@@ -39,6 +45,12 @@ primary_region = "iad"
   [[services.ports]]
     handlers = ["tls", "http"]
     port = 443
+
+  [[services.http_checks]]
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "5s"
 
 [vm]
   size = "shared-cpu-1x"

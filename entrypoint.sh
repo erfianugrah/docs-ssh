@@ -43,8 +43,20 @@ chown docs:docs "$CACHE_DIR"
 # Tail log to stderr so Docker captures it
 tail -F "$LOG_FILE" >&2 &
 
-# Start HTTP server for landing page (background, if page exists)
-if [ -f /usr/local/lib/docs-ssh/index.html ]; then
+# Start the HTTP server on port 8080. The MCP binary serves BOTH the static
+# landing page (from MCP_STATIC_DIR) and the /mcp endpoint, so one listener
+# covers both. Fall back to busybox httpd (landing page only) if the binary
+# is absent (e.g. an older image built before the MCP server existed).
+if [ -x /usr/local/bin/docs-mcp ]; then
+  DOCS_ROOT=/docs \
+  MCP_PORT=8080 \
+  MCP_HOST=0.0.0.0 \
+  MCP_STATIC_DIR="${MCP_STATIC_DIR:-/usr/local/lib/docs-ssh}" \
+  MCP_ALLOWED_HOSTS="${MCP_ALLOWED_HOSTS:-docs.erfi.io,docs-ssh.fly.dev,localhost,127.0.0.1}" \
+  MCP_ALLOWED_ORIGINS="${MCP_ALLOWED_ORIGINS:-https://claude.ai,https://chatgpt.com,https://chat.openai.com}" \
+  VERSION="${VERSION:-}" \
+  /usr/local/bin/docs-mcp &
+elif [ -f /usr/local/lib/docs-ssh/index.html ]; then
   httpd -f -p 8080 -h /usr/local/lib/docs-ssh &
 fi
 

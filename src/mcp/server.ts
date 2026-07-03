@@ -17,6 +17,8 @@
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { stat, readFile } from "node:fs/promises";
+import { join, normalize, extname } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
@@ -27,7 +29,9 @@ const DOCS_ROOT = process.env.DOCS_ROOT ?? "/docs";
 
 // Hosts/origins allowed by DNS-rebinding protection. Extend via env
 // (comma-separated) for self-hosted deployments.
-const ALLOWED_HOSTS = (process.env.MCP_ALLOWED_HOSTS ?? "docs.erfi.io,localhost,127.0.0.1")
+const ALLOWED_HOSTS = (
+  process.env.MCP_ALLOWED_HOSTS ?? "docs.erfi.io,docs-ssh.fly.dev,localhost,127.0.0.1"
+)
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
@@ -39,7 +43,48 @@ const ALLOWED_ORIGINS = (
   .map((s) => s.trim())
   .filter(Boolean);
 
+// Optional static root: when set, GET requests outside /mcp are served as
+// files (the landing page). Lets one listener carry both the landing page
+// and the MCP endpoint on a single port - avoids the Fly one-service-per-
+// external-port constraint. Unset in tests/dev, so static serving is off.
+const STATIC_DIR = process.env.MCP_STATIC_DIR ?? "";
+
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".json": "application/json",
+  ".webmanifest": "application/manifest+json",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+  ".css": "text/css",
+  ".js": "text/javascript",
+  ".txt": "text/plain; charset=utf-8",
+};
+
 const docs = new DocsService(DOCS_ROOT);
+
+/** Serve a file from STATIC_DIR (jailed). Returns true if a file was sent. */
+async function serveStatic(res: ServerResponse, pathname: string): Promise<boolean> {
+  if (!STATIC_DIR) return false;
+  const rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const base = normalize(STATIC_DIR);
+  const full = normalize(join(base, rel));
+  // Jail: resolved path must stay inside STATIC_DIR.
+  if (full !== base && !full.startsWith(base + "/")) return false;
+  try {
+    const s = await stat(full);
+    if (!s.isFile()) return false;
+    const body = await readFile(full);
+    res.writeHead(200, {
+      "Content-Type": MIME[extname(full)] ?? "application/octet-stream",
+      "Content-Length": body.length,
+    });
+    res.end(body);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Build a fresh MCP server with the six docs tools registered. */
 export function buildServer(service: DocsService = docs): McpServer {
@@ -202,6 +247,8 @@ export const httpServer = createServer(async (req, res) => {
   }
 
   if (url.pathname !== "/mcp") {
+    // Anything that isn't the MCP endpoint: try the static landing page.
+    if (req.method === "GET" && (await serveStatic(res, url.pathname))) return;
     jsonRpcError(res, 404, "Not Found");
     return;
   }

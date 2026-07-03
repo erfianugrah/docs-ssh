@@ -30,13 +30,28 @@ RUN if [ "$DOCS_PREBUILT" = "true" ] && [ -d "/docs-ctx" ] && [ "$(ls -A /docs-c
 RUN find /docs -name '.stamp.json' -delete \
  && node --import tsx/esm src/commands/build-index.ts /docs /docs/_index.tsv
 
+# ─── Stage 1b: compile the MCP-over-HTTP server to a single binary ────────────
+# Bun --compile bundles the runtime + deps into one executable, so the Alpine
+# runtime stage needs no Node/node_modules (only libstdc++/libgcc, added below).
+FROM oven/bun:1-alpine AS mcp-builder
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN bun install --no-save @modelcontextprotocol/sdk zod
+COPY tsconfig.json ./
+COPY src/mcp/ ./src/mcp/
+# No --target: compiles for the build platform's arch (musl on alpine),
+# which matches the runtime stage under a consistent buildx --platform.
+RUN bun build --compile src/mcp/main.ts --outfile /docs-mcp
+
 # ─── Stage 2: SSH server ──────────────────────────────────────────────────────
 FROM alpine:3.21
 
 # Link GHCR package to the repository so GITHUB_TOKEN gets write access
 LABEL org.opencontainers.image.source=https://github.com/erfianugrah/docs-ssh
 
-RUN apk add --no-cache openssh bash ripgrep jq busybox-extras bat tree less
+# libstdc++/libgcc are required by the Bun-compiled MCP binary on musl.
+RUN apk add --no-cache openssh bash ripgrep jq busybox-extras bat tree less \
+  libstdc++ libgcc
 
 # Create restricted docs user — empty password for passwordless SSH access
 RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
@@ -59,6 +74,8 @@ RUN mkdir -p /var/run/sshd /var/log /usr/local/lib/docs-ssh/lib
 COPY sshd_config /etc/ssh/sshd_config
 COPY log-cmd.sh /usr/local/bin/log-cmd
 COPY entrypoint.sh /usr/local/bin/entrypoint
+COPY --from=mcp-builder /docs-mcp /usr/local/bin/docs-mcp
+RUN chmod +x /usr/local/bin/docs-mcp
 COPY commands/ /usr/local/lib/docs-ssh/
 RUN chmod +x /usr/local/bin/log-cmd /usr/local/bin/entrypoint \
   /usr/local/lib/docs-ssh/*.sh /usr/local/lib/docs-ssh/lib/*.sh
@@ -78,6 +95,11 @@ RUN cp /docs/_sources.json /usr/local/lib/docs-ssh/_sources.json \
  && if [ "$SSH_HOST" != "localhost" ]; then sed -i "s/__HOST__/$SSH_HOST/g" "$PAGE"; fi \
  && if [ "$SSH_PORT" != "2222" ]; then sed -i "s/__PORT__/$SSH_PORT/g" "$PAGE"; fi \
  && sed -i "s/__HOST__/localhost/g; s/__PORT__/2222/g" "$PAGE"
+
+# VERSION (declared as ARG above for the landing page) is surfaced to the
+# MCP server's serverInfo.version at runtime.
+ENV VERSION=$VERSION
+ENV MCP_STATIC_DIR=/usr/local/lib/docs-ssh
 
 EXPOSE 2222 8080
 
