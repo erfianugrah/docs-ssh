@@ -91,7 +91,7 @@ Chat LLMs that cannot open an SSH connection (Claude.ai custom connectors, ChatG
 
     https://$HOST/mcp
 
-It exposes docs_search / docs_read / docs_grep / docs_find / docs_summary / docs_sources with the same search -> summary -> targeted-read efficiency (not full-page dumps). Stateless, read-only, open (public docs). Agents that already have SSH or the docs_* tools should keep using those.
+It exposes the same six documentation tools (search / read / grep / find / summary / sources) with the same search -> summary -> targeted-read efficiency (not full-page dumps). Stateless, read-only, open (public docs). Agents that already have SSH or the equivalent tools should keep using those.
 MCP
 }
 
