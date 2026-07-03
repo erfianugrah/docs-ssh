@@ -73,10 +73,26 @@ emit_skill_frontmatter() {
   cat << SKILL_FM
 ---
 name: docs-ssh
-description: Search and read documentation for ${SOURCES} over SSH. Use when working with any of these technologies, debugging issues, or implementing features.
+description: Search and read documentation for ${SOURCES} over SSH (or MCP for chat LLMs). Use when working with any of these technologies, debugging issues, or implementing features.
 ---
 
 SKILL_FM
+}
+
+# ─── Remote MCP note (shared by all instruction formats) ─────────────────
+# Chat LLMs that can't open SSH reach the same tools over MCP.
+
+emit_mcp_note() {
+  cat << MCP
+
+### Remote MCP (chat LLMs without SSH)
+
+Chat LLMs that cannot open an SSH connection (Claude.ai custom connectors, ChatGPT connectors) reach the same six tools over the Model Context Protocol (Streamable HTTP transport). Add this endpoint as a remote/custom MCP connector:
+
+    https://$HOST/mcp
+
+It exposes docs_search / docs_read / docs_grep / docs_find / docs_summary / docs_sources with the same search -> summary -> targeted-read efficiency (not full-page dumps). Stateless, read-only, open (public docs). Agents that already have SSH or the docs_* tools should keep using those.
+MCP
 }
 
 # ─── Instructions for agents WITH custom tools installed ────────────
@@ -151,7 +167,7 @@ Tool output uses stable markers the agent should recognise:
 - \`docs_grep\` with source path: \`docs_grep(query="RLS", path="/docs/postgres/")\` faster than searching all
 - \`source\` param: \`docs_search(query="auth", source="supabase")\` filters to one source
 - API specs: \`docs_read(path="/docs/{source}-api/api/overview.md")\` for endpoint index
-
+$(emit_mcp_note)
 $(generate_source_groups)
 EOF
 }
@@ -286,7 +302,7 @@ $SSH "rg -il 'cron' /docs/ | head -5 | while read f; do echo \"--- \\\$f ---\"; 
 - **Use \`--line-range\`**: Read specific sections instead of entire files (30 lines ~120 tokens vs 500 lines ~2K tokens).
 - **Use \`-l\` for file lists**: \`rg -il 'pattern'\` returns only filenames, not content.
 - **Get structure first**: \`rg -n '^#' /docs/file.md\` shows headings with line numbers before reading full file.
-
+$(emit_mcp_note)
 $(generate_source_groups)
 EOF
 }
@@ -331,6 +347,8 @@ Formats:
   cursor       .cursorrules format
   gemini       GEMINI.md with header
   skill        SKILL.md with YAML frontmatter (on-demand skill for any tool)
+
+Chat LLMs without SSH: add https://$HOST/mcp as a remote MCP connector.
 
 Examples:
   $SSH agents pi >> ~/.pi/agent/AGENTS.md
