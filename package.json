@@ -6,6 +6,8 @@
   "scripts": {
     "build": "tsc",
     "fetch-docs": "node --import tsx/esm src/index.ts",
+    "mcp:serve": "node --import tsx/esm src/mcp/main.ts",
+    "mcp:build": "bun build --compile --target=bun-linux-x64-musl src/mcp/main.ts --outfile dist/docs-mcp",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -35,10 +37,12 @@
   },
   "dependencies": {
     "@asciidoctor/core": "^4.0.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "fflate": "^0.8.3",
     "js-yaml": "^4.1.1",
     "turndown": "^7.2.0",
-    "turndown-plugin-gfm": "^1.0.2"
+    "turndown-plugin-gfm": "^1.0.2",
+    "zod": "^4.4.3"
   },
   "engines": {
     "node": ">=22"
