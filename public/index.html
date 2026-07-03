@@ -304,6 +304,11 @@
 <span class="prompt">$ </span><span class="cmd">ssh __HOST__</span> <span class="str">"bat --plain --paging=never /docs/postgres/indexes.md"</span>
 <span class="prompt">$ </span><span class="cmd">ssh __HOST__</span> <span class="str">"tree /docs/cloudflare/ -L 2"</span></pre>
       </li>
+      <li>
+        <strong>Chat LLM? Add the remote MCP endpoint</strong>
+        <p>Claude.ai / ChatGPT connectors can't SSH &mdash; point them at the Model Context Protocol endpoint, which exposes the same <code>docs_*</code> tools:</p>
+        <pre><span class="str">https://__HOST__/mcp</span></pre>
+      </li>
     </ol>
 
     <h2>Built-in commands</h2>

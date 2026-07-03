@@ -14,6 +14,8 @@ pnpm test:e2e             # Docker-based E2E tests (requires Docker, 3-min timeo
 pnpm test:smoke           # smoke tests against live container (DOCS_SSH_HOST=docs.erfi.io)
 pnpm test:coverage        # unit tests with v8 coverage
 pnpm generate:tools       # regenerate commands/tools.sh from TypeScript template
+pnpm mcp:serve            # run the MCP-over-HTTP server locally (node+tsx; DOCS_ROOT=./docs, MCP_PORT=8081)
+pnpm mcp:build            # compile the MCP server to a single Bun binary (dist/docs-mcp, musl)
 pnpm fetch-docs           # fetch all doc sources into ./docs/ (parallel, cached by default)
 pnpm docker:build         # fetch-docs (force refresh) + docker build
 pnpm docker:build:cached  # fetch-docs (use cache) + docker build — fastest for iterating
@@ -38,9 +40,21 @@ CI runs two parallel jobs on every push/PR: `test` (verify tools.sh sync → lin
 - **Normaliser pipeline is 3-pass** (see `UpdateDocSets.ts:362-398`): Pass 1 picks ONE format converter via `supportsFormat()` (MdxNormaliser or HtmlNormaliser). Pass 2 tries extension-based fallback if pass 1 missed. Pass 3 runs all cleanup normalisers (`supportsFormat()` returns false) — currently MarkdownCleaner then ContentSanitiser. Array order in `src/index.ts:20` determines priority. When adding a normaliser, `supportsFormat()` return value decides which pass it runs in.
 - **Pass 1 is skipped when `DocFile.preNormalised` is true** (markdown content negotiation): when `HttpIngestor.fetchPage()` receives `Content-Type: text/markdown` from an upstream that honours `Accept: text/markdown, text/html;q=0.9` (acceptmarkdown.com spec / Cloudflare Markdown for Agents), it tags the DocFile so the format converter is bypassed — running Turndown on existing markdown corrupts it via escaping. Pass 3 cleanup still runs. Fallbacks: thin markdown body (<256B) → retry as HTML; 404/406 → retry forcing `Accept: text/html` (only one in-the-wild case: turborepo `/docs/openapi/*`).
 
+## MCP-over-HTTP server
+
+A second transport (alongside SSH) so remote chat LLMs that can't SSH (Claude.ai custom connectors, ChatGPT connectors) can use the docs corpus. Streamable HTTP transport, MCP spec 2025-11-25. Additive - the SSH path is untouched.
+
+- `src/mcp/docs-service.ts` - transport-agnostic core for the six ops (search/read/grep/find/summary/sources). Identical rg/bat/find/awk pipelines and output formatting to the SSH builtins (`src/commands/tools-pi-template.ts`), but with a configurable docs root and a local `node:child_process` runner instead of an SSH hop. Injectable `Runner` makes it unit-testable without real binaries.
+- `src/mcp/server.ts` - stateless MCP server (`sessionIdGenerator: undefined`, `enableJsonResponse: true`), six `registerTool` wrappers (Zod schemas), `enableDnsRebindingProtection` with Origin/Host allowlists from env. Also serves the static landing page from `MCP_STATIC_DIR` for non-`/mcp` GETs, so one listener carries both surfaces (avoids Fly's one-service-per-external-port limit). `buildServer(service?)` takes an optional DocsService for test injection.
+- `src/mcp/main.ts` - `listen()` entrypoint, split out so tests import `server.ts` without binding a port.
+- **Stateless on purpose**: all six ops are idempotent reads over a filesystem that's immutable per container lifetime, so no session store, horizontal-scalable, CDN-cacheable.
+- **Bun-compiled**: `pnpm mcp:build` (and the Dockerfile `mcp-builder` stage, `oven/bun:1-alpine`) produce a single musl binary via `bun build --compile`. The Alpine runtime stage needs `libstdc++ libgcc` for it (already in the Dockerfile `apk add`). No Node/node_modules in the runtime stage.
+- **Env**: `DOCS_ROOT` (/docs), `MCP_PORT` (8081 dev; entrypoint runs it on 8080), `MCP_HOST`, `MCP_STATIC_DIR`, `MCP_ALLOWED_HOSTS`, `MCP_ALLOWED_ORIGINS`, `VERSION` (serverInfo.version). Endpoints: `POST /mcp`, `GET /healthz`, `GET /*` -> static.
+- Tests: `tests/unit/mcp/` - mock-runner command construction + safePath jail, in-memory-transport MCP wiring, real-binary integration (skips when `rg` absent).
+
 ## Architecture
 
-- `src/index.ts` — fetch-docs entrypoint. Not the SSH server.
+- `src/index.ts` - fetch-docs entrypoint. Not the SSH server.
 - `src/application/sources.ts` — canonical list of all doc sources. Two source types: `git` (sparse clone) and `http` (uses a discovery method — see "Adding a new doc source" below).
 - `src/domain/` — value objects + port interfaces (`DocSource`, `DocIngestor`, `DocNormaliser`). Ports-and-adapters: implementations in `ingestors/` and `normaliser/`.
 - `src/commands/tools-template.ts` — TypeScript source of truth for agent tools output. Generates `commands/tools.sh`.
@@ -56,6 +70,7 @@ CI runs two parallel jobs on every push/PR: `test` (verify tools.sh sync → lin
 - `log-cmd.sh` is the `ForceCommand` — routes SSH sessions to interactive/builtin/exec handlers. Builtins are routed via `case` on first word of `SSH_ORIGINAL_COMMAND`.
 - Three image-build-time scripts run in sequence: `build-index.sh` → `/docs/_index.tsv` (path + title + summary per file, what `docs_search` queries); `build-sources-json.sh` → `/docs/_sources.json` (powers landing page + banner); `build-health-check.sh` (warnings only, never fails the build).
 - Command caching: identical read/search commands return cached results from tmpfs. Docs are static per container lifetime.
+- **HTTP on 8080** (`entrypoint.sh`): the Bun-compiled `docs-mcp` binary serves BOTH the static landing page (`GET /`) and the MCP endpoint (`POST /mcp`) on 8080, falling back to busybox httpd (landing page only) if the binary is absent. Fly maps external 80/443 -> 8080; no separate MCP service/port. `GET /healthz` backs the Fly http_check.
 
 ## Adding a new SSH command
 

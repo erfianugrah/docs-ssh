@@ -53,6 +53,16 @@ ssh -p 2222 docs@localhost agents cursor  >> .cursorrules
 ssh -p 2222 docs@localhost agents gemini  >> GEMINI.md
 ```
 
+### Remote MCP (Claude / ChatGPT connectors)
+
+Chat LLMs that can't open an SSH connection - Claude.ai custom connectors, ChatGPT connectors - reach the same docs tools over the [Model Context Protocol](https://modelcontextprotocol.io) (Streamable HTTP transport). Add the endpoint as a remote/custom MCP connector:
+
+```
+https://docs.erfi.io/mcp
+```
+
+It exposes the same six tools (`docs_search`, `docs_read`, `docs_grep`, `docs_find`, `docs_summary`, `docs_sources`) as the SSH path, running against the in-container docs tree - so it keeps the same search -> summary -> targeted-read token efficiency, **not** the full-page dumps typical of documentation MCP servers. Stateless (no session state, sits behind a CDN cleanly), read-only, and open (public documentation). Origin/Host allowlists guard against DNS-rebinding.
+
 ### Not sure? Let the agent decide
 
 ```bash
@@ -117,6 +127,8 @@ The tools use a search → summary → targeted read workflow that's **80% more 
 | MCP search (full pages) | ~30,000 | baseline |
 
 Output is capped at 51K chars (~12K tokens) with truncation hints that direct the agent to narrow its query or use offset/limit.
+
+The [remote MCP endpoint](#remote-mcp-claude--chatgpt-connectors) exposes these same tools over HTTP, so chat LLMs get the same efficiency - it returns file paths / headings / targeted ranges, not the ~30K-token full-page dumps that are the table's baseline.
 
 ## Doc sources
 
@@ -189,7 +201,7 @@ fly deploy
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `ci.yml` | push / PR | typecheck + unit tests with coverage |
+| `ci.yml` | push / PR | typecheck + unit tests with coverage + Docker E2E |
 | `update-docs.yml` | daily 02:00 UTC + manual | fetch docs, build & push Docker image |
 | `release.yml` | tags `v*` | build & push with semver + latest tags, deploy to Composer |
 
