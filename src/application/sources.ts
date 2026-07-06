@@ -93,6 +93,44 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "apps/cli-go/docs",
   }),
 
+  // Changelog - the full history (2022 to present, ~200 entries) lives on
+  // supabase.com/changelog, which is backed by GitHub org-level
+  // discussions (github.com/orgs/supabase/discussions) in the Changelog
+  // category. There's no RSS feed (supabase.com/changelog/rss.xml 404s)
+  // and no per-changelog sitemap, but the index page's SSR HTML embeds
+  // every `href="/changelog/<id>-<slug>"` link, so `toc` discovery
+  // harvests all entry URLs. Each entry page honours
+  // `Accept: text/markdown` content negotiation and returns clean
+  // markdown with YAML frontmatter (number/slug/published/discussion/
+  // labels), bypassing Turndown via preNormalised. `urlPattern` filters
+  // the harvested hrefs down to numeric-id entry pages (drops nav/self
+  // links). urlToPath yields `<id>-<slug>.md`.
+  new DocSource({
+    name: "supabase-changelog",
+    type: "http",
+    url: "https://supabase.com/changelog/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://supabase.com/changelog",
+    urlPattern: "supabase\\.com/changelog/[0-9]+-",
+  }),
+
+  // Incident + status history - status.supabase.com is an Atlassian
+  // Statuspage. The whole history (back to Apr 2021) is reachable via the
+  // JSON API: `/history.json?page=N` paginates 3 months/page listing every
+  // incident code, and `/incidents/<code>.json` returns the full update
+  // timeline (investigating -> resolved) + postmortem for any incident,
+  // old ones included. `discovery: "statuspage"` drives the paginate-then-
+  // fetch-each flow (statuspage-converter.ts), emitting one `<code>.md` per
+  // incident. Resolved incidents are immutable, so this caches perfectly.
+  new DocSource({
+    name: "supabase-status",
+    type: "http",
+    url: "https://status.supabase.com",
+    format: "markdown",
+    discovery: "statuspage",
+  }),
+
   // ─── Logflare ─────────────────────────────────────────────────────
 
   // Git sparse — Supabase's logging platform. Docs live inside the

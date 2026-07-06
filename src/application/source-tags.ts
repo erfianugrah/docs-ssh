@@ -231,6 +231,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
 
   // ─── Blogs & changelogs ─────────────────────────────────────────
   "supabase-blog": ["blogs"],
+  "supabase-changelog": ["blogs", "supabase-ecosystem"],
+  "supabase-status": ["supabase-ecosystem", "monitoring"],
   "cloudflare-blog": ["blogs"],
   "cloudflare-changelog": ["blogs"],
   "vercel-blog": ["blogs"],

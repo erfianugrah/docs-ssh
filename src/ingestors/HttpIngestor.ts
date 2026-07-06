@@ -9,6 +9,7 @@ import { unzipSync } from "fflate";
 import { splitLlmsFull } from "./llms-splitter.js";
 import { splitTexinfo } from "./info-splitter.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
+import { collectIncidentCodes, incidentToMarkdown } from "./statuspage-converter.js";
 import { walkDir } from "../shared/walkDir.js";
 import {
   BULK_TIMEOUT,
@@ -245,6 +246,9 @@ export class HttpIngestor implements DocIngestor {
     }
     if (source.discovery === "openapi" && source.discoveryUrl) {
       return this.ingestFromOpenApi(source, signal);
+    }
+    if (source.discovery === "statuspage") {
+      return this.ingestFromStatuspage(source, signal);
     }
 
     // Everything else is URL-based: discover URLs, filter, fetch each page
@@ -484,6 +488,59 @@ export class HttpIngestor implements DocIngestor {
       files.set(sf.path, new DocFile(sf.path, sf.content));
     }
 
+    console.log(`  [${source.name}] converted to ${files.size} markdown files`);
+    return new DocSet(source, files, new Date());
+  }
+
+  // ─── Statuspage (Atlassian) ─────────────────────────────────────────
+
+  private async ingestFromStatuspage(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
+    const base = source.url.replace(/\/$/, "");
+    const fetchJson = async (url: string): Promise<unknown> => {
+      const res = await fetchWithRetry(url, MAX_RETRIES, BULK_TIMEOUT, signal);
+      if (!res.ok) throw new Error(`Statuspage fetch failed: HTTP ${res.status} for ${url}`);
+      return res.json();
+    };
+
+    console.log(`  [${source.name}] paginating history.json...`);
+    const codes = await collectIncidentCodes(base, fetchJson);
+    console.log(`  [${source.name}] discovered ${codes.length} incident codes`);
+    if (codes.length === 0) {
+      throw new Error(
+        `statuspage discovery returned 0 incidents for ${source.name} (${base}/history.json) - upstream format may have changed`,
+      );
+    }
+
+    const files = new Map<string, DocFile>();
+    const errors: string[] = [];
+    const concurrency =
+      source.pageConcurrency && source.pageConcurrency > 0 ? source.pageConcurrency : CONCURRENCY;
+    for (let i = 0; i < codes.length; i += concurrency) {
+      if (signal?.aborted) {
+        throw new Error(`fetch aborted: ${signal.reason ?? "deadline exceeded"}`);
+      }
+      const batch = codes.slice(i, i + concurrency);
+      const results = await Promise.allSettled(
+        batch.map(async (code) => {
+          const incident = await fetchJson(`${base}/incidents/${code}.json`);
+          return incidentToMarkdown(incident as never, code, base);
+        }),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") {
+          files.set(r.value.path, new DocFile(r.value.path, r.value.content));
+        } else {
+          errors.push(r.reason?.message ?? String(r.reason));
+        }
+      }
+    }
+
+    if (files.size === 0) {
+      throw new Error(`HttpIngestor: all incident fetches failed. First error: ${errors[0]}`);
+    }
+    if (errors.length > 0) {
+      console.warn(`  [${source.name}] ${errors.length} incidents failed (${files.size} succeeded)`);
+    }
     console.log(`  [${source.name}] converted to ${files.size} markdown files`);
     return new DocSet(source, files, new Date());
   }

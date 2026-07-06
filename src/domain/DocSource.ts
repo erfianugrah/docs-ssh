@@ -15,6 +15,8 @@ export type DocSourceType = "git" | "http";
  * - "rss":          parses an RSS feed for <link> URLs within <item> elements
  * - "openapi":      downloads a single OpenAPI/Swagger spec and converts to per-tag markdown
  * - "openapi-dir":  git repo containing multiple OpenAPI specs in a directory structure
+ * - "statuspage":   paginates an Atlassian Statuspage /history.json, then fetches each
+ *                   /incidents/<code>.json and converts to one markdown file per incident
  */
 export type DiscoveryMethod =
   | "none"
@@ -29,7 +31,8 @@ export type DiscoveryMethod =
   | "rss"
   | "openapi"
   | "openapi-dir"
-  | "mediawiki";
+  | "mediawiki"
+  | "statuspage";
 
 export interface DocSourceConfig {
   readonly name: string;
