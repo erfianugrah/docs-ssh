@@ -29,6 +29,42 @@ function sq(s: string): string {
   return s.replace(/'/g, "'\\\\''")
 }
 
+// Split a query into AND-terms. Double-quoted spans stay whole (phrase
+// match); everything else splits on whitespace. Always returns >= 1
+// token so an empty / all-quotes edge case still yields a runnable cmd.
+function tokenizeQuery(q: string): string[] {
+  const tokens: string[] = []
+  const re = /"([^"]+)"|(\\S+)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(q)) !== null) {
+    const t = (m[1] ?? m[2]).trim()
+    if (t) tokens.push(t)
+  }
+  return tokens.length ? tokens : [q.trim()]
+}
+
+// AND-chain of \`rg -i\` over a file: every token must match the row
+// (order-independent). First rg reads the file; the rest filter stdin.
+function rgAndChain(tokens: string[], file: string): string {
+  return tokens
+    .map((t, i) => (i === 0 ? \`rg -i '\${sq(t)}' \${file}\` : \`rg -i '\${sq(t)}'\`))
+    .join(" | ")
+}
+
+// AND-chain of \`rg -il\` over a directory, yielding files that contain
+// ALL tokens. Intermediate stages emit NUL-separated paths piped into
+// \`xargs -0 rg\` so the next token filters only the surviving files.
+function rgFilesAndChain(tokens: string[], dir: string): string {
+  if (tokens.length === 1) return \`rg -il '\${sq(tokens[0])}' '\${dir}' 2>/dev/null\`
+  return tokens
+    .map((t, i) => {
+      if (i === 0) return \`rg --null -il '\${sq(t)}' '\${dir}' 2>/dev/null\`
+      if (i === tokens.length - 1) return \`xargs -0 -r rg -il '\${sq(t)}' 2>/dev/null\`
+      return \`xargs -0 -r rg --null -il '\${sq(t)}' 2>/dev/null\`
+    })
+    .join(" | ")
+}
+
 // Agents frequently call docs_read/docs_summary/docs_grep with
 // 'filePath' (the built-in Read/Edit tool's arg name) instead of
 // 'path'. Accepting both prevents a confusing crash and keeps the
@@ -196,21 +232,23 @@ export const SEARCH_BODY_STATIC = `\
   },
   async execute(args: { query: string; source?: string; maxResults?: number }) {
     const limit = args.maxResults ?? 15
+    const tokens = tokenizeQuery(args.query)
     const filter = args.source ? \`| rg '^\${sq(args.source)}/'\` : ""
-    // Single-pass: awk prints the first LIMIT rows as they arrive and
-    // emits a truncation footer at END if there were more. One rg
-    // invocation vs the previous two (count + head).
+    // Multi-word queries AND their tokens (order-independent), matching
+    // session_search semantics. awk prints the first LIMIT rows as they
+    // arrive and emits a truncation footer at END if there were more.
     const result = await ssh(
-      \`rg -i '\${sq(args.query)}' /docs/_index.tsv \${filter} | awk -v lim=\${limit} '{ n++; if (n<=lim) print } END { if (n>lim) print "[showing "lim" of "n" results — refine query or add source filter]" }'\`
+      \`\${rgAndChain(tokens, "/docs/_index.tsv")} \${filter} | awk -v lim=\${limit} '{ n++; if (n<=lim) print } END { if (n>lim) print "[showing "lim" of "n" results - refine query or add source filter]" }'\`
     )
 
     // Fallback: if index search found nothing, try filename + content search
     if (!result.trim()) {
       const dir = args.source ? safePath(\`/docs/\${sq(args.source)}/\`) : "/docs/"
-      // Search filenames first (fast), then content
+      const inameAnd = tokens.map((t) => \`-iname '*\${sq(t)}*'\`).join(" ")
+      // Search filenames first (fast), then content; both AND all tokens
       const [fileMatch, contentMatch] = await Promise.all([
-        ssh(\`find '\${dir}' -type f -iname '*\${sq(args.query)}*' | head -\${limit}\`),
-        ssh(\`rg -il '\${sq(args.query)}' '\${dir}' 2>/dev/null | head -\${limit}\`),
+        ssh(\`find '\${dir}' -type f \${inameAnd} | head -\${limit}\`),
+        ssh(\`\${rgFilesAndChain(tokens, dir)} | head -\${limit}\`),
       ])
       const combined = [...new Set([...fileMatch.split("\\n"), ...contentMatch.split("\\n")].filter(Boolean))]
       if (combined.length) {
