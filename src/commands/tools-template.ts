@@ -43,26 +43,37 @@ function tokenizeQuery(q: string): string[] {
   return tokens.length ? tokens : [q.trim()]
 }
 
-// AND-chain of \`rg -i\` over a file: every token must match the row
-// (order-independent). First rg reads the file; the rest filter stdin.
-function rgAndChain(tokens: string[], file: string): string {
-  return tokens
-    .map((t, i) => (i === 0 ? \`rg -i '\${sq(t)}' \${file}\` : \`rg -i '\${sq(t)}'\`))
-    .join(" | ")
+// OR-match of \`rg -i\` over a file: any token may match the row. Ranked
+// downstream by distinct-token-hit count so the most on-topic line still
+// surfaces first, without requiring every word to appear verbatim on the
+// same title+summary line (AND-chaining that used to zero-result on any
+// natural-language multi-word query).
+function rgOrChain(tokens: string[], file: string): string {
+  const args = tokens.map((t) => \`-e '\${sq(t)}'\`).join(" ")
+  return \`rg -i \${args} \${file}\`
 }
 
-// AND-chain of \`rg -il\` over a directory, yielding files that contain
-// ALL tokens. Intermediate stages emit NUL-separated paths piped into
-// \`xargs -0 rg\` so the next token filters only the surviving files.
-function rgFilesAndChain(tokens: string[], dir: string): string {
-  if (tokens.length === 1) return \`rg -il '\${sq(tokens[0])}' '\${dir}' 2>/dev/null\`
-  return tokens
-    .map((t, i) => {
-      if (i === 0) return \`rg --null -il '\${sq(t)}' '\${dir}' 2>/dev/null\`
-      if (i === tokens.length - 1) return \`xargs -0 -r rg -il '\${sq(t)}' 2>/dev/null\`
-      return \`xargs -0 -r rg --null -il '\${sq(t)}' 2>/dev/null\`
+// OR-match of \`rg -il\` over a directory: any token may match a file's
+// content.
+function rgFilesOrChain(tokens: string[], dir: string): string {
+  const args = tokens.map((t) => \`-e '\${sq(t)}'\`).join(" ")
+  return \`rg -il \${args} '\${dir}' 2>/dev/null\`
+}
+
+// Rank OR-matched lines by how many distinct query tokens they hit
+// (case-insensitive substring match), stable on ties (preserves the
+// upstream order - _index.tsv is roughly source-alphabetical).
+function rankByTokenHits(lines: string[], tokens: string[]): string[] {
+  if (tokens.length <= 1) return lines
+  const lower = tokens.map((t) => t.toLowerCase())
+  return lines
+    .map((line, i) => {
+      const lc = line.toLowerCase()
+      const score = lower.reduce((n, t) => n + (lc.includes(t) ? 1 : 0), 0)
+      return { line, score, i }
     })
-    .join(" | ")
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .map((s) => s.line)
 }
 
 // Agents frequently call docs_read/docs_summary/docs_grep with
@@ -234,30 +245,36 @@ export const SEARCH_BODY_STATIC = `\
     const limit = args.maxResults ?? 15
     const tokens = tokenizeQuery(args.query)
     const filter = args.source ? \`| rg '^\${sq(args.source)}/'\` : ""
-    // Multi-word queries AND their tokens (order-independent), matching
-    // session_search semantics. awk prints the first LIMIT rows as they
-    // arrive and emits a truncation footer at END if there were more.
-    const result = await ssh(
-      \`\${rgAndChain(tokens, "/docs/_index.tsv")} \${filter} | awk -v lim=\${limit} '{ n++; if (n<=lim) print } END { if (n>lim) print "[showing "lim" of "n" results - refine query or add source filter]" }'\`
-    )
+    // Multi-word queries OR their tokens (any word may match), ranked by
+    // how many distinct tokens each row hits - matching session_search's
+    // actual auto-OR semantics. An AND-chain here used to require every
+    // word verbatim on the same title+summary line, which zero-results on
+    // any natural-language multi-word query.
+    const raw = await ssh(\`\${rgOrChain(tokens, "/docs/_index.tsv")} \${filter}\`)
+    const lines = raw.split("\\n").filter(Boolean)
 
     // Fallback: if index search found nothing, try filename + content search
-    if (!result.trim()) {
+    if (lines.length === 0) {
       const dir = args.source ? safePath(\`/docs/\${sq(args.source)}/\`) : "/docs/"
-      const inameAnd = tokens.map((t) => \`-iname '*\${sq(t)}*'\`).join(" ")
-      // Search filenames first (fast), then content; both AND all tokens
+      const inameOr = tokens.map((t) => \`-iname '*\${sq(t)}*'\`).join(" -o ")
+      // Search filenames first (fast), then content; both OR all tokens
       const [fileMatch, contentMatch] = await Promise.all([
-        ssh(\`find '\${dir}' -type f \${inameAnd} | head -\${limit}\`),
-        ssh(\`\${rgFilesAndChain(tokens, dir)} | head -\${limit}\`),
+        ssh(\`find '\${dir}' -type f \\\\( \${inameOr} \\\\) | head -\${limit}\`),
+        ssh(\`\${rgFilesOrChain(tokens, dir)} | head -\${limit}\`),
       ])
       const combined = [...new Set([...fileMatch.split("\\n"), ...contentMatch.split("\\n")].filter(Boolean))]
       if (combined.length) {
-        return \`[no index matches — found via filename/content search]\\n\${combined.slice(0, limit).join("\\n")}\`
+        return \`[no index matches - found via filename/content search]\\n\${combined.slice(0, limit).join("\\n")}\`
       }
       return \`[no results for "\${args.query}"\${args.source ? \` in \${args.source}\` : ""}]\`
     }
 
-    return result
+    const ranked = rankByTokenHits(lines, tokens)
+    const top = ranked.slice(0, limit)
+    if (ranked.length > limit) {
+      return \`\${top.join("\\n")}\\n[showing \${limit} of \${ranked.length} results - refine query or add source filter]\`
+    }
+    return top.join("\\n")
   },
 }
 `;

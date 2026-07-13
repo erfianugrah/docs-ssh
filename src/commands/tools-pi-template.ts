@@ -51,26 +51,37 @@ function tokenizeQuery(q: string): string[] {
   return tokens.length ? tokens : [q.trim()]
 }
 
-// AND-chain of \`rg -i\` over a file: every token must match the row
-// (order-independent). First rg reads the file; the rest filter stdin.
-function rgAndChain(tokens: string[], file: string): string {
-  return tokens
-    .map((t, i) => (i === 0 ? \`rg -i '\${sq(t)}' \${file}\` : \`rg -i '\${sq(t)}'\`))
-    .join(" | ")
+// OR-match of \`rg -i\` over a file: any token may match the row. Ranked
+// downstream by distinct-token-hit count so the most on-topic line still
+// surfaces first, without requiring every word to appear verbatim on the
+// same title+summary line (AND-chaining that used to zero-result on any
+// natural-language multi-word query).
+function rgOrChain(tokens: string[], file: string): string {
+  const args = tokens.map((t) => \`-e '\${sq(t)}'\`).join(" ")
+  return \`rg -i \${args} \${file}\`
 }
 
-// AND-chain of \`rg -il\` over a directory, yielding files that contain
-// ALL tokens. Intermediate stages emit NUL-separated paths piped into
-// \`xargs -0 rg\` so the next token filters only the surviving files.
-function rgFilesAndChain(tokens: string[], dir: string): string {
-  if (tokens.length === 1) return \`rg -il '\${sq(tokens[0])}' '\${dir}' 2>/dev/null\`
-  return tokens
-    .map((t, i) => {
-      if (i === 0) return \`rg --null -il '\${sq(t)}' '\${dir}' 2>/dev/null\`
-      if (i === tokens.length - 1) return \`xargs -0 -r rg -il '\${sq(t)}' 2>/dev/null\`
-      return \`xargs -0 -r rg --null -il '\${sq(t)}' 2>/dev/null\`
+// OR-match of \`rg -il\` over a directory: any token may match a file's
+// content.
+function rgFilesOrChain(tokens: string[], dir: string): string {
+  const args = tokens.map((t) => \`-e '\${sq(t)}'\`).join(" ")
+  return \`rg -il \${args} '\${dir}' 2>/dev/null\`
+}
+
+// Rank OR-matched lines by how many distinct query tokens they hit
+// (case-insensitive substring match), stable on ties (preserves the
+// upstream order - _index.tsv is roughly source-alphabetical).
+function rankByTokenHits(lines: string[], tokens: string[]): string[] {
+  if (tokens.length <= 1) return lines
+  const lower = tokens.map((t) => t.toLowerCase())
+  return lines
+    .map((line, i) => {
+      const lc = line.toLowerCase()
+      const score = lower.reduce((n, t) => n + (lc.includes(t) ? 1 : 0), 0)
+      return { line, score, i }
     })
-    .join(" | ")
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .map((s) => s.line)
 }
 
 function resolvePath(args: { path?: string; filePath?: string }): string {
@@ -216,20 +227,19 @@ const searchTool = defineTool({
     const limit = params.maxResults ?? 15
     const tokens = tokenizeQuery(params.query)
     const filter = params.source ? \`| rg '^\${sq(params.source)}/'\` : ""
-    const result = await ssh(
-      \`\${rgAndChain(tokens, "/docs/_index.tsv")} \${filter} | awk -v lim=\${limit} '{ n++; if (n<=lim) print } END { if (n>lim) print "[showing "lim" of "n" results - refine query or add source filter]" }'\`
-    )
-    if (!result.trim()) {
+    const raw = await ssh(\`\${rgOrChain(tokens, "/docs/_index.tsv")} \${filter}\`)
+    const lines = raw.split("\\n").filter(Boolean)
+    if (lines.length === 0) {
       const dir = params.source ? safePath(\`/docs/\${sq(params.source)}/\`) : "/docs/"
-      const inameAnd = tokens.map((t) => \`-iname '*\${sq(t)}*'\`).join(" ")
+      const inameOr = tokens.map((t) => \`-iname '*\${sq(t)}*'\`).join(" -o ")
       const [fileMatch, contentMatch] = await Promise.all([
-        ssh(\`find '\${dir}' -type f \${inameAnd} | head -\${limit}\`),
-        ssh(\`\${rgFilesAndChain(tokens, dir)} | head -\${limit}\`),
+        ssh(\`find '\${dir}' -type f \\\\( \${inameOr} \\\\) | head -\${limit}\`),
+        ssh(\`\${rgFilesOrChain(tokens, dir)} | head -\${limit}\`),
       ])
       const combined = [...new Set([...fileMatch.split("\\n"), ...contentMatch.split("\\n")].filter(Boolean))]
       if (combined.length) {
         return {
-          content: [{ type: "text", text: \`[no index matches — found via filename/content search]\\n\${combined.slice(0, limit).join("\\n")}\` }],
+          content: [{ type: "text", text: \`[no index matches - found via filename/content search]\\n\${combined.slice(0, limit).join("\\n")}\` }],
           details: { query: params.query, source: params.source, via: "fallback" },
         }
       }
@@ -238,8 +248,13 @@ const searchTool = defineTool({
         details: { query: params.query, source: params.source },
       }
     }
+    const ranked = rankByTokenHits(lines, tokens)
+    const top = ranked.slice(0, limit)
+    const text = ranked.length > limit
+      ? \`\${top.join("\\n")}\\n[showing \${limit} of \${ranked.length} results - refine query or add source filter]\`
+      : top.join("\\n")
     return {
-      content: [{ type: "text", text: result }],
+      content: [{ type: "text", text }],
       details: { query: params.query, source: params.source },
     }
   },

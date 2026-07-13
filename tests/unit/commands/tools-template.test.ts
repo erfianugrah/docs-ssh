@@ -237,19 +237,17 @@ describe("tools-template", () => {
     expect(body).not.toMatch(/for d in \/docs\/\*\/.*find.*wc -l/s);
   });
 
-  it("search tool runs the index pipeline exactly once", () => {
+  it("search tool runs a single OR-matching rg pass over the index (no double-run)", () => {
     // Previously ran rg twice: once piped to wc -l for a total count,
-    // once piped to head -N for the result rows. Fold both into a single
-    // awk pass that prints rows as they arrive and emits a trailing
-    // "[showing X of Y]" when the truncation actually happened.
+    // once piped to head -N for the result rows. The index pass is a
+    // single `rg -i -e tok1 -e tok2 ...` call (any token may match);
+    // ranking-by-token-hit-count and truncation now happen client-side
+    // in JS (rankByTokenHits + slice), not via a server-side awk pipe.
     const searchBody = SEARCH_BODY_STATIC;
-    // Count occurrences of the literal pipeline construction — it's
-    // built via `rg -i '${...}'` once; the previous double-run ran
-    // `${pipeline}` twice inside a single shell command.
     const dollarPipelineCount = (searchBody.match(/\$\{pipeline\}/g) ?? []).length;
     expect(dollarPipelineCount).toBeLessThanOrEqual(1);
-    // awk is used to count+truncate inline.
-    expect(searchBody).toContain("awk");
+    expect(searchBody).toContain("rgOrChain");
+    expect(searchBody).toContain("rankByTokenHits");
   });
 
   it("grep tool emits a [no matches] message when query finds nothing", () => {

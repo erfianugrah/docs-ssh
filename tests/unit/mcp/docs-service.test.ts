@@ -17,9 +17,11 @@ describe("DocsService command construction", () => {
     const svc = new DocsService("/docs", runner);
     await svc.search({ query: "auth", source: "supabase", maxResults: 5 });
     expect(cmds[0]).toContain("/docs/_index.tsv");
-    expect(cmds[0]).toContain("rg -i 'auth'");
+    expect(cmds[0]).toContain("rg -i -e 'auth'");
     expect(cmds[0]).toContain("rg '^supabase/'");
-    expect(cmds[0]).toContain("lim=5");
+    // Truncation to maxResults now happens client-side (rankByTokenHits +
+    // slice), not via a server-side `awk -v lim=` pipeline - single-token
+    // queries return every matching row and JS slices to 5.
   });
 
   it("read builds an offset+lines range and prefixes the source header", async () => {

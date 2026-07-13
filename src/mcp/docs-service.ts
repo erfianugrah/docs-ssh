@@ -70,27 +70,44 @@ export function tokenizeQuery(q: string): string[] {
   return tokens.length ? tokens : [q.trim()];
 }
 
-// AND-chain of `rg -i` over a file: every token must match the row
-// (order-independent), matching session_search multi-word semantics.
-// First rg reads the file; the rest filter stdin.
-export function rgAndChain(tokens: string[], file: string): string {
-  return tokens
-    .map((t, i) => (i === 0 ? `rg -i '${sq(t)}' ${file}` : `rg -i '${sq(t)}'`))
-    .join(" | ");
+// OR-match of `rg -i` over a file: any token may match the row. This
+// used to be an AND-chain (every token required on the same row), but
+// title+summary lines rarely contain every word of a natural-language
+// query verbatim - "password reset email verification" AND-chained
+// against the index returns ZERO rows even though the four topics are
+// all covered (auth-captcha.md, passwords.md, auth-smtp.md, ...) because
+// no single line's title+summary happens to contain all four words.
+// OR-matching plus rankByTokenHits (surfacing the row hitting the most
+// distinct tokens first) is what session_search's "auto-OR" semantics
+// actually mean - the old code's AND-chain was mislabeled as matching
+// that behaviour.
+export function rgOrChain(tokens: string[], file: string): string {
+  const args = tokens.map((t) => `-e '${sq(t)}'`).join(" ");
+  return `rg -i ${args} ${file}`;
 }
 
-// AND-chain of `rg -il` over a directory, yielding files that contain
-// ALL tokens. Intermediate stages emit NUL-separated paths piped into
-// `xargs -0 rg` so the next token filters only the surviving files.
-export function rgFilesAndChain(tokens: string[], dir: string): string {
-  if (tokens.length === 1) return `rg -il '${sq(tokens[0])}' '${dir}' 2>/dev/null`;
-  return tokens
-    .map((t, i) => {
-      if (i === 0) return `rg --null -il '${sq(t)}' '${dir}' 2>/dev/null`;
-      if (i === tokens.length - 1) return `xargs -0 -r rg -il '${sq(t)}' 2>/dev/null`;
-      return `xargs -0 -r rg --null -il '${sq(t)}' 2>/dev/null`;
+// OR-match of `rg -il` over a directory: any token may match a file's
+// content. A single rg call suffices (no xargs staging needed - that
+// was only required to narrow a candidate set AND-wise, stage by stage).
+export function rgFilesOrChain(tokens: string[], dir: string): string {
+  const args = tokens.map((t) => `-e '${sq(t)}'`).join(" ");
+  return `rg -il ${args} '${dir}' 2>/dev/null`;
+}
+
+// Rank OR-matched lines by how many distinct query tokens they hit
+// (case-insensitive substring match), stable on ties (preserves the
+// upstream order - _index.tsv is roughly source-alphabetical).
+export function rankByTokenHits(lines: string[], tokens: string[]): string[] {
+  if (tokens.length <= 1) return lines;
+  const lower = tokens.map((t) => t.toLowerCase());
+  return lines
+    .map((line, i) => {
+      const lc = line.toLowerCase();
+      const score = lower.reduce((n, t) => n + (lc.includes(t) ? 1 : 0), 0);
+      return { line, score, i };
     })
-    .join(" | ");
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .map((s) => s.line);
 }
 
 interface RgMatch {
@@ -258,17 +275,18 @@ export class DocsService {
     const limit = params.maxResults ?? 15;
     const tokens = tokenizeQuery(params.query);
     const filter = params.source ? `| rg '^${sq(params.source)}/'` : "";
-    const result = await this.exec(
-      `${rgAndChain(tokens, `${this.root}/_index.tsv`)} ${filter} | awk -v lim=${limit} '{ n++; if (n<=lim) print } END { if (n>lim) print "[showing "lim" of "n" results - refine query or add source filter]" }'`,
+    const raw = await this.exec(
+      `${rgOrChain(tokens, `${this.root}/_index.tsv`)} ${filter}`,
     );
-    if (!result.trim()) {
+    const lines = raw.split("\n").filter(Boolean);
+    if (lines.length === 0) {
       const dir = params.source
         ? this.safePath(`/docs/${sq(params.source)}/`)
         : this.root + "/";
-      const inameAnd = tokens.map((t) => `-iname '*${sq(t)}*'`).join(" ");
+      const inameOr = tokens.map((t) => `-iname '*${sq(t)}*'`).join(" -o ");
       const [fileMatch, contentMatch] = await Promise.all([
-        this.exec(`find '${dir}' -type f ${inameAnd} | head -${limit}`),
-        this.exec(`${rgFilesAndChain(tokens, dir)} | head -${limit}`),
+        this.exec(`find '${dir}' -type f \\( ${inameOr} \\) | head -${limit}`),
+        this.exec(`${rgFilesOrChain(tokens, dir)} | head -${limit}`),
       ]);
       const combined = [
         ...new Set(
@@ -282,7 +300,11 @@ export class DocsService {
       }
       return `[no results for "${params.query}"${params.source ? ` in ${params.source}` : ""}]`;
     }
-    return result;
+    const ranked = rankByTokenHits(lines, tokens);
+    const top = ranked.slice(0, limit);
+    return ranked.length > limit
+      ? `${top.join("\n")}\n[showing ${limit} of ${ranked.length} results - refine query or add source filter]`
+      : top.join("\n");
   }
 
   async read(params: ReadParams): Promise<string> {
