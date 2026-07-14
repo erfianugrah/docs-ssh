@@ -60,6 +60,17 @@ export class MdxNormaliser implements DocNormaliser {
     content = content.replace(/^export\s+(?:const|let|var)\s+\w+\s*=\s*\{[\s\S]*?^\};?/gm, "");
     content = content.replace(/^export\s+.*?(?:\n|$)/gm, "");
 
+    // Convert Supabase <Price price="0.0213" /> pricing components to a
+    // literal dollar amount BEFORE the generic self-closing-tag strip below
+    // removes them wholesale. The upstream <Price> component renders the
+    // value prefixed with a `$`; without this every Supabase pricing table
+    // mirrors with empty cells (e.g. guides/storage/pricing.md). The `$$` in
+    // the replacement is an escaped literal `$`, `$1` is the captured amount.
+    content = content.replace(
+      /<Price\s+price\s*=\s*["']([^"']+)["']\s*\/>/g,
+      "$$$1",
+    );
+
     // Strip JSX component tags. Treat opening, closing, and
     // self-closing tags independently rather than trying to pair
     // <Tag>...</Tag> with a non-greedy regex — that approach fails on

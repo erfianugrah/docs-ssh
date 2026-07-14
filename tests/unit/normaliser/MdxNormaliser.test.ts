@@ -208,6 +208,20 @@ describe("MdxNormaliser", () => {
     expect(result.content).toContain('"name": "foo"');
   });
 
+  it("converts <Price price=\"...\" /> to a literal dollar amount", async () => {
+    // Supabase pricing pages transclude a partial whose price cells are
+    // <Price price="0.0213" /> components. The generic self-closing-tag
+    // strip used to remove them wholesale, mirroring empty pricing tables.
+    const content = `# Pricing\n\n<Price price="0.00002919" /> per GB-Hr (<Price price="0.0213" /> per GB per month).\n\n| Plan | Over-Usage per GB |\n| ---- | ----------------- |\n| Pro  | <Price price="0.0213" /> |`;
+    const file = new DocFile("guides/storage/pricing.mdx", content);
+    const result = await normaliser.normalise(file);
+    expect(result.content).toContain("$0.00002919 per GB-Hr");
+    expect(result.content).toContain("($0.0213 per GB per month)");
+    expect(result.content).toContain("| Pro  | $0.0213 |");
+    // No JSX tags left behind
+    expect(result.content).not.toMatch(/<Price/);
+  });
+
   it("does not emit a heading when no label/title attribute is present", async () => {
     const content = `<Note>\nThis is important.\n</Note>`;
     const file = new DocFile("x.mdx", content);
