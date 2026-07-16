@@ -23,31 +23,68 @@ export type Runner = (
   command: string,
 ) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
 
-/** Default runner: `bash -c <command>` via node:child_process (works under Node + Bun). */
-export function bashRunner(timeoutMs = 60_000): Runner {
-  return (command: string) =>
-    new Promise((resolve) => {
-      const child = spawn("/bin/bash", ["-c", command], {
-        stdio: ["ignore", "pipe", "pipe"],
-        timeout: timeoutMs,
+/**
+ * Minimal FIFO concurrency limiter: caps the number of in-flight async
+ * operations at `max`, queueing the rest. Used to bound how many bash
+ * subprocesses the MCP path spawns at once, so a burst of concurrent
+ * tools/call requests can't fork-bomb the container with `rg`/`find`.
+ */
+export function createLimiter(max: number) {
+  let active = 0;
+  const queue: Array<() => void> = [];
+  const pump = () => {
+    while (active < max && queue.length > 0) {
+      active++;
+      queue.shift()!();
+    }
+  };
+  return function limit<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      queue.push(() => {
+        fn()
+          .then(resolve, reject)
+          .finally(() => {
+            active--;
+            pump();
+          });
       });
-      let stdout = "";
-      let stderr = "";
-      child.stdout.on("data", (d) => {
-        stdout += d;
-      });
-      child.stderr.on("data", (d) => {
-        stderr += d;
-      });
-      child.on("error", (err) => {
-        resolve({ stdout: "", stderr: String(err), exitCode: 255 });
-      });
-      child.on("close", (code, signal) => {
-        // SIGTERM from the timeout maps to the same 124 the SSH layer uses.
-        const exitCode = signal === "SIGTERM" ? 124 : (code ?? 0);
-        resolve({ stdout, stderr, exitCode });
-      });
+      pump();
     });
+  };
+}
+
+/**
+ * Default runner: `bash -c <command>` via node:child_process (works under
+ * Node + Bun). Bounded to `maxConcurrent` simultaneous subprocesses.
+ */
+export function bashRunner(timeoutMs = 60_000, maxConcurrent = 8): Runner {
+  const limit = createLimiter(maxConcurrent);
+  return (command: string) =>
+    limit(
+      () =>
+        new Promise((resolve) => {
+          const child = spawn("/bin/bash", ["-c", command], {
+            stdio: ["ignore", "pipe", "pipe"],
+            timeout: timeoutMs,
+          });
+          let stdout = "";
+          let stderr = "";
+          child.stdout.on("data", (d) => {
+            stdout += d;
+          });
+          child.stderr.on("data", (d) => {
+            stderr += d;
+          });
+          child.on("error", (err) => {
+            resolve({ stdout: "", stderr: String(err), exitCode: 255 });
+          });
+          child.on("close", (code, signal) => {
+            // SIGTERM from the timeout maps to the same 124 the SSH layer uses.
+            const exitCode = signal === "SIGTERM" ? 124 : (code ?? 0);
+            resolve({ stdout, stderr, exitCode });
+          });
+        }),
+    );
 }
 
 // --- Helpers (lifted verbatim from tools-pi-template.ts) ------------
@@ -212,6 +249,59 @@ export class DocsService {
     this.root = root.replace(/\/+$/, "");
   }
 
+  // --- Result cache -------------------------------------------------
+  // Docs are immutable per container lifetime and all six ops are
+  // idempotent reads, so identical (op,args) calls can serve a cached
+  // result - mirroring the tmpfs cache the SSH ForceCommand path uses
+  // (log-cmd.sh). Bounded insertion-order Map = simple LRU; transient
+  // errors (timeouts / command failures) are never cached.
+  private readonly cache = new Map<string, string>();
+  private static readonly CACHE_MAX = 512;
+
+  private async cached(
+    op: string,
+    params: unknown,
+    fn: () => Promise<string>,
+  ): Promise<string> {
+    const key = `${op}:${JSON.stringify(params)}`;
+    const hit = this.cache.get(key);
+    if (hit !== undefined) {
+      this.cache.delete(key); // refresh recency (move to newest)
+      this.cache.set(key, hit);
+      return hit;
+    }
+    const val = await fn();
+    // Don't cache transient failures - a timeout/error should be retryable.
+    if (!val.startsWith("[error]") && !val.includes("[error] command timed out")) {
+      this.cache.set(key, val);
+      if (this.cache.size > DocsService.CACHE_MAX) {
+        const oldest = this.cache.keys().next().value;
+        if (oldest !== undefined) this.cache.delete(oldest);
+      }
+    }
+    return val;
+  }
+
+  // Public API: thin, transparent cache wrappers over the *Impl methods.
+  search(p: SearchParams): Promise<string> {
+    return this.cached("search", p, () => this.searchImpl(p));
+  }
+  read(p: ReadParams): Promise<string> {
+    return this.cached("read", p, () => this.readImpl(p));
+  }
+  grep(p: GrepParams): Promise<string> {
+    return this.cached("grep", p, () => this.grepImpl(p));
+  }
+  find(p: FindParams): Promise<string> {
+    return this.cached("find", p, () => this.findImpl(p));
+  }
+  summary(p: SummaryParams): Promise<string> {
+    return this.cached("summary", p, () => this.summaryImpl(p));
+  }
+  sources(p: SourcesParams): Promise<string> {
+    return this.cached("sources", p, () => this.sourcesImpl(p));
+  }
+
   private capOutput(text: string, path?: string): string {
     if (text.length <= MAX_RESULT_CHARS) return text;
     let end = MAX_RESULT_CHARS;
@@ -271,7 +361,7 @@ export class DocsService {
     return stdout.trim();
   }
 
-  async search(params: SearchParams): Promise<string> {
+  private async searchImpl(params: SearchParams): Promise<string> {
     const limit = params.maxResults ?? 15;
     const tokens = tokenizeQuery(params.query);
     const filter = params.source ? `| rg '^${sq(params.source)}/'` : "";
@@ -307,7 +397,7 @@ export class DocsService {
       : top.join("\n");
   }
 
-  async read(params: ReadParams): Promise<string> {
+  private async readImpl(params: ReadParams): Promise<string> {
     const argPath = this.resolvePath(params);
     const p = this.safePath(argPath);
     let cmd: string;
@@ -330,17 +420,17 @@ export class DocsService {
     return this.capOutput(`[source] ${argPath}\n\n` + result, argPath);
   }
 
-  async find(params: FindParams): Promise<string> {
+  private async findImpl(params: FindParams): Promise<string> {
     const dir = params.source
       ? this.safePath(`/docs/${sq(params.source)}/`)
       : this.root + "/";
     const limit = params.maxResults ?? 30;
     return this.exec(
-      `find '${dir}' -name '${sq(params.pattern)}' -type f | head -${limit}`,
+      `find '${dir}' -iname '${sq(params.pattern)}' -type f | head -${limit}`,
     );
   }
 
-  async grep(params: GrepParams): Promise<string> {
+  private async grepImpl(params: GrepParams): Promise<string> {
     const ctx = Math.abs(Math.floor(params.context ?? 3));
     const argPath = this.resolvePath(params);
     const p = this.safePath(argPath);
@@ -375,7 +465,7 @@ export class DocsService {
     return this.capOutput(plainResult, argPath);
   }
 
-  async summary(params: SummaryParams): Promise<string> {
+  private async summaryImpl(params: SummaryParams): Promise<string> {
     const argPath = this.resolvePath(params);
     const p = this.safePath(argPath);
     const [headings, lineCount, byteCount] = await Promise.all([
@@ -386,7 +476,7 @@ export class DocsService {
     return `[source] ${argPath}\n\n${lineCount.trim()} lines, ${byteCount.trim()} bytes\n\n${headings}`;
   }
 
-  async sources(params: SourcesParams): Promise<string> {
+  private async sourcesImpl(params: SourcesParams): Promise<string> {
     const filterCmd = params.filter ? ` | rg -i '${sq(params.filter)}'` : "";
     // `cd` into the root so `find .` yields ./<source>/<file> and the
     // source dir is always awk field $2 - independent of root depth or

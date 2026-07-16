@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { DocsService, type Runner } from "../../../src/mcp/docs-service.js";
+import {
+  DocsService,
+  createLimiter,
+  type Runner,
+} from "../../../src/mcp/docs-service.js";
 
 /** Capture the last command a DocsService method builds, return a canned stdout. */
 function stubRunner(stdout = "", exitCode = 0): { runner: Runner; cmds: string[] } {
@@ -91,6 +95,53 @@ describe("DocsService safePath jail", () => {
     const svc = new DocsService("/tmp/x/docs", runner);
     await svc.summary({ path: "/docs/supabase/auth.md" });
     expect(cmds[0]).toContain("/tmp/x/docs/supabase/auth.md");
+  });
+});
+
+describe("DocsService result cache", () => {
+  it("serves identical (op,args) calls from cache - runner invoked once", async () => {
+    const { runner, cmds } = stubRunner("supabase/x.md\tTitle\tsummary");
+    const svc = new DocsService("/docs", runner);
+    await svc.search({ query: "auth", source: "supabase" });
+    await svc.search({ query: "auth", source: "supabase" });
+    expect(cmds.length).toBe(1); // second call hit the cache
+  });
+
+  it("treats different args as distinct cache keys", async () => {
+    const { runner, cmds } = stubRunner("supabase/x.md\tTitle\tsummary");
+    const svc = new DocsService("/docs", runner);
+    await svc.search({ query: "auth" });
+    await svc.search({ query: "rls" });
+    expect(cmds.length).toBe(2);
+  });
+
+  it("never caches transient errors (timeout is retried)", async () => {
+    let calls = 0;
+    const runner: Runner = async () => {
+      calls++;
+      return { stdout: "", stderr: "", exitCode: 124 }; // timeout
+    };
+    const svc = new DocsService("/docs", runner);
+    await svc.search({ query: "x" });
+    await svc.search({ query: "x" });
+    expect(calls).toBe(2); // error result was not cached
+  });
+});
+
+describe("createLimiter concurrency cap", () => {
+  it("never runs more than `max` operations at once", async () => {
+    const limit = createLimiter(2);
+    let active = 0;
+    let peak = 0;
+    const task = () =>
+      limit(async () => {
+        active++;
+        peak = Math.max(peak, active);
+        await new Promise((r) => setTimeout(r, 5));
+        active--;
+      });
+    await Promise.all([task(), task(), task(), task(), task()]);
+    expect(peak).toBeLessThanOrEqual(2);
   });
 });
 

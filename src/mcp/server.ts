@@ -37,7 +37,10 @@ const ALLOWED_HOSTS = (
   .filter(Boolean);
 const ALLOWED_ORIGINS = (
   process.env.MCP_ALLOWED_ORIGINS ??
-  "https://claude.ai,https://chatgpt.com,https://chat.openai.com"
+  // Notion's connector calls server-to-server (no Origin header) so it
+  // passes regardless, but list its web origins too in case a future
+  // client variant sends one - avoids an opaque rebinding rejection.
+  "https://claude.ai,https://chatgpt.com,https://chat.openai.com,https://www.notion.so,https://notion.so,https://mcp.notion.com"
 )
   .split(",")
   .map((s) => s.trim())
@@ -63,11 +66,15 @@ const MIME: Record<string, string> = {
 
 const docs = new DocsService(DOCS_ROOT);
 
-/** Serve a file from STATIC_DIR (jailed). Returns true if a file was sent. */
-async function serveStatic(res: ServerResponse, pathname: string): Promise<boolean> {
-  if (!STATIC_DIR) return false;
+/** Serve a file from a static dir (jailed). Returns true if a file was sent. */
+async function serveStatic(
+  res: ServerResponse,
+  pathname: string,
+  staticDir: string,
+): Promise<boolean> {
+  if (!staticDir) return false;
   const rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  const base = normalize(STATIC_DIR);
+  const base = normalize(staticDir);
   const full = normalize(join(base, rel));
   // Jail: resolved path must stay inside STATIC_DIR.
   if (full !== base && !full.startsWith(base + "/")) return false;
@@ -236,57 +243,85 @@ function jsonRpcError(res: ServerResponse, status: number, message: string): voi
   );
 }
 
-export const httpServer = createServer(async (req, res) => {
-  const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+export interface HttpServerOptions {
+  /** DocsService backing the six tools (default: module-level /docs instance). */
+  service?: DocsService;
+  /** Static file root for GET requests outside /mcp (default: MCP_STATIC_DIR). */
+  staticDir?: string;
+  /** DNS-rebinding Host allowlist (default: MCP_ALLOWED_HOSTS). */
+  allowedHosts?: string[];
+  /** DNS-rebinding Origin allowlist (default: MCP_ALLOWED_ORIGINS). */
+  allowedOrigins?: string[];
+}
 
-  // Liveness probe (used by Fly http_checks).
-  if (req.method === "GET" && url.pathname === "/healthz") {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end("ok");
-    return;
-  }
+/**
+ * Build the HTTP listener carrying both the MCP endpoint (POST /mcp) and
+ * the static landing page (GET /*). Parametrised so tests can inject a
+ * stub service, a temp static dir, and tight allowlists without touching
+ * process env.
+ */
+export function createHttpServer(options: HttpServerOptions = {}) {
+  const service = options.service ?? docs;
+  const staticDir = options.staticDir ?? STATIC_DIR;
+  const allowedHosts = options.allowedHosts ?? ALLOWED_HOSTS;
+  const allowedOrigins = options.allowedOrigins ?? ALLOWED_ORIGINS;
 
-  if (url.pathname !== "/mcp") {
-    // Anything that isn't the MCP endpoint: try the static landing page.
-    if (req.method === "GET" && (await serveStatic(res, url.pathname))) return;
-    jsonRpcError(res, 404, "Not Found");
-    return;
-  }
+  return createServer(async (req, res) => {
+    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
-  // Stateless server: no server-initiated streams, so GET/DELETE are 405.
-  if (req.method !== "POST") {
-    jsonRpcError(res, 405, "Method Not Allowed");
-    return;
-  }
-
-  let body: unknown;
-  try {
-    body = await readJsonBody(req);
-  } catch {
-    jsonRpcError(res, 400, "Invalid JSON body");
-    return;
-  }
-
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined, // stateless
-    enableJsonResponse: true, // plain JSON, no SSE needed for pure reads
-    enableDnsRebindingProtection: true, // spec-mandated Origin/Host validation
-    allowedHosts: ALLOWED_HOSTS,
-    allowedOrigins: ALLOWED_ORIGINS,
-  });
-  const server = buildServer();
-
-  res.on("close", () => {
-    transport.close();
-    server.close();
-  });
-
-  try {
-    await server.connect(transport);
-    await transport.handleRequest(req, res, body);
-  } catch (err) {
-    if (!res.headersSent) {
-      jsonRpcError(res, 500, `Internal error: ${(err as Error).message}`);
+    // Liveness probe (used by Fly http_checks).
+    if (req.method === "GET" && url.pathname === "/healthz") {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("ok");
+      return;
     }
-  }
-});
+
+    if (url.pathname !== "/mcp") {
+      // Anything that isn't the MCP endpoint: try the static landing page.
+      if (req.method === "GET" && (await serveStatic(res, url.pathname, staticDir)))
+        return;
+      jsonRpcError(res, 404, "Not Found");
+      return;
+    }
+
+    // Stateless server: no server-initiated streams, so GET/DELETE are 405.
+    if (req.method !== "POST") {
+      jsonRpcError(res, 405, "Method Not Allowed");
+      return;
+    }
+
+    let body: unknown;
+    try {
+      body = await readJsonBody(req);
+    } catch {
+      jsonRpcError(res, 400, "Invalid JSON body");
+      return;
+    }
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // stateless
+      enableJsonResponse: true, // plain JSON, no SSE needed for pure reads
+      enableDnsRebindingProtection: true, // spec-mandated Origin/Host validation
+      allowedHosts,
+      allowedOrigins,
+    });
+    const server = buildServer(service);
+
+    res.on("close", () => {
+      transport.close();
+      server.close();
+    });
+
+    try {
+      await server.connect(transport);
+      await transport.handleRequest(req, res, body);
+    } catch (err) {
+      if (!res.headersSent) {
+        jsonRpcError(res, 500, `Internal error: ${(err as Error).message}`);
+      }
+    }
+  });
+}
+
+/** Default listener wired from process env (used by main.ts). */
+export const httpServer = createHttpServer();

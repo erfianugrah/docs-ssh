@@ -325,7 +325,7 @@ const findTool = defineTool({
   async execute(_id, params) {
     const dir = params.source ? safePath(\`/docs/\${sq(params.source)}/\`) : "/docs/"
     const limit = params.maxResults ?? 30
-    const result = await ssh(\`find '\${dir}' -name '\${sq(params.pattern)}' -type f | head -\${limit}\`)
+    const result = await ssh(\`find '\${dir}' -iname '\${sq(params.pattern)}' -type f | head -\${limit}\`)
     return {
       content: [{ type: "text", text: result }],
       details: { pattern: params.pattern, source: params.source },
