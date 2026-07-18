@@ -56,6 +56,7 @@ jobs:
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
+        timeout-minutes: 30
         with:
           context: .
           push: true
@@ -76,10 +77,11 @@ jobs:
           resp_file="$(mktemp)"
           http_code=$(curl -s \
             --connect-timeout 30 \
-            --max-time 60 \
-            --retry 2 \
-            --retry-delay 15 \
+            --max-time 120 \
+            --retry 4 \
+            --retry-delay 20 \
             --retry-connrefused \
+            --retry-all-errors \
             -X POST \
             "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy?async=true" \
             -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
@@ -114,7 +116,7 @@ jobs:
           job_id="${{ steps.deploy.outputs.job_id }}"
           for i in $(seq 1 120); do
             job=$(curl -sf \
-              --connect-timeout 10 --max-time 20 \
+              --connect-timeout 10 --max-time 20 --retry 2 --retry-all-errors \
               -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
               "${{ secrets.COMPOSER_URL }}/api/v1/jobs/$job_id" || echo '{}')
             if ! printf '%s' "$job" | jq -e . >/dev/null 2>&1; then
