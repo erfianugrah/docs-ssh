@@ -902,6 +902,20 @@ export const SOURCES: readonly DocSource[] = [
       "https://www.keycloak.org/docs-api/latest/rest-api/openapi.yaml",
   }),
 
+  // Stripe API - OpenAPI 3.0, JSON (~7.5MB, ~414 paths, zero tags).
+  // The spec carries no operation tags, so grouping falls back to the
+  // path-derived resource name (see groupFromPath in
+  // openapi-converter.ts) - /v1/charges/{id} lands in api/charges.md.
+  new DocSource({
+    name: "stripe-api",
+    type: "http",
+    url: "https://docs.stripe.com/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl:
+      "https://raw.githubusercontent.com/stripe/openapi/master/openapi/spec3.json",
+  }),
+
   // ─── Zsh ────────────────────────────────────────────────────────
 
   // TOC-based discovery — full manual as browsable HTML chapters
@@ -1418,6 +1432,23 @@ export const SOURCES: readonly DocSource[] = [
     format: "html",
     discovery: "llms-txt",
     discoveryUrl: "https://resend.com/docs/llms.txt",
+  }),
+
+  // ----- Stripe -----------------------------------------------------
+
+  // llms.txt - ~470 guides. Index links point directly at .md URLs
+  // served as text/plain, so content negotiation never fires; declared
+  // format "markdown" skips the HTML pass-1 converter and the pages
+  // land as-is (same shape as git-sourced markdown). urlPattern drops
+  // the dashboard/support/stripe.com links the index also lists.
+  new DocSource({
+    name: "stripe",
+    type: "http",
+    url: "https://docs.stripe.com/",
+    format: "markdown",
+    discovery: "llms-txt",
+    discoveryUrl: "https://docs.stripe.com/llms.txt",
+    urlPattern: "docs\\.stripe\\.com/.+\\.md",
   }),
 
   // ─── Let's Encrypt ─────────────────────────────────────────────

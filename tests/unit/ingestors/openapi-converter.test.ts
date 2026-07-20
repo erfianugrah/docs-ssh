@@ -421,4 +421,50 @@ describe("openapi-converter", () => {
     const pets = files.find((f) => f.path === "api/pets.md")!;
     expect(pets.content).toContain("name?: string");
   });
+
+  // ─── Untagged operations (Stripe-style specs) ─────────────────
+
+  it("groups untagged operations by first path segment", () => {
+    const spec = makeSpec({
+      "/charges": {
+        get: { summary: "List charges", responses: {} },
+        post: { summary: "Create charge", responses: {} },
+      },
+      "/customers": {
+        get: { summary: "List customers", responses: {} },
+      },
+    });
+    const files = convertOpenApiToMarkdown(spec, "test");
+    expect(files.map((f) => f.path)).toEqual([
+      "api/overview.md",
+      "api/charges.md",
+      "api/customers.md",
+    ]);
+    const charges = files.find((f) => f.path === "api/charges.md")!;
+    expect(charges.content).toContain("Create charge");
+  });
+
+  it("skips a leading version segment when grouping untagged operations", () => {
+    const spec = makeSpec({
+      "/v1/charges": { get: { summary: "List charges", responses: {} } },
+      "/v1/charges/{charge}": { get: { summary: "Retrieve charge", responses: {} } },
+      "/v1/customers/{customer}/subscriptions": {
+        get: { summary: "List customer subscriptions", responses: {} },
+      },
+    });
+    const files = convertOpenApiToMarkdown(spec, "test");
+    expect(files.map((f) => f.path)).toEqual([
+      "api/overview.md",
+      "api/charges.md",
+      "api/customers.md",
+    ]);
+  });
+
+  it("strips path-parameter braces from the derived group name", () => {
+    const spec = makeSpec({
+      "/{resource}/items": { get: { summary: "List items", responses: {} } },
+    });
+    const files = convertOpenApiToMarkdown(spec, "test");
+    expect(files.map((f) => f.path)).toEqual(["api/overview.md", "api/resource.md"]);
+  });
 });

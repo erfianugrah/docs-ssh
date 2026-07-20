@@ -39,7 +39,7 @@ export function convertOpenApiToMarkdown(raw: string, sourceName: string): SpecF
       if (!op || typeof op !== "object") continue;
 
       const operation = op as Record<string, unknown>;
-      const tags = (operation.tags as string[]) ?? ["default"];
+      const tags = (operation.tags as string[] | undefined) ?? [groupFromPath(pathStr)];
       const opInfo = extractOperation(method, pathStr, operation, isSwagger2, resolved);
 
       for (const tag of tags) {
@@ -66,6 +66,25 @@ export function convertOpenApiToMarkdown(raw: string, sourceName: string): SpecF
   }
 
   return files;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────
+
+/**
+ * Derive a group name from the request path for operations with no
+ * tags (e.g. the Stripe spec, which is entirely untagged). Takes the
+ * first path segment, skipping a leading version prefix like `/v1/`
+ * so groups reflect resources (`/v1/charges/{id}` -> `charges`).
+ * Falls back to "default" when nothing usable remains.
+ */
+function groupFromPath(pathStr: string): string {
+  const segments = pathStr.split("/").filter(Boolean);
+  let first = segments[0];
+  if (first && /^v\d+(\.\d+)?$/i.test(first)) {
+    first = segments[1];
+  }
+  const group = first?.replace(/[{}]/g, "").trim();
+  return group || "default";
 }
 
 // ─── Types ──────────────────────────────────────────────────────────

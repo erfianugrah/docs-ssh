@@ -12,6 +12,18 @@ import { CONCURRENCY, fetchWithRetry } from "../http-client.js";
 
 const URL_REGEX = /https?:\/\/[^\s)>]+/g;
 
+/**
+ * Drop the `#fragment` from a URL. Fragments are client-side only -
+ * never sent to the server - so `page.md#section` fetches the same
+ * body as `page.md` but would be written as a duplicate file with a
+ * literal `#` in the name (seen on Stripe's llms.txt, which lists
+ * anchor links like `billing.md#features` as separate entries).
+ */
+function stripFragment(u: string): string {
+  const i = u.indexOf("#");
+  return i === -1 ? u : u.slice(0, i);
+}
+
 export async function discoverFromLlmsIndex(
   indexUrl: string,
   urlPattern?: string,
@@ -46,14 +58,18 @@ export async function discoverFromLlmsIndex(
         const childText = await r.text();
         const childLinks = childText.match(URL_REGEX) ?? [];
         // Page URLs are anything ending in .md or .html and not a
-        // sibling llms.txt. AWS migrated from .html to .md in 2026 —
-        // we accept both so older mirrors still work.
-        return childLinks.filter(
-          (l) =>
-            (l.endsWith(".md") || l.endsWith(".html")) &&
-            !l.endsWith("/llms.txt") &&
-            !l.endsWith("/llms-full.txt"),
-        );
+        // sibling llms.txt. AWS migrated from .html to .md in 2026 -
+        // we accept both so older mirrors still work. Fragments are
+        // stripped first so `.md#anchor` links aren't dropped by the
+        // extension check.
+        return childLinks
+          .map(stripFragment)
+          .filter(
+            (l) =>
+              (l.endsWith(".md") || l.endsWith(".html")) &&
+              !l.endsWith("/llms.txt") &&
+              !l.endsWith("/llms-full.txt"),
+          );
       }),
     );
     for (const result of results) {
@@ -75,7 +91,7 @@ export async function discoverFromLlmsTxt(llmsTxtUrl: string): Promise<string[]>
   const absRegex = /https?:\/\/[^\s)>\]]+/g;
   let match;
   while ((match = absRegex.exec(text)) !== null) {
-    urls.add(match[0]);
+    urls.add(stripFragment(match[0]));
   }
 
   // Extract relative paths from markdown links: [text](path)
@@ -85,7 +101,7 @@ export async function discoverFromLlmsTxt(llmsTxtUrl: string): Promise<string[]>
     const href = match[1];
     if (href.startsWith("http") || href.startsWith("#") || href.startsWith("mailto:")) continue;
     try {
-      urls.add(new URL(href, base).href);
+      urls.add(stripFragment(new URL(href, base).href));
     } catch { /* skip malformed */ }
   }
 

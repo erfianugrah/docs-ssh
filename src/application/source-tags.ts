@@ -225,9 +225,10 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   starlight: ["diagrams"],
   excalidraw: ["diagrams"],
 
-  // ─── Email & services ──────────────────────────────────────────
+  // ----- Email & services -------------------------------------------
   resend: ["email"],
   letsencrypt: ["email"],
+  stripe: ["apis", "cloud"],
 
   // ─── Blogs & changelogs ─────────────────────────────────────────
   "supabase-blog": ["blogs"],
@@ -259,6 +260,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "gitea-api": ["api-specs"],
   "authentik-api": ["api-specs"],
   "keycloak-api": ["api-specs"],
+  "stripe-api": ["api-specs"],
 
   // ─── Supabase ecosystem (non-Postgres) ──────────────────────────
   "supabase-server": ["supabase-ecosystem", "auth"],
