@@ -281,6 +281,28 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
 
   // ─── Linux distros ──────────────────────────────────────────────
   cachyos: ["linux"],
+  archwiki: ["linux"],
+  nixos: ["linux"],
+  "debian-handbook": ["linux"],
+  "debian-reference": ["linux"],
+  "ubuntu-server": ["linux"],
+  vyos: ["linux", "networking"],
+  steamos: ["linux"],
+  steamdeckhq: ["linux"],
+  "rhel9-basic-system-settings": ["linux"],
+  "rhel9-dnf": ["linux"],
+  "rhel9-networking": ["linux", "networking"],
+  "rhel9-network-infrastructure-services": ["linux", "networking"],
+  "rhel9-security-hardening": ["linux"],
+  "rhel9-selinux": ["linux"],
+  "rhel9-firewalls": ["linux", "networking"],
+  "rhel9-storage": ["linux"],
+  "rhel9-lvm": ["linux"],
+  "rhel9-file-systems": ["linux"],
+  "rhel9-performance": ["linux"],
+  "rhel9-kernel": ["linux"],
+  "rhel9-systemd": ["linux"],
+  "rhel9-containers": ["linux"],
 
   // ─── Filesystems ────────────────────────────────────────────────
   openzfs: ["filesystems", "nas"],

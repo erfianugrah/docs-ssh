@@ -2361,6 +2361,179 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "src/content/docs",
   }),
 
+  // ─── Arch Wiki ─────────────────────────────────────────────────
+
+  // MediaWiki - English pages of wiki.archlinux.org. allpages returns
+  // ns0 including translations ("Page (Language)" title suffixes).
+  // urlExclude drops them two ways: any parens group containing a
+  // URL-encoded byte (every non-ASCII language name, verified zero
+  // collateral across all ns0 parens titles), plus the pure-ASCII
+  // language names. English hardware pages like "Dell XPS 13 (9360)"
+  // survive both arms. Concurrency 4 - 8 tripped HTTP 429s.
+  new DocSource({
+    name: "archwiki",
+    type: "http",
+    url: "https://wiki.archlinux.org/title/",
+    format: "html",
+    discovery: "mediawiki",
+    discoveryUrl: "https://wiki.archlinux.org/api.php",
+    urlPattern: "^https://wiki\\.archlinux\\.org/title/",
+    urlExclude:
+      "\\([^)]*%|\\((Magyar|Polski|Italiano|Suomi|Bosanski|Bahasa_Indonesia|Svenska|Dansk|Nederlands|Hrvatski|Qhichwa|Esperanto)",
+    pageConcurrency: 4,
+    deadlineMs: 1_800_000,
+  }),
+
+  // ─── NixOS Manual ──────────────────────────────────────────────
+
+  // Git sparse - the NixOS manual in nixpkgs (CommonMark, ~140 files,
+  // self-contained: all {=include=} refs stay inside nixos/doc/manual).
+  // The NixOS options reference is build-generated (@NIXOS_OPTIONS_JSON@)
+  // and absent from git, so the mirror lacks it (options search lives at
+  // search.nixos.org). The Nix package-manager manual redirects to
+  // nix.dev, which the `nix` source already covers.
+  new DocSource({
+    name: "nixos",
+    type: "git",
+    url: "https://github.com/NixOS/nixpkgs",
+    format: "markdown",
+    paths: ["nixos/doc/manual"],
+    rootPath: "nixos/doc/manual",
+    urlExclude: "(README|contributing-to-this-manual)\\.md$",
+  }),
+
+  // ─── Debian Administrator's Handbook ───────────────────────────
+
+  // TOC - debian-handbook.info serves per-chapter HTML (source is
+  // Publican DocBook XML on salsa.debian.org; no markdown form exists).
+  // ~20 chapter pages; index.html is the TOC itself.
+  new DocSource({
+    name: "debian-handbook",
+    type: "http",
+    url: "https://debian-handbook.info/browse/stable/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://debian-handbook.info/browse/stable/",
+    urlExclude: "index\\.html$",
+  }),
+
+  // ─── Debian Reference ──────────────────────────────────────────
+
+  // TOC - per-chapter HTML under www.debian.org/doc/manuals/. Language
+  // is baked into filenames (ch01.en.html); urlPattern keeps English.
+  new DocSource({
+    name: "debian-reference",
+    type: "http",
+    url: "https://www.debian.org/doc/manuals/debian-reference/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://www.debian.org/doc/manuals/debian-reference/",
+    urlPattern: "\\.en\\.html$",
+  }),
+
+  // ─── Ubuntu Server ─────────────────────────────────────────────
+
+  // Sitemap - Canonical's server docs moved to ubuntu.com/server/docs
+  // (docs.ubuntu.com/server is 404, documentation.ubuntu.com 301s).
+  // The doc-sitemap is a clean flat urlset (~250 pages); the source
+  // repo is Sphinx .rst, so published HTML is the right target.
+  new DocSource({
+    name: "ubuntu-server",
+    type: "http",
+    url: "https://ubuntu.com/server/docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://ubuntu.com/server/docs/doc-sitemap.xml",
+    urlPattern: "^https://ubuntu\\.com/server/docs/",
+  }),
+
+  // ─── VyOS ──────────────────────────────────────────────────────
+
+  // Sitemap - the root sitemap covers the 1.5 release stream
+  // (/en/latest/ 301s to rolling dev docs; swap to
+  // /en/rolling/sitemap.xml to track rolling instead). docs.vyos.io is
+  // behind Cloudflare with Markdown for Agents enabled, so pages arrive
+  // as pre-normalised markdown.
+  new DocSource({
+    name: "vyos",
+    type: "http",
+    url: "https://docs.vyos.io/en/1.5/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://docs.vyos.io/sitemap.xml",
+    urlPattern: "^https://docs\\.vyos\\.io/en/1\\.5/",
+    urlExclude: "/(404|genindex|search)\\.html$",
+  }),
+
+  // ─── RHEL 9 (curated admin guides) ─────────────────────────────
+
+  // TOC per guide - docs.redhat.com has no usable sitemap (the index
+  // declared in robots.txt is Akamai 403), no docs API, and the product
+  // landing page links only guide indexes, never chapters. Each guide
+  // index links its own chapters, so: one source per curated guide.
+  // robots.txt declares Crawl-delay: 10 and Akamai blocks aggressive
+  // bots, hence pageConcurrency 3. ~16 pages/guide average.
+  ...(() => {
+    const guides: ReadonlyArray<readonly [string, string]> = [
+      ["rhel9-basic-system-settings", "configuring_basic_system_settings"],
+      ["rhel9-dnf", "managing_software_with_the_dnf_tool"],
+      ["rhel9-networking", "configuring_and_managing_networking"],
+      ["rhel9-network-infrastructure-services", "managing_networking_infrastructure_services"],
+      ["rhel9-security-hardening", "security_hardening"],
+      ["rhel9-selinux", "using_selinux"],
+      ["rhel9-firewalls", "configuring_firewalls_and_packet_filters"],
+      ["rhel9-storage", "managing_storage_devices"],
+      ["rhel9-lvm", "configuring_and_managing_logical_volumes"],
+      ["rhel9-file-systems", "managing_file_systems"],
+      ["rhel9-performance", "monitoring_and_managing_system_status_and_performance"],
+      ["rhel9-kernel", "managing_monitoring_and_updating_the_kernel"],
+      ["rhel9-systemd", "using_systemd_unit_files_to_customize_and_optimize_your_system"],
+      ["rhel9-containers", "building_running_and_managing_containers"],
+    ];
+    return guides.map(([name, slug]) => new DocSource({
+      name,
+      type: "http",
+      url: `https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/${slug}/`,
+      format: "html",
+      discovery: "toc",
+      discoveryUrl: `https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/${slug}/`,
+      pageConcurrency: 3,
+      deadlineMs: 600_000,
+    }));
+  })(),
+
+  // ─── SteamOS / Steam Deck (Steamworks docs) ────────────────────
+
+  // TOC - partner.steamgames.com/doc has been public since 2022. Every
+  // page embeds the full nav (~357 links); urlPattern scopes to the
+  // Deck/OS slice: steamdeck, proton, compat/verified, steamframe.
+  new DocSource({
+    name: "steamos",
+    type: "http",
+    url: "https://partner.steamgames.com/doc/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://partner.steamgames.com/doc/home",
+    urlPattern: "^https://partner\\.steamgames\\.com/doc/steamhardware",
+    pageConcurrency: 4,
+  }),
+
+  // ─── SteamDeckHQ guides ────────────────────────────────────────
+
+  // Sitemap - community Steam Deck guides (WordPress/Yoast). The
+  // tips-and-guides child sitemap is ~70 how-to guides; the post-*
+  // sitemaps (~4k news posts) are deliberately not ingested.
+  new DocSource({
+    name: "steamdeckhq",
+    type: "http",
+    url: "https://steamdeckhq.com/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://steamdeckhq.com/tips-and-guides-sitemap.xml",
+    urlPattern: "^https://steamdeckhq\\.com/tips-and-guides/",
+    pageConcurrency: 4,
+  }),
+
   // ─── OpenZFS ───────────────────────────────────────────────────
 
   // TOC — ZFS on Linux/FreeBSD docs (Sphinx, hosted on GitHub Pages).

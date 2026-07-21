@@ -115,6 +115,68 @@ describe("HtmlNormaliser", () => {
     expect(result.content).toContain("# Hi");
   });
 
+  it("falls back to full-page conversion when the <main|article> match is a tiny fragment", async () => {
+    // WordPress/Oxygen-style pages: the FIRST <article> on the page is a
+    // small comment block, and the real post body lives in plain <div>s.
+    // The non-greedy selection regex captures the comment, so the selected
+    // conversion is <1% of the input - but a full-page conversion yields
+    // the real content. Must not keep the raw HTML in that case.
+    const comment = `<article class="comment-body"><p>Great post!</p></article>`;
+    const body = `<div id="inner-content"><h1>Real Guide</h1><p>${" substantive guidance.".repeat(80)}</p></div>`;
+    const chrome = `<div class="sidebar">${"<a href='/x'>link</a>".repeat(60)}</div>`;
+    const html = `<!DOCTYPE html><html><body>${comment}${body}${chrome}</body></html>`;
+    expect(html.length).toBeGreaterThan(1000);
+
+    const file = new DocFile("guide.html", html);
+    const result = await normaliser.normalise(file);
+    expect(result.path).toBe("guide.md");
+    expect(result.content).toContain("# Real Guide");
+    expect(result.content).toContain("substantive guidance");
+  });
+
+  it("still keeps raw HTML when BOTH selected and full-page conversion are tiny (RSC shell)", async () => {
+    // Same guard as the existing RSC test, but with an <article> present:
+    // the fallback must not resurrect an SPA shell just because the
+    // first-pass selection was also tiny.
+    const padding = `<script>self.__next_f.push([1,"${"x".repeat(1500)}"])</script>`;
+    const html = `<!DOCTYPE html><html><body><article><p>t</p></article><div hidden></div>${padding}</body></html>`;
+    expect(html.length).toBeGreaterThan(1000);
+
+    const file = new DocFile("shell.html", html);
+    const result = await normaliser.normalise(file);
+    expect(result.path).toBe("shell.html");
+    expect(result.content).toBe(html);
+  });
+
+  it("renames .md to .html when keeping raw HTML from an extension-less URL", async () => {
+    // urlToPath gives extension-less upstream URLs a .md name before
+    // normalisation runs; if the SPA-shell guard keeps the raw HTML,
+    // the file must not masquerade as markdown.
+    const padding = `<script>self.__next_f.push([1,"${"x".repeat(1200)}"])</script>`;
+    const html = `<!DOCTYPE html><html><body><div hidden></div>${padding}</body></html>`;
+
+    const file = new DocFile("chapter.md", html);
+    const result = await normaliser.normalise(file);
+    expect(result.path).toBe("chapter.html");
+    expect(result.content).toBe(html);
+  });
+
+  it("converts boilerplate-heavy pages whose real content fails the ratio test", async () => {
+    // docs.redhat.com shape: ~780KB of PatternFly markup for a few KB
+    // of chapter prose inside <main><article>. The 1% ratio guard must
+    // not reject a substantive absolute-size conversion.
+    const prose = `<article><h1>Chapter 21. Changing a hostname</h1><p>${" Real prose content.".repeat(150)}</p></article>`;
+    const boilerplate = `<script type="importmap">${"x".repeat(40000)}</script>`;
+    const html = `<!DOCTYPE html><html><head>${boilerplate}</head><body><main>${prose}</main></body></html>`;
+    expect(html.length / 100).toBeGreaterThan(1); // prose < 1% of page
+
+    const file = new DocFile("chapter.md", html);
+    const result = await normaliser.normalise(file);
+    expect(result.path).toBe("chapter.md");
+    expect(result.content).toContain("# Chapter 21. Changing a hostname");
+    expect(result.content).toContain("Real prose content");
+  });
+
   it("supportsFormat returns true only for html", () => {
     expect(normaliser.supportsFormat("html")).toBe(true);
     expect(normaliser.supportsFormat("mdx")).toBe(false);

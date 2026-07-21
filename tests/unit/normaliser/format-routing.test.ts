@@ -174,7 +174,9 @@ describe("format-based normaliser routing", () => {
     });
 
     const normalised = await (updater as any).normalise(set);
-    const file = normalised.getFile("rsc-post.md");
+    // The guard forces the .html extension so raw HTML never keeps a
+    // .md name (extension-less upstream URLs get .md from urlToPath).
+    const file = normalised.getFile("rsc-post.html");
     expect(file).toBeDefined();
 
     // The safety guard should have preserved the original content since

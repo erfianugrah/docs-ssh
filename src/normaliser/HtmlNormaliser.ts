@@ -12,6 +12,16 @@ import type { DocFormat } from "../domain/DocSource.js";
 const MIN_CONVERSION_RATIO = 0.01;
 
 /**
+ * Minimum plausible size (chars) of a converted doc page. Used as an
+ * absolute floor alongside MIN_CONVERSION_RATIO: pages with extreme
+ * boilerplate overhead (e.g. docs.redhat.com ships ~780KB of PatternFly
+ * markup for ~3.5KB of chapter prose) fail any pure ratio test despite
+ * converting perfectly, and fragments below ~1KB can't be a real doc
+ * page anyway.
+ */
+const MIN_CONTENT_SIZE = 1024;
+
+/**
  * Converts HTML files to Markdown using Turndown.
  * Strips nav, header, footer, script and style elements before converting.
  * Falls back to original content if conversion produces too little output
@@ -63,21 +73,41 @@ export class HtmlNormaliser implements DocNormaliser {
     // header, footer, script, style) are dropped by the constructor's
     // td.remove() registration via Turndown's real HTML parser.
     const mainMatch = html.match(/<(?:main|article)[^>]*>([\s\S]*?)<\/(?:main|article)>/i);
-    if (mainMatch) {
-      html = mainMatch[1];
-    }
+    const selected = mainMatch ? mainMatch[1] : html;
 
-    let markdown = this.td.turndown(html).trim();
+    let markdown = this.td.turndown(selected).trim();
+
+    // The non-greedy selection regex grabs the FIRST <main|article>,
+    // which on some themes is not the post body (e.g. WordPress pages
+    // where the first <article> is a comment block and the content
+    // lives in plain <div>s). If the selected fragment is too small to
+    // be a real doc page, retry against the full document before
+    // concluding the page is an SPA shell. Only swap when the full-page
+    // conversion is larger - on well-structured pages the selection is
+    // the clean one and the full page just adds nav junk.
+    if (mainMatch && originalSize > 1000 && markdown.length < MIN_CONTENT_SIZE) {
+      const fullPage = this.td.turndown(html).trim();
+      if (fullPage.length > markdown.length) {
+        markdown = fullPage;
+      }
+    }
 
     // Inject HTML <title> as H1 if markdown doesn't already have one
     if (htmlTitle && !markdown.startsWith("# ")) {
       markdown = `# ${htmlTitle}\n\n${markdown}`;
     }
 
-    // Safety guard: if conversion produced almost nothing from a large input,
-    // the page is likely RSC/SPA rendered. Keep original to avoid data loss.
-    if (originalSize > 1000 && markdown.length < originalSize * MIN_CONVERSION_RATIO) {
-      return file;
+    // Safety guard: if conversion produced almost nothing from a large
+    // input (both absolutely and relative to the page), the page is
+    // likely RSC/SPA rendered. Keep original to avoid data loss. Raw
+    // HTML must never keep a .md name (extension-less upstream URLs get
+    // `.md` from urlToPath), so force the .html extension.
+    if (
+      originalSize > 1000 &&
+      markdown.length < MIN_CONTENT_SIZE &&
+      markdown.length < originalSize * MIN_CONVERSION_RATIO
+    ) {
+      return file.withPath(file.path.replace(/\.md$/, ".html"));
     }
 
     const newPath = file.path.replace(/\.html$/, ".md");
