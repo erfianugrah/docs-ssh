@@ -1,0 +1,73 @@
+# docs-ssh - EDGE variant (MS-01 NixOS edge router).
+# Managed by the edge composer instance (stack: docs-ssh), git-synced.
+# Explicit project name REQUIRED (deploy/edge dir-name collision - one stack's
+# `up --remove-orphans` would delete another's containers).
+name: docs-ssh
+
+# Stateless service: docs baked into the image, host keys ephemeral per
+# container, no volumes. Only differences from compose.prod.yaml:
+#   - bridge subnet 172.31.7.0/24 with a STABLE bridge name (docs0) so the
+#     router's nftables can reference it (router.nix dockerBridges)
+#   - no published ports - edge Caddy (host-mode) terminates HTTP on 443 and
+#     L4-proxies SSH on :2222 to the static IP below
+services:
+  docs-ssh:
+    image: ghcr.io/erfianugrah/docs-ssh:latest
+    container_name: docs-ssh
+    hostname: docs-ssh
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN # entrypoint: ssh-keygen -A needs to write host keys
+      - SETUID # sshd: drops privileges to docs user
+      - SETGID # sshd: drops privileges to docs group
+      - SYS_CHROOT # sshd: ChrootDirectory / privilege separation
+      - AUDIT_WRITE # sshd: writes login records
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    expose:
+      - 2222
+      - 8080
+    tmpfs:
+      - /tmp:size=16M
+      - /run/sshd:size=1M
+      - /var/log:size=8M
+    environment:
+      - TZ=UTC
+      - DOCS_SSH_HOST=docs.erfi.io
+      - DOCS_SSH_PORT=2222
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 2222
+          docs@localhost 'echo ok' || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      docs:
+        ipv4_address: 172.31.7.2
+
+networks:
+  docs:
+    driver: bridge
+    name: edge-docs
+    driver_opts:
+      com.docker.network.bridge.name: docs0
+    ipam:
+      config:
+        - subnet: 172.31.7.0/24
+          gateway: 172.31.7.1
