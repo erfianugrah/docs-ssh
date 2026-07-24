@@ -370,12 +370,18 @@
     </footer>
   </main>
   <script>
-    // Fallback: fetch version from GitHub tags API if not injected at build time
-    if (document.getElementById("version").textContent === "__VERSION__") {
-      fetch("https://api.github.com/repos/erfianugrah/docs-ssh/tags?per_page=1")
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d?.[0]?.name) document.getElementById("version").textContent = d[0].name; })
-        .catch(() => { document.getElementById("version").textContent = "dev"; });
+    // Fallback: fetch version from GitHub tags API if not injected at build time.
+    // Show "dev" immediately so the raw placeholder never leaks, then upgrade to
+    // the latest tag if the API reachable (rate-limit/offline just keeps "dev").
+    {
+      const versionEl = document.getElementById("version");
+      if (versionEl.textContent === "__VERSION__") {
+        versionEl.textContent = "dev";
+        fetch("https://api.github.com/repos/erfianugrah/docs-ssh/tags?per_page=1")
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d?.[0]?.name) versionEl.textContent = d[0].name; })
+          .catch(() => {});
+      }
     }
     (function () {
       const escape = (s) => String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
