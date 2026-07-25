@@ -373,9 +373,13 @@
     // Fallback: fetch version from GitHub tags API if not injected at build time.
     // Show "dev" immediately so the raw placeholder never leaks, then upgrade to
     // the latest tag if the API reachable (rate-limit/offline just keeps "dev").
+    // NOTE: do NOT compare against the literal __VERSION__ placeholder here -
+    // the build-time sed substitutes it in JS too, which turns the guard into
+    // an always-true comparison against the injected version. Pattern-test
+    // for an actual version string instead.
     {
       const versionEl = document.getElementById("version");
-      if (versionEl.textContent === "__VERSION__") {
+      if (!/^v\d/.test(versionEl.textContent)) {
         versionEl.textContent = "dev";
         fetch("https://api.github.com/repos/erfianugrah/docs-ssh/tags?per_page=1")
           .then(r => r.ok ? r.json() : null)
