@@ -1551,6 +1551,38 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("derives clean paths for scheme-mismatched same-host URLs", async () => {
+    // nginx.org's sitemap lists http:// URLs for the https:// site.
+    // urlToPath must fall back to the URL pathname on exact host match,
+    // so the output path is `en/docs/x.md` - not `http:/nginx.org/en/docs/x.md`.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: new Headers({ "content-type": "text/markdown" }),
+        text: async () =>
+          "# Module ngx_http_proxy_module\n\nDirective reference.".padEnd(500, " "),
+      }),
+    );
+
+    const src = new DocSource({
+      name: "scheme-mismatch-test",
+      type: "http",
+      format: "html",
+      url: "https://nginx.org/",
+      urls: ["http://nginx.org/en/docs/http/ngx_http_proxy_module.html"],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    expect([...set.files.keys()]).toEqual([
+      "en/docs/http/ngx_http_proxy_module.md",
+    ]);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   it("keeps .html path when origin returns HTML (Turndown will rename later)", async () => {
     // Counterpart: when the response is HTML, urlToPath's `.html`
     // assignment is correct. HtmlNormaliser's Pass 1 handles the

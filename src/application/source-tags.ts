@@ -85,6 +85,12 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   caddy: ["networking"],
   "caddy-cache-handler": ["networking", "caching"],
   souin: ["networking", "caching"],
+  varnish: ["networking", "caching"],
+  squid: ["networking", "caching"],
+  nginx: ["networking", "caching"],
+  "apache-traffic-server": ["networking", "caching"],
+  "http-caching-rfcs": ["caching", "apis"],
+  "http-caching-tutorial": ["caching"],
   traefik: ["networking"],
   wireguard: ["networking"],
 

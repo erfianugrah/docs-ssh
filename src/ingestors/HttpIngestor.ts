@@ -551,6 +551,19 @@ function urlToPath(url: string, baseUrl: string): string {
   let relative = url;
   if (relative.startsWith(baseUrl)) {
     relative = relative.slice(baseUrl.length);
+  } else {
+    // Scheme-mismatch fallback: same host, different scheme (e.g.
+    // nginx.org's sitemap lists http:// URLs for the https:// site).
+    // Derive the path from the URL pathname so output paths stay clean
+    // (`en/docs/x.html`) instead of embedding the full URL
+    // (`http:/nginx.org/en/docs/x.html`). Only on exact host match -
+    // cross-host URLs keep the raw-URL behaviour above.
+    try {
+      const u = new URL(url);
+      if (u.host === new URL(baseUrl).host) relative = u.pathname;
+    } catch {
+      // Unparseable URL - keep the raw string.
+    }
   }
   relative = relative.replace(/^\/+/, "").split("?")[0];
   if (!relative || relative.endsWith("/")) {

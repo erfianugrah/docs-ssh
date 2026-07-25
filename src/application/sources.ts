@@ -554,6 +554,116 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs/website/content",
   }),
 
+  // ─── Varnish ───────────────────────────────────────────────────
+
+  // Sitemap scrape of www.varnish.org (the Varnish Cache project site).
+  // The upstream docs are Sphinx RST in varnishcache/varnish-cache (no
+  // RST support), so the rendered Hugo site is the ingestion path.
+  // Scoped to the doc sections: tutorials, users-guide, reference,
+  // install-guide - excludes release notes and security advisories.
+  new DocSource({
+    name: "varnish",
+    type: "http",
+    url: "https://www.varnish.org/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://www.varnish.org/sitemap.xml",
+    urlPattern: "www\\.varnish\\.org/docs/(tutorials|users-guide|reference|install-guide)/",
+    urlExclude: "/tags/",
+  }),
+
+  // ─── Squid ───────────────────────────────────────────────────────
+
+  // The Squid wiki (wiki.squid-cache.org) is a Jekyll site built from
+  // this repo - 400+ markdown pages: Features, ConfigExamples,
+  // KnowledgeBase, cache configuration and tuning.
+  new DocSource({
+    name: "squid",
+    type: "git",
+    url: "https://github.com/squid-cache/squid-cache.github.io",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── nginx ─────────────────────────────────────────────────────
+
+  // Sitemap scrape of nginx.org/en/docs - module directive references
+  // (ngx_http_proxy/fastcgi/uwsgi/scgi/memcached modules carry all the
+  // cache directives), beginners guide, how-tos, admin topics.
+  // NOTE: nginx.org's sitemap locs use the http:// scheme while the
+  // site is https - urlToPath's same-host pathname fallback keeps
+  // output paths clean; fetches land on https via 301 redirect.
+  new DocSource({
+    name: "nginx",
+    type: "http",
+    url: "https://nginx.org/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://nginx.org/sitemap.xml",
+    urlPattern: "nginx\\.org/en/docs/.+",
+  }),
+
+  // ─── Apache Traffic Server ───────────────────────────────────────
+
+  // ATS is a major caching proxy. Docs are Sphinx (no sitemap, no RST
+  // support), and `toc` discovery is single-level, so an explicit list
+  // of the caching-relevant admin-guide pages: cache basics, hierarchical
+  // caching, storage, the cache.config/hosting.config/volume.config/
+  // storage.config/records.yaml file references, and cache logging/stats.
+  new DocSource({
+    name: "apache-traffic-server",
+    type: "http",
+    url: "https://docs.trafficserver.apache.org/",
+    format: "html",
+    urls: [
+      "https://docs.trafficserver.apache.org/admin-guide/configuration/cache-basics.en.html",
+      "https://docs.trafficserver.apache.org/admin-guide/configuration/hierarchical-caching.en.html",
+      "https://docs.trafficserver.apache.org/admin-guide/configuring-traffic-server.en.html",
+      "https://docs.trafficserver.apache.org/admin-guide/storage/index.en.html",
+      "https://docs.trafficserver.apache.org/admin-guide/files/cache.config.en.html",
+      "https://docs.trafficserver.apache.org/admin-guide/files/hosting.config.en.html",
+      "https://docs.trafficserver.apache.org/admin-guide/files/volume.config.en.html",
+      "https://docs.trafficserver.apache.org/admin-guide/files/storage.config.en.html",
+      "https://docs.trafficserver.apache.org/admin-guide/files/records.yaml.en.html",
+      "https://docs.trafficserver.apache.org/admin-guide/logging/cache-results.en.html",
+      "https://docs.trafficserver.apache.org/admin-guide/monitoring/statistics/core/cache.en.html",
+    ],
+  }),
+
+  // ─── HTTP caching RFCs ───────────────────────────────────────────
+
+  // The authoritative HTTP caching specifications (rfc-editor HTML):
+  // 9110 Semantics, 9111 Caching, 5861 stale-while-revalidate/
+  // stale-if-error, 8246 immutable, 9211 Cache-Status, 9213 targeted
+  // cache control.
+  new DocSource({
+    name: "http-caching-rfcs",
+    type: "http",
+    url: "https://www.rfc-editor.org/",
+    format: "html",
+    urls: [
+      "https://www.rfc-editor.org/rfc/rfc9110.html",
+      "https://www.rfc-editor.org/rfc/rfc9111.html",
+      "https://www.rfc-editor.org/rfc/rfc5861.html",
+      "https://www.rfc-editor.org/rfc/rfc8246.html",
+      "https://www.rfc-editor.org/rfc/rfc9211.html",
+      "https://www.rfc-editor.org/rfc/rfc9213.html",
+    ],
+  }),
+
+  // ─── HTTP caching tutorial (mnot) ────────────────────────────────
+
+  // Mark Nottingham's classic "Caching Tutorial for Web Authors and
+  // Webmasters" (mnot is the HTTPbis co-chair). Single 50KB page.
+  new DocSource({
+    name: "http-caching-tutorial",
+    type: "http",
+    url: "https://www.mnot.net/cache_docs/",
+    format: "html",
+    urls: ["https://www.mnot.net/cache_docs/"],
+  }),
+
   // ─── Neovim ────────────────────────────────────────────────────
 
   // HTML docs from sitemap — vimdoc format in git, HTML is cleaner
