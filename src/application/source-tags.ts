@@ -83,6 +83,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   fastly: ["networking", "cloud"],
   bunnycdn: ["networking", "cloud"],
   caddy: ["networking"],
+  "caddy-cache-handler": ["networking", "caching"],
+  souin: ["networking", "caching"],
   traefik: ["networking"],
   wireguard: ["networking"],
 
@@ -349,6 +351,7 @@ export const TAG_LABELS: Record<string, string> = {
   "postgres-ha": "Postgres HA & ops",
   infrastructure: "Infrastructure",
   networking: "Reverse proxy & networking",
+  caching: "HTTP caching",
   dns: "DNS servers",
   frontend: "Frontend frameworks",
   languages: "Languages & runtimes",

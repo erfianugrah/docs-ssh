@@ -59,20 +59,39 @@ function sanitise(s: string): string {
 }
 
 // ─── Frontmatter split ─────────────────────────────────────────────
-// Strict: only opening `---` on line 1 (with optional trailing
-// whitespace). The matching close is the next `---` on its own line.
-// Returns [yamlBody, contentStart] — contentStart is the line index
-// AFTER the closing `---`. If no frontmatter, returns [null, 0].
+// Strict: only an opening delimiter on line 1 (with optional trailing
+// whitespace). Two syntaxes are recognised: YAML frontmatter delimited
+// by `---` (the common convention) and TOML frontmatter delimited by
+// `+++` (Hugo's TOML variant, used by the Souin docs). The matching
+// close is the next line equal to the opening delimiter.
+// Returns [body, contentStart, syntax] - contentStart is the line index
+// AFTER the closing delimiter. If no frontmatter, returns [null, 0, null].
 
-function splitFrontmatter(lines: readonly string[]): [string | null, number] {
-  if (lines.length === 0 || !/^---[ \t]*$/.test(lines[0])) return [null, 0];
+type FrontmatterSyntax = "yaml" | "toml";
+
+function splitFrontmatter(
+  lines: readonly string[],
+): [string | null, number, FrontmatterSyntax | null] {
+  if (lines.length === 0) return [null, 0, null];
+  // Hugo also accepts TOML frontmatter delimited by `+++` (Souin docs).
+  let closeRe: RegExp;
+  let syntax: FrontmatterSyntax;
+  if (/^---[ \t]*$/.test(lines[0])) {
+    closeRe = /^---[ \t]*$/;
+    syntax = "yaml";
+  } else if (/^\+\+\+[ \t]*$/.test(lines[0])) {
+    closeRe = /^\+\+\+[ \t]*$/;
+    syntax = "toml";
+  } else {
+    return [null, 0, null];
+  }
   for (let i = 1; i < lines.length; i++) {
-    if (/^---[ \t]*$/.test(lines[i])) {
-      return [lines.slice(1, i).join("\n"), i + 1];
+    if (closeRe.test(lines[i])) {
+      return [lines.slice(1, i).join("\n"), i + 1, syntax];
     }
   }
   // Unclosed frontmatter — treat the whole file as content.
-  return [null, 0];
+  return [null, 0, null];
 }
 
 interface Frontmatter {
@@ -80,8 +99,25 @@ interface Frontmatter {
   description: string;
 }
 
-function parseFrontmatter(yamlBody: string | null): Frontmatter {
+// Minimal TOML frontmatter extraction. Not a general TOML parser -
+// doc-site frontmatter (Hugo) carries simple single-line `key = "value"`
+// pairs, and only `title` / `description` are consumed. Both double-
+// and single-quoted strings are accepted; anything more exotic falls
+// back to the heading/prose heuristics downstream.
+function parseTomlFrontmatter(tomlBody: string): Frontmatter {
+  const pick = (k: string): string => {
+    const m = tomlBody.match(new RegExp(`^${k}\\s*=\\s*["']([^"'\\n]*)["']\\s*$`, "m"));
+    return m ? m[1].trim() : "";
+  };
+  return { title: pick("title"), description: pick("description") };
+}
+
+function parseFrontmatter(
+  yamlBody: string | null,
+  syntax: FrontmatterSyntax | null = "yaml",
+): Frontmatter {
   if (!yamlBody) return { title: "", description: "" };
+  if (syntax === "toml") return parseTomlFrontmatter(yamlBody);
   // Pre-sanitise the YAML body: ANSI escape sequences and control
   // bytes have no semantic meaning in frontmatter and js-yaml refuses
   // to parse strings containing them. The awk version regex-extracted
@@ -166,8 +202,8 @@ function scanContent(lines: readonly string[], opts: Required<ParseOptions>): Co
 export function buildRow(relpath: string, raw: string, opts: ParseOptions = {}): IndexRow {
   const o = { ...DEFAULTS, ...opts };
   const lines = raw.split("\n");
-  const [yamlBody, contentStart] = splitFrontmatter(lines);
-  const fm = parseFrontmatter(yamlBody);
+  const [fmBody, contentStart, fmSyntax] = splitFrontmatter(lines);
+  const fm = parseFrontmatter(fmBody, fmSyntax);
   const signals = scanContent(lines.slice(contentStart), o);
 
   // Title precedence: frontmatter > first heading > first prose line.

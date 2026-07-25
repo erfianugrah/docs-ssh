@@ -522,6 +522,38 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "src/docs/markdown",
   }),
 
+  // ─── Caddy cache-handler ─────────────────────────────────────────
+
+  // caddyserver/cache-handler - the stable Caddy module build of Souin
+  // (RFC-compliant distributed HTTP caching for Caddy). The repo's docs
+  // are the root README (full Caddyfile/JSON configuration reference,
+  // cache keys, invalidation, stale, storage backends) so no sparse
+  // paths - walk the whole (tiny) clone.
+  new DocSource({
+    name: "caddy-cache-handler",
+    type: "git",
+    url: "https://github.com/caddyserver/cache-handler",
+    format: "markdown",
+  }),
+
+  // ─── Souin ───────────────────────────────────────────────────────
+
+  // Hugo docs content from the darkweak/souin repo - introduction,
+  // quickstart, the full configuration reference, per-middleware pages
+  // (Caddy, Traefik, Gin, Echo, Fiber, and other Go frameworks),
+  // storage backends (Redis, Olric, Badger, Nuts, Etcd, NATS, Otter,
+  // SimpleFS, ...), and use-case guides (WordPress-with-Caddy,
+  // API Platform). The repo-root README is a monolith duplicate of the
+  // same material, so the website content tree is the canonical set.
+  new DocSource({
+    name: "souin",
+    type: "git",
+    url: "https://github.com/darkweak/souin",
+    format: "markdown",
+    paths: ["docs/website/content"],
+    rootPath: "docs/website/content",
+  }),
+
   // ─── Neovim ────────────────────────────────────────────────────
 
   // HTML docs from sitemap — vimdoc format in git, HTML is cleaner

@@ -199,6 +199,76 @@ describe("build-index: buildRow", () => {
     expect(row.summary.length).toBeLessThanOrEqual(300);
   });
 
+  it("extracts title and description from TOML (`+++`) frontmatter", () => {
+    // Hugo TOML frontmatter - used by the Souin docs.
+    const md = [
+      "+++",
+      "weight = 502",
+      'title = "Caddy"',
+      'description = "Use Souin directly in the Caddy web server"',
+      "+++",
+      "",
+      "## Usage",
+      "",
+      "Body text here.",
+    ].join("\n");
+    const row = buildRow("souin/middlewares/caddy.md", md);
+    expect(row.title).toBe("Caddy");
+    expect(row.summary).toContain("Use Souin directly in the Caddy web server");
+  });
+
+  it("excludes TOML frontmatter lines from the content scan", () => {
+    // Without `+++` recognition, `weight = 502` and friends leak into
+    // the heading/prose heuristics and pollute the summary.
+    const md = [
+      "+++",
+      "weight = 502",
+      'title = "Storages"',
+      "+++",
+      "",
+      "## Badger",
+      "",
+      "Badger is an embeddable KV store.",
+    ].join("\n");
+    const row = buildRow("souin/storages/badger.md", md);
+    expect(row.title).toBe("Storages");
+    expect(row.summary).not.toContain("weight");
+    expect(row.summary).toContain("Badger");
+  });
+
+  it("falls back to first heading when TOML frontmatter has no title", () => {
+    const md = [
+      "+++",
+      "weight = 10",
+      "+++",
+      "",
+      "# Real Heading",
+    ].join("\n");
+    const row = buildRow("p.md", md);
+    expect(row.title).toBe("Real Heading");
+  });
+
+  it("treats unclosed `+++` frontmatter as content", () => {
+    const md = [
+      "+++",
+      'title = "Never Closed"',
+      "",
+      "# Real Heading",
+    ].join("\n");
+    const row = buildRow("p.md", md);
+    expect(row.title).toBe("Real Heading");
+  });
+
+  it("accepts single-quoted TOML string values", () => {
+    const md = [
+      "+++",
+      "title = 'Quickstart'",
+      "+++",
+    ].join("\n");
+    const row = buildRow("p.md", md);
+    expect(row.title).toBe("Quickstart");
+  });
+
   it("treats unclosed frontmatter as content", () => {
     // No second `---` line — awk previously kept consuming until EOF.
     // We follow the same rule (return null, scan whole file).
