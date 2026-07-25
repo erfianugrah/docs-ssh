@@ -105,7 +105,10 @@ jobs:
             SSH_HOST=${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }}
             SSH_PORT=${{ vars.DOCS_SSH_PORT || '2222' }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # ignore-error: a stale/evicted gha cache manifest (not_found on
+          # import or export) must never fail a release - the cache is an
+          # optimization, the image push already succeeded by this point.
+          cache-to: type=gha,mode=max,ignore-error=true
 
       - name: Deploy to Composer (async)
         id: deploy
@@ -117,8 +120,8 @@ jobs:
           http_code=$(curl -s \
             --connect-timeout 30 \
             --max-time 120 \
-            --retry 4 \
-            --retry-delay 20 \
+            --retry 6 \
+            --retry-delay 15 \
             --retry-connrefused \
             --retry-all-errors \
             -X POST \
