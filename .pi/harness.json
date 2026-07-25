@@ -1,25 +1,40 @@
 {
-  "task": "Restyle the docs-ssh landing page (public/index.html) to a utilitarian, McMaster-Carr-style ethos. Current style is a dark 'Dracula-ish' theme with purple accents, rounded cards, and generous padding - replace it. Target style: (1) information density over whitespace - tight spacing (4/8/12px scale), compact line-height, no hero padding (main padding-top must be <= 32px); (2) neutral gray palette (dark scheme is fine, keep meta color-scheme) + AT MOST one accent color used sparingly for links/interactive affordances - kill the multi-color purple/green/cyan/peach palette on UI chrome; muted syntax-highlight colors inside <pre> terminal blocks may stay, but ALL text outside <pre> must be neutral grays plus at most ONE shared accent hue; (3) sharp corners - every border-radius <= 6px, no 12px rounded cards; (4) flat surfaces - no box-shadows anywhere, no gradients anywhere; (5) tables for tabular data (token-efficiency table already is one - keep it dense: small uppercase header, tabular-nums); the sources grids may stay grids since they are discovery lists, but make them dense and flat; (6) no animation beyond the existing reduced-motion-gated 0.2s fade; (7) system font stack for prose, monospace for code/terminal/numbers; (8) copy stays spec-like: nouns + numbers + states, no marketing prose (existing copy is mostly fine - tighten, don't rewrite meaning). HARD CONSTRAINTS - do not break these: the literal strings __SOURCE_COUNT__, __VERSION__, __HOST__, __PORT__ must remain in the file verbatim (build-time sed substitution); the <script> block fetching /_sources.json and the version fallback must remain functionally identical; the <pre> terminal command blocks and their ssh command text must keep working; keep it a single self-contained HTML file with inline <style>, no external assets.",
+  "task": "Two new git doc sources were just added to this repo - `souin` (darkweak/souin, sparse path docs/website/content, rootPath docs/website/content) and `caddy-cache-handler` (caddyserver/cache-handler, whole-repo walk) in src/application/sources.ts, both tagged [\"networking\", \"caching\"] in src/application/source-tags.ts with a new `caching` label in TAG_LABELS. src/commands/build-index.ts was also extended to recognise TOML (`+++`-delimited) frontmatter in addition to YAML (`---`), so Hugo TOML pages like souin's get proper index titles. The full verification battery must pass. If any sensor fails, fix the underlying source code or test - NEVER weaken, delete, or skip a test, NEVER loosen a sensor, and NEVER touch git refs (no commit/reset/stash). CI parity matters: the `tools-sync` sensor mirrors the CI 'Verify tools.sh is in sync' step - if it fails, run `pnpm generate:tools` and keep commands/tools.sh committed in sync with src/commands/tools-template.ts. The fetch-verify sensor does a real network fetch of the two new sources (DOCS_ONLY=souin,caddy-cache-handler) into /tmp and asserts the pages land and index with correct TOML-derived titles - if it fails, check the sparse paths/rootPath on the DocSource entries and the TOML handling in build-index.ts.",
   "maxIterations": 8,
   "models": [""],
   "stallPatience": 2,
   "tools": ["read", "edit", "write", "bash"],
-  "writeScope": ["public/**"],
+  "writeScope": ["src/**", "tests/**", "commands/**"],
   "sensors": [
     {
-      "name": "placeholders",
-      "cmd": "for p in __SOURCE_COUNT__ __VERSION__ __HOST__ __PORT__; do grep -q \"$p\" public/index.html || { echo \"MISSING placeholder: $p (build-time sed substitution in Dockerfile will break)\"; exit 1; }; done && grep -q '/_sources.json' public/index.html || { echo 'MISSING /_sources.json fetch'; exit 1; }",
-      "hint": "The Dockerfile runs sed -i s/__HOST__/.../ etc on this file at image build time. Restore the exact placeholder tokens and the /_sources.json fetch script."
+      "name": "lint",
+      "cmd": "pnpm lint",
+      "hint": "tsc --noEmit type errors - fix the TypeScript, do not suppress."
     },
     {
-      "name": "dom",
-      "cmd": "(python3 -m http.server 8977 -d public >/dev/null 2>&1 & SP=$!; sleep 1; browser-assert http://localhost:8977 --wait 'main' --viewport 1280x800 --assert 'document.documentElement.scrollWidth <= window.innerWidth' --assert 'document.querySelector(\"h1\").getBoundingClientRect().height > 0' --assert 'document.querySelectorAll(\"table\").length >= 1' --assert 'document.querySelectorAll(\"pre\").length >= 3' --assert 'parseFloat(getComputedStyle(document.querySelector(\"main\")).paddingTop) <= 32' --assert '[...document.querySelectorAll(\"*\")].every(e => parseFloat(getComputedStyle(e).borderTopLeftRadius) <= 6)' --assert '[...document.querySelectorAll(\"*\")].every(e => getComputedStyle(e).boxShadow === \"none\")' --assert '[...document.querySelectorAll(\"*\")].every(e => !getComputedStyle(e).backgroundImage.includes(\"gradient\"))' --assert '(() => { const v = new Set(); document.querySelectorAll(\"body *\").forEach(e => { if (e.closest(\"pre\")) return; const c = (getComputedStyle(e).color.match(/\\d+/g) || []).map(Number); if (c.length === 3 && Math.max(...c) - Math.min(...c) > 60) v.add(c.join(\",\")); }); return v.size <= 1; })()' --assert '!document.querySelector(\".error\")'; RC=$?; kill $SP; exit $RC)",
-      "hint": "Fix the failing DOM assertion: no horizontal overflow; h1 renders; >=1 table, 3+ pre blocks; main padding-top <= 32px (density); every border-radius <= 6px (sharp corners); no box-shadows anywhere; no gradients anywhere; at most ONE vivid/saturated text color outside <pre> blocks (single-accent ethos - all other text neutral grays)."
+      "name": "tools-sync",
+      "cmd": "pnpm generate:tools && git diff --exit-code commands/tools.sh",
+      "hint": "commands/tools.sh is auto-generated from src/commands/tools-template.ts. Run `pnpm generate:tools` and commit the regenerated file - never edit tools.sh directly."
     },
     {
-      "name": "ux",
-      "cmd": "(python3 -m http.server 8977 -d public >/dev/null 2>&1 & SP=$!; sleep 1; bun ~/.pi/agent/skills/self-correcting-loop/judge.ts --url http://localhost:8977 --wait 'main' --full-page --viewport 1280x800 --model anthropic/claude-sonnet-5 --spec 'Judge this landing page against a utilitarian, McMaster-Carr-style design ethos. PASS criteria: (1) information-dense layout with tight spacing, no hero-sized padding or giant whitespace; (2) neutral gray palette (dark scheme OK) with at most ONE accent color on UI chrome (links/affordances) - fail if multiple vivid accent colors (purple AND teal AND cyan etc) are used across headings/borders/chrome; muted syntax colors inside terminal/code blocks are acceptable; (3) sharp corners (small radii), flat surfaces, no gradients, no glassmorphism, no heavy drop shadows; (4) tabular data in dense tables; (5) system/monospace typography, code and terminal blocks clearly styled; (6) no horizontal overflow, no overlapping elements, nothing clipped; (7) copy is spec-like, no marketing fluff. EXPECTED and NOT failures: literal tokens like __HOST__, __PORT__, __VERSION__ are build-time substitutions; the sources sections may show a fallback line because /_sources.json is not served locally. Judge only visual style and layout against the ethos.'; RC=$?; kill $SP; exit $RC)",
-      "hint": "Address the vision judge's FAIL reasons - they reference the utilitarian ethos: density, neutral palette + single accent, sharp corners, flat surfaces, dense tables."
+      "name": "unit",
+      "cmd": "pnpm test",
+      "hint": "Vitest unit failures - read the failing assertion, fix the source, never the test's expectations (unless the test itself encodes the old wrong behaviour AND the task says behaviour changed)."
+    },
+    {
+      "name": "sources-present",
+      "cmd": "rg -q 'name: \"souin\"' src/application/sources.ts && rg -q 'name: \"caddy-cache-handler\"' src/application/sources.ts && rg -q 'souin:' src/application/source-tags.ts && rg -q '\"caddy-cache-handler\":' src/application/source-tags.ts && rg -q 'caching:' src/application/source-tags.ts",
+      "hint": "The two new DocSource entries and their SOURCE_TAGS + TAG_LABELS wiring must exist. Restore them if a previous iteration clobbered them."
+    },
+    {
+      "name": "fetch-verify",
+      "cmd": "rm -rf /tmp/loop-docs-verify && DOCS_ONLY=souin,caddy-cache-handler DOCS_OUT_DIR=/tmp/loop-docs-verify DOCS_MAX_AGE=0 pnpm fetch-docs >/dev/null 2>&1 && test \"$(find /tmp/loop-docs-verify/souin -name '*.md' | wc -l)\" -ge 36 && test -f /tmp/loop-docs-verify/caddy-cache-handler/README.md && node --import tsx/esm src/commands/build-index.ts /tmp/loop-docs-verify | awk -F'\\t' '$1==\"souin/docs/middlewares/caddy.md\" && $2==\"Caddy\" {found=1} END{exit !found}' && node --import tsx/esm src/commands/build-index.ts /tmp/loop-docs-verify | awk -F'\\t' '$1==\"souin/docs/configuration.md\" && $2==\"Configuration\" {found=1} END{exit !found}' && jq -e '.caching.sources | contains([\"souin\",\"caddy-cache-handler\"])' /tmp/loop-docs-verify/_source_groups.json >/dev/null",
+      "hint": "End-to-end: real git fetch of both new sources, >=36 souin markdown files, cache-handler README present, TOML frontmatter yields correct index titles (souin/docs/middlewares/caddy.md -> 'Caddy'), and the caching group contains both sources. Failures usually mean wrong sparse paths/rootPath on the DocSource, or broken TOML parsing in build-index.ts."
+    },
+    {
+      "name": "e2e",
+      "cmd": "pnpm test:e2e",
+      "hint": "Docker-based E2E (3-min timeout). It wipes ./docs at setup AND teardown - that is expected. Read the failing vitest output; if the Docker build itself fails, check the Dockerfile stages. Do not skip the test to make it green."
     }
   ]
 }
