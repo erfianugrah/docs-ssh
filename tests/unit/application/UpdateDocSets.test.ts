@@ -446,7 +446,11 @@ describe("UpdateDocSets", () => {
       await fs.mkdir(workDir, { recursive: true });
 
       const hungSource = new DocSource({ name: "hung", type: "http", format: "markdown", url: "https://example.com/" });
-      const fastSource = new DocSource({ name: "fast", type: "http", format: "markdown", url: "https://example.com/" });
+      // Generous per-source override so the global 500ms deadline can never
+      // fire on the fast source - without it, a loaded CI runner can stall the
+      // fast mock's fs.mkdir + writeFile past 500ms and flake the assertion
+      // that only the hung source errors (observed on release run v0.23.27).
+      const fastSource = new DocSource({ name: "fast", type: "http", format: "markdown", url: "https://example.com/", deadlineMs: 60_000 });
 
       const hungIngestor: DocIngestor = {
         name: "HungIngestor",
@@ -464,10 +468,9 @@ describe("UpdateDocSets", () => {
         normalisers: [noopNormaliser],
         outDir,
         workDir,
-        // 500ms — short enough for the test to be fast, long enough
-        // that the "fast" mock source (which does fs.mkdir + fs.writeFile
-        // + stamp write under tmpfs/spinning disk on CI) actually has
-        // time to complete before the deadline can fire on it.
+        // 500ms - short enough for the test to be fast. The fast source
+        // is exempt via its own deadlineMs override above, so this value
+        // only needs to give the hung source time to trip the deadline.
         sourceDeadline: 500,
       });
 
