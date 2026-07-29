@@ -71,9 +71,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Composer (async)
-        id: deploy
+      # Fire-and-forget redeploy via the Composer webhook receiver
+      # (POST /api/v1/hooks/{id}, HMAC-signed generic payload). No API key
+      # needed: the hook URL + HMAC secret are the only credentials.
+      # The deploy runs async on the host; its outcome is tracked as a
+      # webhook delivery + job in the Composer UI and surfaced via
+      # Composer-side notifications - CI does not poll it. CI only asserts
+      # the hook accepted the trigger (non-200 / non-JSON = red workflow).
+      - name: Trigger Composer redeploy via webhook
         run: |
+          payload_file="$(mktemp)"
+          printf '{"ref":"refs/heads/main","branch":"main","commit_sha":"%s","event":"daily-docs-update"}' \
+            "${{ github.sha }}" > "$payload_file"
+          sig=$(openssl dgst -sha256 -hmac "${{ secrets.COMPOSER_WEBHOOK_SECRET }}" "$payload_file" | awk '{print $NF}')
           resp_file="$(mktemp)"
           http_code=$(curl -s \
             --connect-timeout 30 \
@@ -83,64 +93,29 @@ jobs:
             --retry-connrefused \
             --retry-all-errors \
             -X POST \
-            "${{ secrets.COMPOSER_URL }}/api/v1/stacks/docs-ssh/deploy?async=true" \
-            -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
-            -H "X-Requested-With: XMLHttpRequest" \
+            "${{ secrets.COMPOSER_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Signature: sha256=$sig" \
+            --data-binary @"$payload_file" \
             -o "$resp_file" -w '%{http_code}')
-          response=$(cat "$resp_file"); rm -f "$resp_file"
-          echo "composer response (HTTP $http_code): $(printf '%s' "$response" | head -c 500)"
+          response=$(cat "$resp_file"); rm -f "$resp_file" "$payload_file"
+          echo "composer webhook response (HTTP $http_code): $(printf '%s' "$response" | head -c 500)"
 
-          # A non-JSON body means we reached something other than the API —
+          # A non-JSON body means we reached something other than the API -
           # almost always the Caddy proof-of-work / WAF challenge page that
           # gets served to GitHub runner IPs. Surface that plainly instead of
           # a cryptic `jq: parse error: Invalid numeric literal`.
           if ! printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
-            echo "::error::composer deploy returned non-JSON (HTTP $http_code) — likely a WAF/proof-of-work challenge, not the API. Body (first 300 chars): $(printf '%s' "$response" | head -c 300 | tr '\n' ' ')"
+            echo "::error::composer webhook returned non-JSON (HTTP $http_code) - likely a WAF/proof-of-work challenge, not the API. Body (first 300 chars): $(printf '%s' "$response" | head -c 300 | tr '\n' ' ')"
             exit 1
           fi
-          if [ "$http_code" != "200" ] && [ "$http_code" != "202" ]; then
-            echo "::error::composer deploy failed with HTTP $http_code: $response"
+          if [ "$http_code" != "200" ]; then
+            echo "::error::composer webhook failed with HTTP $http_code: $response"
             exit 1
           fi
-
-          job_id=$(printf '%s' "$response" | jq -r '.job_id // empty')
-          if [ -z "$job_id" ]; then
-            echo "::error::composer accepted deploy but returned no job_id: $response"
+          status=$(printf '%s' "$response" | jq -r '.status // empty')
+          if [ "$status" != "accepted" ]; then
+            echo "::error::composer webhook did not accept the deploy: $response"
             exit 1
           fi
-          echo "Deploy queued, job_id=$job_id"
-          echo "job_id=$job_id" >> "$GITHUB_OUTPUT"
-
-      - name: Wait for Composer job to finish
-        run: |
-          job_id="${{ steps.deploy.outputs.job_id }}"
-          for i in $(seq 1 120); do
-            job=$(curl -sf \
-              --connect-timeout 10 --max-time 20 --retry 2 --retry-all-errors \
-              -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
-              "${{ secrets.COMPOSER_URL }}/api/v1/jobs/$job_id" || echo '{}')
-            if ! printf '%s' "$job" | jq -e . >/dev/null 2>&1; then
-              echo "::warning::poll #$i got a non-JSON response (likely WAF/proof-of-work challenge); retrying"
-              sleep 5; continue
-            fi
-            status=$(printf '%s' "$job" | jq -r '.status // "unknown"')
-            case "$status" in
-              completed)
-                echo "job $job_id completed in $((i*5))s"
-                exit 0 ;;
-              failed)
-                echo "::error::composer job failed"
-                echo "--- error ---"
-                echo "$job" | jq -r '.error // "(no error field)"'
-                echo "--- output (last 4KB) ---"
-                echo "$job" | jq -r '.output // ""' | tail -c 4096
-                exit 1 ;;
-              pending|running)
-                : ;;
-              *)
-                echo "::warning::unexpected job status '$status' (raw: $job)" ;;
-            esac
-            sleep 5
-          done
-          echo "::error::composer job $job_id did not finish within 10 minutes"
-          exit 1
+          echo "Redeploy accepted: $(printf '%s' "$response" | jq -c '{stack, delivery_id, job_id}')"
