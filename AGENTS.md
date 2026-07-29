@@ -87,8 +87,8 @@ Add a `case` entry in `log-cmd.sh:44-59` and a script in `commands/`. Human-faci
 ## Release / Deploy
 
 - **CI** (every push/PR to main): verify `tools.sh` in sync → lint → test:coverage. `test` and `e2e` jobs run in parallel.
-- **Release** (push tag `v*`): fetch-docs → Docker build with `DOCS_PREBUILT=true` → push to `ghcr.io/erfianugrah/docs-ssh` → deploy to Composer (self-hosted Docker compose manager via API).
-- **Daily cron** (02:00 UTC): same fetch+build+push, tags `latest` + date tag. Keeps docs fresh without code changes.
+- **Release** (push tag `v*`): fetch-docs → Docker build with `DOCS_PREBUILT=true` → push to `ghcr.io/erfianugrah/docs-ssh` → deploy to Composer (self-hosted Docker compose manager via API + job polling, secrets `COMPOSER_URL`/`COMPOSER_API_KEY`).
+- **Daily cron** (02:00 UTC): same fetch+build+push, tags `latest` + date tag. Keeps docs fresh without code changes. Deploy is fire-and-forget via the Composer webhook receiver (`POST /api/v1/hooks/{id}`, generic provider, HMAC-SHA256 `X-Webhook-Signature`; secrets `COMPOSER_WEBHOOK_URL`/`COMPOSER_WEBHOOK_SECRET`) - no API key, no job polling; outcome is tracked as a webhook delivery in the Composer UI. Composer instance is on the router at `https://composer.erfi.io` (the old servarr instance 401s all keys).
 - **Version**: git tag is the single source of truth. `pnpm release:patch` bumps `package.json`, commits, tags, and pushes in one command. Landing page version injected from git tag at Docker build time; JS fallback fetches from GitHub tags API for self-hosted builds.
 
 ## Env vars
