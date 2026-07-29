@@ -1,40 +1,14 @@
 {
-  "task": "Eight caching-related git/http doc sources were added to this repo: `souin` (darkweak/souin, sparse docs/website/content), `caddy-cache-handler` (caddyserver/cache-handler, whole-repo), `squid` (squid-cache/squid-cache.github.io, sparse docs - the whole Squid wiki), `varnish` (www.varnish.org sitemap scrape scoped to docs/{tutorials,users-guide,reference,install-guide}, /tags/ excluded), `nginx` (nginx.org sitemap scrape of /en/docs/ - sitemap locs are http:// for the https site, urlToPath has a same-host pathname fallback for this), `apache-traffic-server` (explicit urls: cache-basics, hierarchical-caching, storage + cache.config/hosting.config/volume.config/storage.config/records.yaml + cache logging/stats), `http-caching-rfcs` (RFC 9110/9111/5861/8246/9211/9213), `http-caching-tutorial` (mnot cache_docs single page). All tagged in source-tags.ts (new `caching` tag, label 'HTTP caching'). src/commands/build-index.ts was extended for TOML (+++) frontmatter and src/ingestors/HttpIngestor.ts urlToPath gained a scheme-mismatch same-host pathname fallback. The full verification battery must pass. If any sensor fails, fix the underlying source code or test - NEVER weaken, delete, or skip a test, NEVER loosen a sensor, NEVER touch git refs. CI parity: tools-sync mirrors the 'Verify tools.sh is in sync' CI step (fix: pnpm generate:tools). fetch-verify does real fetches (DOCS_ONLY) into /tmp and asserts page counts, paths, and index titles - failures usually mean wrong sparse paths/rootPath/urlPattern, broken TOML parsing in build-index.ts, or a regression in the urlToPath fallback.",
-  "maxIterations": 8,
-  "models": [""],
-  "stallPatience": 2,
-  "tools": ["read", "edit", "write", "bash"],
-  "writeScope": ["src/**", "tests/**", "commands/**"],
+  "task": "Eliminate all wall-clock timing dependence from the unit test suite by converting the timing-sensitive tests to vitest fake timers. This repo just had a release (v0.23.27) fail CI on a timing flake in the per-source deadline test; the goal is that this class of flake can NEVER recur.\n\nFiles to convert (all under tests/unit/):\n1. application/UpdateDocSets.test.ts - the 'per-source deadline' describe block: one test races a hung ingestor against a 500ms sourceDeadline with real timers and asserts `elapsed < 2000`; another uses a 300ms real setTimeout ingestor against a deadlineMs override. Convert to vi.useFakeTimers() + vi.advanceTimersByTimeAsync() so the deadline fires deterministically at fake-500ms regardless of CI load. The deadlineMs: 60_000 override on the fast source (added as a stopgap) can be simplified away once fake timers make the deadline deterministic.\n2. shared/retry.test.ts - the delayFromError hint test asserts 70 <= elapsed < 500 against real time.\n3. ingestors/GitIngestor.test.ts - 'retries transient clone failures with backoff' asserts elapsed >= 25 (real git spawns + real backoff sleeps).\n4. ingestors/HttpIngestor.test.ts - the Retry-After test asserts elapsed >= 800 (real 1000ms wait).\n\nHow (researched against the vitest docs):\n- vi.useFakeTimers() in the test (or beforeEach), vi.useRealTimers() in afterEach. Default toFake fakes Date too, so Date.now() becomes deterministic: it only advances when fake timers advance. Real async work (fs, child_process spawn, mocked fetch promises) still completes on the real event loop but does NOT move fake Date.\n- Pattern: start the async operation WITHOUT awaiting it, then `await vi.advanceTimersByTimeAsync(ms)` (or vi.runAllTimersAsync()) to fire the timer callbacks and flush microtasks, THEN await the operation promise. Never advance timers after already awaiting.\n- Where jitter makes delays nondeterministic (backoffDelay adds raw * Math.random() * jitter), either pass jitter: 0 in the options or vi.spyOn(Math, 'random').mockReturnValue(0), then assert the EXACT delay (e.g. elapsed === 75, === 30, === 1000) instead of a range - fake Date makes this exact.\n- Keep every behavioural assertion intact (status values, error messages, attempt counts, file counts). Do not weaken, skip, or delete any test. Do not touch src/ - this is a test-only refactor.\n\nDone when: all four files use fake timers for their timing-sensitive tests, the full unit suite passes, and repeated runs are stable.",
+  "maxIterations": 10,
+  "models": ["opencode/deepseek-v4-pro", "opencode/glm-5.2", "anthropic/claude-sonnet-5"],
+  "stallPatience": 3,
+  "tools": ["read", "edit", "write", "bash", "grep"],
+  "writeScope": ["tests/unit/**"],
   "sensors": [
-    {
-      "name": "lint",
-      "cmd": "pnpm lint",
-      "hint": "tsc --noEmit type errors - fix the TypeScript, do not suppress."
-    },
-    {
-      "name": "tools-sync",
-      "cmd": "pnpm generate:tools && git diff --exit-code commands/tools.sh",
-      "hint": "commands/tools.sh is auto-generated from src/commands/tools-template.ts. Run `pnpm generate:tools` and commit the regenerated file - never edit tools.sh directly."
-    },
-    {
-      "name": "unit",
-      "cmd": "pnpm test",
-      "hint": "Vitest unit failures - read the failing assertion, fix the source, never the test's expectations (unless the test itself encodes the old wrong behaviour AND the task says behaviour changed)."
-    },
-    {
-      "name": "sources-present",
-      "cmd": "for s in souin caddy-cache-handler squid varnish nginx apache-traffic-server http-caching-rfcs http-caching-tutorial; do rg -q \"name: \\\"$s\\\"\" src/application/sources.ts || { echo \"MISSING source: $s\"; exit 1; }; done && for s in souin caddy-cache-handler squid varnish nginx apache-traffic-server http-caching-rfcs http-caching-tutorial; do rg -q \"\\\"$s\\\":\" src/application/source-tags.ts || rg -q \"^  $s:\" src/application/source-tags.ts || { echo \"MISSING tag: $s\"; exit 1; }; done && rg -q 'caching:' src/application/source-tags.ts",
-      "hint": "The eight new DocSource entries and their SOURCE_TAGS + TAG_LABELS wiring must exist. Restore them if a previous iteration clobbered them."
-    },
-    {
-      "name": "fetch-verify",
-      "cmd": "rm -rf /tmp/loop-docs-verify && DOCS_ONLY=souin,caddy-cache-handler,squid,varnish,nginx,apache-traffic-server,http-caching-rfcs,http-caching-tutorial DOCS_OUT_DIR=/tmp/loop-docs-verify DOCS_MAX_AGE=0 pnpm fetch-docs >/dev/null 2>&1 && test \"$(ls -R /tmp/loop-docs-verify/souin | grep -c '\\.md$')\" -ge 36 && test -f /tmp/loop-docs-verify/caddy-cache-handler/README.md && test \"$(ls -R /tmp/loop-docs-verify/squid | grep -c '\\.md$')\" -ge 400 && test \"$(ls -R /tmp/loop-docs-verify/varnish | grep -c '\\.md$')\" -ge 100 && test \"$(ls -R /tmp/loop-docs-verify/nginx | grep -c '\\.md$')\" -ge 140 && test \"$(ls -R /tmp/loop-docs-verify/apache-traffic-server | grep -c '\\.md$')\" -ge 10 && test \"$(ls -R /tmp/loop-docs-verify/http-caching-rfcs | grep -c '\\.md$')\" -ge 6 && test -f /tmp/loop-docs-verify/http-caching-tutorial/index.md && ! ls /tmp/loop-docs-verify/nginx | rg -q '^http:' && ! ls -R /tmp/loop-docs-verify/varnish | rg -q 'tags' && node --import tsx/esm src/commands/build-index.ts /tmp/loop-docs-verify | awk -F'\\t' '$1==\"souin/docs/middlewares/caddy.md\" && $2==\"Caddy\" {found=1} END{exit !found}' && node --import tsx/esm src/commands/build-index.ts /tmp/loop-docs-verify | awk -F'\\t' '$1==\"souin/docs/configuration.md\" && $2==\"Configuration\" {found=1} END{exit !found}' && test -f /tmp/loop-docs-verify/nginx/en/docs/http/ngx_http_proxy_module.md && jq -e '.caching.sources | contains([\"souin\",\"caddy-cache-handler\",\"squid\",\"varnish\",\"nginx\",\"apache-traffic-server\",\"http-caching-rfcs\",\"http-caching-tutorial\"])' /tmp/loop-docs-verify/_source_groups.json >/dev/null",
-      "hint": "End-to-end: real fetch of all eight caching sources. Asserts: souin >=36 md (TOML titles index correctly: middlewares/caddy.md -> 'Caddy'), cache-handler README, squid >=400 md, varnish >=100 md with no tags/ listing pages, nginx >=140 md with clean en/docs/... paths (no literal 'http:' dir - that means the urlToPath scheme-mismatch fallback regressed), ATS >=10 md, RFCs >=6 md, mnot tutorial index.md, and the caching group contains all eight. Check sparse paths/rootPath/urlPattern on the DocSource entries and urlToPath in HttpIngestor.ts."
-    },
-    {
-      "name": "e2e",
-      "cmd": "pnpm test:e2e",
-      "hint": "Docker-based E2E (3-min timeout). It wipes ./docs at setup AND teardown - that is expected. Read the failing vitest output; if the Docker build itself fails, check the Dockerfile stages. Do not skip the test to make it green."
-    }
+    { "name": "lint", "cmd": "pnpm lint" },
+    { "name": "fake-timers", "cmd": "for f in tests/unit/application/UpdateDocSets.test.ts tests/unit/shared/retry.test.ts tests/unit/ingestors/GitIngestor.test.ts tests/unit/ingestors/HttpIngestor.test.ts; do rg -q 'useFakeTimers' \"$f\" || { echo \"missing fake timers: $f\"; exit 1; }; done", "hint": "Each of the four timing-sensitive test files must use vi.useFakeTimers() for its timing tests. See the task description for the exact pattern (start promise, advanceTimersByTimeAsync, then await)." },
+    { "name": "unit", "cmd": "pnpm test" },
+    { "name": "stress", "cmd": "for i in 1 2 3 4 5; do npx vitest run tests/unit/application/UpdateDocSets.test.ts tests/unit/shared/retry.test.ts tests/unit/ingestors/GitIngestor.test.ts tests/unit/ingestors/HttpIngestor.test.ts >/dev/null 2>&1 || { echo \"stress run $i failed\"; exit 1; }; done", "hint": "The timing tests must pass 5 consecutive runs. If a run fails intermittently, a real wall-clock dependency remains - find it (rg -n 'Date.now|elapsed|setTimeout' the failing file) and convert it to fake timers." }
   ]
 }
