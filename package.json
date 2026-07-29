@@ -1,6 +1,6 @@
 {
   "name": "docs-ssh",
-  "version": "0.23.27",
+  "version": "0.23.28",
   "description": "Self-hosted SSH docs server serving 130+ documentation sources (docs + API specs) as searchable markdown over SSH",
   "type": "module",
   "scripts": {
