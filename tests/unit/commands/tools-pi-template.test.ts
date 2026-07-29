@@ -68,8 +68,9 @@ describe("tools-pi-template", () => {
 
   // ─── SSH helper ────────────────────────────────────────────────
 
-  it("static body contains Bun.spawn SSH helper", () => {
-    expect(PI_STATIC_BODY).toContain('Bun.spawn');
+  it("static body contains node:child_process spawn SSH helper", () => {
+    expect(PI_STATIC_BODY).toContain('spawn(');
+    expect(PI_STATIC_BODY).not.toContain('Bun.spawn(');
     expect(PI_STATIC_BODY).toContain('SSH_PORT');
     expect(PI_STATIC_BODY).toContain('SSH_HOST');
   });
