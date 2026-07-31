@@ -143,10 +143,12 @@ describe("format-based normaliser routing", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
-  it("preserves content when normalising RSC pages produces too little output", async () => {
+  it("drops the file when normalising RSC pages produces too little output", async () => {
     // RSC-rendered pages produce almost no output from Turndown.
-    // HtmlNormaliser.ts safety guard: if input > 1000 chars and output < 1%
-    // of input size, the original content is preserved to avoid data loss.
+    // HtmlNormaliser.ts empty-conversion guard: if input > 1000 chars and
+    // output < 1% of input size, the page is dropped from the doc set -
+    // a raw app-shell HTML page has no doc value and breaks the invariant
+    // that markdown-capable sources contain only .md files.
     const source = new DocSource({
       name: "test-rsc-blog",
       type: "http",
@@ -154,7 +156,7 @@ describe("format-based normaliser routing", () => {
       format: "html",
     });
 
-    // Simulate a large RSC payload — lots of script tags, no extractable HTML.
+    // Simulate a large RSC payload - lots of script tags, no extractable HTML.
     // Must exceed 1000 chars to trigger the MIN_CONVERSION_RATIO guard.
     const rscPayload = `self.__next_f.push([1,"${"a]b[c".repeat(300)}"])`;
     const rscHtml = `<!DOCTYPE html><html><head><title>Blog</title></head><body><div hidden></div><script>${rscPayload}</script></body></html>`;
@@ -174,16 +176,11 @@ describe("format-based normaliser routing", () => {
     });
 
     const normalised = await (updater as any).normalise(set);
-    // The guard forces the .html extension so raw HTML never keeps a
-    // .md name (extension-less upstream URLs get .md from urlToPath).
-    const file = normalised.getFile("rsc-post.html");
-    expect(file).toBeDefined();
-
-    // The safety guard should have preserved the original content since
-    // Turndown produces almost nothing from script-only pages
-    expect(file!.content.length).toBeGreaterThan(100);
-    // Content should still contain the RSC payload (not be converted to near-empty MD)
-    expect(file!.content).toContain("self.__next_f");
+    // The dropped page must not survive under ANY name - neither the
+    // original .md path nor a renamed .html path.
+    expect(normalised.getFile("rsc-post.md")).toBeUndefined();
+    expect(normalised.getFile("rsc-post.html")).toBeUndefined();
+    expect(normalised.files.size).toBe(0);
 
     await fs.rm(tmpDir, { recursive: true });
   });

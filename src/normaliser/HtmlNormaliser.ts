@@ -6,8 +6,8 @@ import type { DocFormat } from "../domain/DocSource.js";
 /**
  * Minimum output-to-input ratio to accept the conversion.
  * If the markdown output is less than 1% of the HTML input size,
- * the page is likely an RSC/SPA shell with no extractable content —
- * keep the original to avoid silent data loss.
+ * the page is likely an RSC/SPA shell with no extractable content -
+ * the page is dropped from the doc set (returning null).
  */
 const MIN_CONVERSION_RATIO = 0.01;
 
@@ -56,7 +56,7 @@ export class HtmlNormaliser implements DocNormaliser {
     return format === "html";
   }
 
-  async normalise(file: DocFile): Promise<DocFile> {
+  async normalise(file: DocFile): Promise<DocFile | null> {
     let html = file.content;
     const originalSize = html.length;
 
@@ -97,17 +97,19 @@ export class HtmlNormaliser implements DocNormaliser {
       markdown = `# ${htmlTitle}\n\n${markdown}`;
     }
 
-    // Safety guard: if conversion produced almost nothing from a large
-    // input (both absolutely and relative to the page), the page is
-    // likely RSC/SPA rendered. Keep original to avoid data loss. Raw
-    // HTML must never keep a .md name (extension-less upstream URLs get
-    // `.md` from urlToPath), so force the .html extension.
+    // Empty-conversion guard: if conversion produced almost nothing from
+    // a large input (both absolutely and relative to the page), the page
+    // is an RSC/SPA app shell with no doc value (e.g. a paginated listing
+    // page). Drop it from the doc set rather than keeping raw HTML - a
+    // .html file in the corpus breaks the downstream invariant that
+    // markdown-capable sources contain only .md files (enforced by the
+    // post-deploy smoke test).
     if (
       originalSize > 1000 &&
       markdown.length < MIN_CONTENT_SIZE &&
       markdown.length < originalSize * MIN_CONVERSION_RATIO
     ) {
-      return file.withPath(file.path.replace(/\.md$/, ".html"));
+      return null;
     }
 
     const newPath = file.path.replace(/\.html$/, ".md");

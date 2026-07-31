@@ -90,17 +90,18 @@ describe("HtmlNormaliser", () => {
     expect(result.content).toContain("Main Content");
   });
 
-  it("preserves original when RSC page produces <1% output (input > 1000 chars)", async () => {
-    // Input must be >1000 chars for the safety guard to activate
+  it("drops the page when RSC page produces <1% output (input > 1000 chars)", async () => {
+    // Input must be >1000 chars for the empty-conversion guard to activate.
+    // An app-shell HTML page whose conversion is near-empty has no doc
+    // value - keeping it as raw .html breaks the downstream invariant that
+    // markdown-capable sources contain only .md files, so it is dropped.
     const padding = `<script>self.__next_f.push([1,"${"x".repeat(1200)}"])</script>`;
     const rscHtml = `<!DOCTYPE html><html><body><div hidden></div>${padding}</body></html>`;
     expect(rscHtml.length).toBeGreaterThan(1000);
 
     const file = new DocFile("rsc.html", rscHtml);
     const result = await normaliser.normalise(file);
-    // Safety guard keeps original: path stays .html, content preserved
-    expect(result.path).toBe("rsc.html");
-    expect(result.content).toBe(rscHtml);
+    expect(result).toBeNull();
   });
 
   it("does NOT trigger RSC guard when input < 1000 chars", async () => {
@@ -134,7 +135,7 @@ describe("HtmlNormaliser", () => {
     expect(result.content).toContain("substantive guidance");
   });
 
-  it("still keeps raw HTML when BOTH selected and full-page conversion are tiny (RSC shell)", async () => {
+  it("still drops the page when BOTH selected and full-page conversion are tiny (RSC shell)", async () => {
     // Same guard as the existing RSC test, but with an <article> present:
     // the fallback must not resurrect an SPA shell just because the
     // first-pass selection was also tiny.
@@ -144,21 +145,20 @@ describe("HtmlNormaliser", () => {
 
     const file = new DocFile("shell.html", html);
     const result = await normaliser.normalise(file);
-    expect(result.path).toBe("shell.html");
-    expect(result.content).toBe(html);
+    expect(result).toBeNull();
   });
 
-  it("renames .md to .html when keeping raw HTML from an extension-less URL", async () => {
+  it("drops raw HTML from an extension-less URL instead of renaming .md to .html", async () => {
     // urlToPath gives extension-less upstream URLs a .md name before
-    // normalisation runs; if the SPA-shell guard keeps the raw HTML,
-    // the file must not masquerade as markdown.
+    // normalisation runs; when the empty-conversion guard fires on such
+    // a page the file must be dropped - never renamed to .html, so it
+    // cannot masquerade as markdown nor leak raw HTML into the doc set.
     const padding = `<script>self.__next_f.push([1,"${"x".repeat(1200)}"])</script>`;
     const html = `<!DOCTYPE html><html><body><div hidden></div>${padding}</body></html>`;
 
     const file = new DocFile("chapter.md", html);
     const result = await normaliser.normalise(file);
-    expect(result.path).toBe("chapter.html");
-    expect(result.content).toBe(html);
+    expect(result).toBeNull();
   });
 
   it("converts boilerplate-heavy pages whose real content fails the ratio test", async () => {

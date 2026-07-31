@@ -561,6 +561,10 @@ export class UpdateDocSets {
 
   private async normalise(set: DocSet): Promise<DocSet> {
     const normalised = new Map<string, DocFile>();
+    // Pages dropped by a format converter (currently: HtmlNormaliser's
+    // empty-conversion guard for RSC/SPA app shells). Tracked so the
+    // fetch log surfaces silent content loss per source.
+    const dropped: string[] = [];
 
     // Cross-file pre-pass: inline `<$Partial>` transclusions and drop the
     // `_partials/**` fragments. Must run BEFORE per-file normalisation so the
@@ -570,7 +574,7 @@ export class UpdateDocSets {
       : set.files;
 
     for (const [, file] of sourceFiles) {
-      let current = file;
+      let current: DocFile | null = file;
 
       // Pass 1: format-based normalisation (HTML→md, MDX→md).
       // Skipped when the ingestor already received content in the target
@@ -592,9 +596,9 @@ export class UpdateDocSets {
       // markdown/openapi-format sources (no Pass 1 converter), Pass 2
       // would happily pick MarkdownCleaner via supports() and Pass 3
       // would then run it again, double-cleaning every file.
-      if (!formatNormaliser) {
+      if (current && !formatNormaliser) {
         const extNormaliser = this.opts.normalisers.find(
-          (n) => isFormatConverter(n) && n.supports(current),
+          (n) => isFormatConverter(n) && n.supports(current as DocFile),
         );
         if (extNormaliser) {
           current = await extNormaliser.normalise(current);
@@ -605,13 +609,26 @@ export class UpdateDocSets {
       // Skip format converters (they already ran in pass 1/2) — identified by
       // supportsFormat returning true for any format.
       for (const cleaner of this.opts.normalisers) {
+        if (!current) break;
         if (isFormatConverter(cleaner)) continue;
         if (cleaner.supports(current)) {
           current = await cleaner.normalise(current);
         }
       }
 
+      if (!current) {
+        dropped.push(file.path);
+        continue;
+      }
       normalised.set(current.path, current);
+    }
+
+    if (dropped.length > 0) {
+      const shown = dropped.slice(0, 5).join(", ");
+      const more = dropped.length > 5 ? ` (+${dropped.length - 5} more)` : "";
+      console.warn(
+        `  [${set.source.name}] dropped ${dropped.length} empty-conversion page(s): ${shown}${more}`,
+      );
     }
 
     // Pass `negotiation` through — captured by the ingestor before

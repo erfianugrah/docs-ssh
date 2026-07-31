@@ -15,6 +15,13 @@ export interface DocNormaliser {
    * (e.g. HTML→MD, MDX→MD) implement this; cleanup normalisers return false.
    */
   supportsFormat(format: DocFormat): boolean;
-  /** Returns a new DocFile with normalised content */
-  normalise(file: DocFile): Promise<DocFile>;
+  /**
+   * Returns a new DocFile with normalised content, or `null` to drop the
+   * file from the doc set entirely. Dropping is for pages with no doc
+   * value whose conversion would otherwise leak unusable content into
+   * the corpus (e.g. an SPA app-shell HTML page that Turndown reduces
+   * to near-nothing - keeping it as raw .html breaks the invariant that
+   * markdown-capable sources contain only .md files).
+   */
+  normalise(file: DocFile): Promise<DocFile | null>;
 }
