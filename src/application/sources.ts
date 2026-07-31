@@ -298,6 +298,60 @@ export const SOURCES: readonly DocSource[] = [
     urlExclude: "(genindex|search|_sources)\\.html",
   }),
 
+  // ─── Postgres blogs & newsletters ──────────────────────────────
+
+  // Query-plan / EXPLAIN deep-dives. Full blog archive via sitemap
+  // (~228 posts under /blog/*); no RSS on the site. urlPattern drops the
+  // /blog index page itself plus product/marketing pages in the sitemap.
+  new DocSource({
+    name: "pgmustard",
+    type: "http",
+    url: "https://www.pgmustard.com/blog",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://www.pgmustard.com/sitemap.xml",
+    urlPattern: "pgmustard\\.com/blog/.+",
+  }),
+
+  // pganalyze engineering blog + "5mins of Postgres" series. No RSS
+  // (/feed redirect-loops); sitemap-index.xml is advertised in robots.txt.
+  new DocSource({
+    name: "pganalyze-blog",
+    type: "http",
+    url: "https://pganalyze.com/blog",
+    format: "html",
+    discovery: "sitemap-index",
+    discoveryUrl: "https://pganalyze.com/sitemap-index.xml",
+    urlPattern: "pganalyze\\.com/blog/.+",
+  }),
+
+  // Community aggregator. RSS items are postgr.es shortlinks that
+  // redirect to the original blog posts across the Postgres blogosphere
+  // (~15-item rolling window - a "latest from the community" slice that
+  // refreshes on each daily build, not an archive). `url` points at the
+  // shortlink host (not planet.postgresql.org) so urlToPath derives
+  // clean `p/<id>.md` paths instead of raw-URL `https:/postgr.es/...`.
+  new DocSource({
+    name: "planet-postgres",
+    type: "http",
+    url: "https://postgr.es/",
+    format: "html",
+    discovery: "rss",
+    discoveryUrl: "https://planet.postgresql.org/rss20.xml",
+  }),
+
+  // Weekly curated newsletter. RSS items link to self-hosted issue pages
+  // (postgresweekly.com/issues/N) - recent window only; the full archive
+  // is an HTML index, not a feed.
+  new DocSource({
+    name: "postgres-weekly",
+    type: "http",
+    url: "https://postgresweekly.com/",
+    format: "html",
+    discovery: "rss",
+    discoveryUrl: "https://postgresweekly.com/rss",
+  }),
+
   // ─── DuckDB ────────────────────────────────────────────────────
 
   // In-process analytical DB; reads/writes Parquet/CSV/JSON and Iceberg. Docs

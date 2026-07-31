@@ -53,6 +53,10 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   pgloader: ["postgres-ecosystem", "databases"],
   multigres: ["postgres-ecosystem"],
   "multigres-dev": ["postgres-ecosystem"],
+  pgmustard: ["postgres-ecosystem"],
+  "pganalyze-blog": ["postgres-ecosystem"],
+  "planet-postgres": ["postgres-ecosystem"],
+  "postgres-weekly": ["postgres-ecosystem"],
 
   // ─── Postgres-compatible platforms ──────────────────────────────
   neon: ["postgres-compatible", "cloud"],
