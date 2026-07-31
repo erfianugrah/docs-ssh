@@ -445,12 +445,11 @@ describe("UpdateDocSets", () => {
       await fs.mkdir(outDir, { recursive: true });
       await fs.mkdir(workDir, { recursive: true });
 
-      const hungSource = new DocSource({ name: "hung", type: "http", format: "markdown", url: "https://example.com/" });
-      // Generous per-source override so the global 500ms deadline can never
-      // fire on the fast source - without it, a loaded CI runner can stall the
-      // fast mock's fs.mkdir + writeFile past 500ms and flake the assertion
-      // that only the hung source errors (observed on release run v0.23.27).
-      const fastSource = new DocSource({ name: "fast", type: "http", format: "markdown", url: "https://example.com/", deadlineMs: 60_000 });
+      // git-type sources keep captureFreshness offline (no fetchHead
+      // network call); the deadline mechanism is type-agnostic and the
+      // mock ingestors select by name, not type.
+      const hungSource = new DocSource({ name: "hung", type: "git", format: "markdown", url: "https://example.com/repo.git" });
+      const fastSource = new DocSource({ name: "fast", type: "git", format: "markdown", url: "https://example.com/repo.git" });
 
       const hungIngestor: DocIngestor = {
         name: "HungIngestor",
@@ -468,25 +467,45 @@ describe("UpdateDocSets", () => {
         normalisers: [noopNormaliser],
         outDir,
         workDir,
-        // 500ms - short enough for the test to be fast. The fast source
-        // is exempt via its own deadlineMs override above, so this value
-        // only needs to give the hung source time to trip the deadline.
+        // 500ms deadline - fake timers make it fire deterministically.
         sourceDeadline: 500,
       });
 
-      const start = Date.now();
-      const results = await updater.run();
-      const elapsed = Date.now() - start;
+      // Fake only setTimeout/clearTimeout/Date so the 500ms deadline is
+      // deterministic, but leave setImmediate real - the fast source's
+      // real fs writes (readStamp + writeFiles + writeStamp) complete on
+      // the real event loop and need real macrotask yields to drain.
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+      try {
+        const start = Date.now();
+        const p = updater.run();
 
-      expect(results).toHaveLength(2);
-      const hung = results.find((r) => r.source === "hung");
-      const fast = results.find((r) => r.source === "fast");
-      expect(hung?.status).toBe("error");
-      expect(hung?.error).toMatch(/deadline exceeded/);
-      expect(fast?.status).toBe("ok");
-      // Deadline caps total runtime — should not take much longer than
-      // the deadline itself even with the hung source.
-      expect(elapsed).toBeLessThan(2000);
+        // Drain the fast source's real fs writes until its 500ms deadline
+        // timer is cleared (only the hung source's timer remains pending).
+        // The hung ingestor never resolves, so its deadline must fire via
+        // advanceTimers - it will never self-settle.
+        for (let i = 0; i < 20_000; i++) {
+          await new Promise<void>((r) => setImmediate(r));
+          if (vi.getTimerCount() <= 1) break; // fast done, only hung's timer left
+        }
+        // Fire the hung source's 500ms deadline deterministically.
+        await vi.advanceTimersByTimeAsync(500);
+        const results = await p;
+        const elapsed = Date.now() - start;
+
+        expect(results).toHaveLength(2);
+        const hung = results.find((r) => r.source === "hung");
+        const fast = results.find((r) => r.source === "fast");
+        expect(hung?.status).toBe("error");
+        expect(hung?.error).toMatch(/deadline exceeded/);
+        expect(fast?.status).toBe("ok");
+        // Fake Date only advances on advanceTimersByTimeAsync, so elapsed
+        // is exactly the 500ms deadline - immune to CI load. This was the
+        // v0.23.27 release flake; fake timers make it impossible to recur.
+        expect(elapsed).toBe(500);
+      } finally {
+        vi.useRealTimers();
+      }
 
       await fs.rm(tmpDir, { recursive: true });
     });
@@ -499,12 +518,13 @@ describe("UpdateDocSets", () => {
       await fs.mkdir(workDir, { recursive: true });
 
       // Global deadline is far too short for this source, but its own
-      // override grants enough headroom to finish.
+      // override grants enough headroom to finish. git-type keeps
+      // captureFreshness offline (no fetchHead network call).
       const slowSource = new DocSource({
         name: "slow",
-        type: "http",
+        type: "git",
         format: "markdown",
-        url: "https://example.com/",
+        url: "https://example.com/repo.git",
         deadlineMs: 2000,
       });
 
@@ -528,9 +548,29 @@ describe("UpdateDocSets", () => {
         sourceDeadline: 100,
       });
 
-      const results = await updater.run();
-      const slow = results.find((r) => r.source === "slow");
-      expect(slow?.status).toBe("ok");
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+      try {
+        const p = updater.run();
+        // The slow ingestor's 300ms sleep is faked, but it is only
+        // scheduled AFTER readStamp (real fs) drains. So: drain real
+        // I/O until the sleep is pending, then advance to fire it.
+        for (let i = 0; i < 5_000; i++) {
+          await new Promise<void>((r) => setImmediate(r));
+          if (vi.getTimerCount() >= 2) break; // deadline + ingest sleep pending
+        }
+        // Fire the 300ms sleep. The per-source 2000ms override means the
+        // global 100ms deadline does NOT fire here (it would if the
+        // override were ignored -> status would error).
+        await vi.advanceTimersByTimeAsync(300);
+        // Drain the remaining real fs writes (writeFiles + writeStamp)
+        // on the real event loop. The 2000ms deadline stays pending
+        // (fake time 300) and never fires.
+        const results = await p;
+        const slow = results.find((r) => r.source === "slow");
+        expect(slow?.status).toBe("ok");
+      } finally {
+        vi.useRealTimers();
+      }
 
       await fs.rm(tmpDir, { recursive: true });
     });

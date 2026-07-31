@@ -73,28 +73,36 @@ describe("retryWithBackoff", () => {
     // 429/503 responses include a Retry-After header. Callers can
     // surface that as a delay hint via delayFromError so the retry
     // honours the upstream's wishes instead of guessing exponentially.
-    const start = Date.now();
-    let calls = 0;
-    const fn = async () => {
-      calls++;
-      if (calls < 2) {
-        const err: Error & { retryAfterMs?: number } = new Error("rate limited");
-        err.retryAfterMs = 75;
-        throw err;
-      }
-      return "ok";
-    };
-    const result = await retryWithBackoff(fn, {
-      retries: 2,
-      base: 100_000, // huge base — should be IGNORED in favour of the hint
-      jitter: 0,
-      delayFromError: (err) => (err as { retryAfterMs?: number }).retryAfterMs,
-    });
-    const elapsed = Date.now() - start;
-    expect(result).toBe("ok");
-    // ~75ms wait, generous upper bound for scheduler jitter.
-    expect(elapsed).toBeLessThan(500);
-    expect(elapsed).toBeGreaterThanOrEqual(70);
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      const fn = async () => {
+        calls++;
+        if (calls < 2) {
+          const err: Error & { retryAfterMs?: number } = new Error("rate limited");
+          err.retryAfterMs = 75;
+          throw err;
+        }
+        return "ok";
+      };
+      const start = Date.now();
+      // Start without awaiting - the retry sleeps on a faked setTimeout.
+      const p = retryWithBackoff(fn, {
+        retries: 2,
+        base: 100_000, // huge base - should be IGNORED in favour of the hint
+        jitter: 0,
+        delayFromError: (err) => (err as { retryAfterMs?: number }).retryAfterMs,
+      });
+      // Fire the 75ms hint sleep and flush the second attempt's microtasks.
+      await vi.advanceTimersByTimeAsync(75);
+      const result = await p;
+      const elapsed = Date.now() - start;
+      expect(result).toBe("ok");
+      // Fake Date only advances when timers advance - the 75ms hint is exact.
+      expect(elapsed).toBe(75);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("falls back to backoff when delayFromError returns undefined", async () => {
@@ -104,15 +112,23 @@ describe("retryWithBackoff", () => {
       if (calls < 2) throw new Error("boom");
       return "ok";
     };
-    const start = Date.now();
-    const result = await retryWithBackoff(fn, {
-      retries: 1,
-      base: 50,
-      jitter: 0,
-      delayFromError: () => undefined, // hint absent → use backoff
-    });
-    expect(result).toBe("ok");
-    expect(Date.now() - start).toBeGreaterThanOrEqual(45);
+    vi.useFakeTimers();
+    try {
+      const start = Date.now();
+      // hint absent -> backoffDelay(0, {base:50, jitter:0}) === 50
+      const p = retryWithBackoff(fn, {
+        retries: 1,
+        base: 50,
+        jitter: 0,
+        delayFromError: () => undefined,
+      });
+      await vi.advanceTimersByTimeAsync(50);
+      const result = await p;
+      expect(result).toBe("ok");
+      expect(Date.now() - start).toBe(50);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("invokes onRetry callback with attempt number and error", async () => {

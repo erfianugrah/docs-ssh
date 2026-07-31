@@ -1192,16 +1192,28 @@ describe("HttpIngestor", () => {
       urls: ["https://example.com/page.html"],
     });
 
-    const t0 = Date.now();
-    const set = await ingestor.ingest(src, tmpDir);
-    const elapsed = Date.now() - t0;
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      const t0 = Date.now();
+      // Start without awaiting: the Retry-After hint (1000ms) sleeps on
+      // a faked setTimeout. Real mock-fetch + fs writes complete on the
+      // real event loop but do not move fake Date.
+      const p = ingestor.ingest(src, tmpDir);
+      // Fire the 1000ms Retry-After sleep and flush the success path's
+      // microtasks (mock fetch + fs.writeFile).
+      await vi.advanceTimersByTimeAsync(1000);
+      const set = await p;
+      const elapsed = Date.now() - t0;
 
-    expect(set.size).toBe(1);
-    expect(calls).toBe(2);
-    // Retry-After: 1 → 1000ms wait. Backoff base would only have been
-    // ~1000ms here too, so the differentiator: should not be < 800ms
-    // (proves we actually waited).
-    expect(elapsed).toBeGreaterThanOrEqual(800);
+      expect(set.size).toBe(1);
+      expect(calls).toBe(2);
+      // Retry-After: 1 -> 1000ms wait, exact under fake Date. Previously
+      // the differentiator was "not < 800ms" (real 1000ms sleep); fake
+      // timers make it exact so the wait is provably honoured.
+      expect(elapsed).toBe(1000);
+    } finally {
+      vi.useRealTimers();
+    }
 
     await fs.rm(tmpDir, { recursive: true });
   });

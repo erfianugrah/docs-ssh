@@ -115,9 +115,9 @@ describe("GitIngestor", () => {
   }, 30_000);
 
   it("retries transient clone failures with backoff", async () => {
-    // A bogus URL — git will fail immediately on each attempt. We just
+    // A bogus URL - git will fail immediately on each attempt. We just
     // check that the attempt count reflects retry behaviour by measuring
-    // elapsed time (2 retries * 10ms base = ~30ms total, vs ~0ms without).
+    // elapsed time (2 retries * 10ms base = 30ms total, vs ~0ms without).
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-retry-"));
     const workDir = path.join(tmpDir, "work");
     await fs.mkdir(workDir);
@@ -129,13 +129,47 @@ describe("GitIngestor", () => {
       url: "/nonexistent/path/to/repo.git",
     });
 
-    const start = Date.now();
-    await expect(fastIngestor.ingest(src, workDir)).rejects.toThrow();
-    const elapsed = Date.now() - start;
+    // Fake only setTimeout/clearTimeout/Date so retryWithBackoff's backoff
+    // sleeps are deterministic, but leave setImmediate real - real git
+    // child_process spawns complete on the real event loop and need a
+    // real macrotask yield (setImmediate) to drain between fake sleeps.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      const start = Date.now();
+      let settled = false;
+      const p = fastIngestor.ingest(src, workDir);
+      // Attach handlers up front so an early rejection is never unhandled.
+      p.then(() => { settled = true; }, () => { settled = true; });
+      const assertion = expect(p).rejects.toThrow();
 
-    // With base=10ms and retries=2: delays are 10ms + 20ms = 30ms minimum.
-    // Allow up to a few seconds for git process overhead (fork+exec x3).
-    expect(elapsed).toBeGreaterThanOrEqual(25);
+      // Drain real I/O (recursive fs.rm of a partial clone dir + git
+      // spawns) until a fake backoff sleep is scheduled
+      // (vi.getTimerCount() > 0) or the ingest settles. The recursive
+      // rm can take many event-loop turns, so loop on a condition rather
+      // than a fixed turn count.
+      const drainUntilProgress = async () => {
+        for (let i = 0; i < 5_000; i++) {
+          await new Promise<void>((r) => setImmediate(r));
+          if (vi.getTimerCount() > 0 || settled) return;
+        }
+      };
+
+      // 3 git-clone attempts, 2 backoff sleeps (10ms + 20ms, jitter: 0).
+      // Advance exactly each sleep's duration so fake Date is exact.
+      await drainUntilProgress();               // attempt 0 fails -> 10ms sleep
+      await vi.advanceTimersByTimeAsync(10);     // fire first backoff
+      await drainUntilProgress();               // attempt 1 fails -> 20ms sleep
+      await vi.advanceTimersByTimeAsync(20);     // fire second backoff
+      await drainUntilProgress();               // attempt 2 fails -> throw
+      await assertion;
+      const elapsed = Date.now() - start;
+
+      // With base=10ms and retries=2: delays are 10ms + 20ms = 30ms exact
+      // (jitter: 0). Fake Date makes this exact - no CI-load flake.
+      expect(elapsed).toBe(30);
+    } finally {
+      vi.useRealTimers();
+    }
 
     await fs.rm(tmpDir, { recursive: true });
   }, 10_000);
