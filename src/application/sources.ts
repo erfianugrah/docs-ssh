@@ -3185,6 +3185,57 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs",
   }),
 
+  // ─── Windows / PowerShell ─────────────────────────────────────────
+  //
+  // Same MicrosoftDocs-git pattern as the Azure sources above (blobless
+  // sparse-checkout of markdown subtrees).
+
+  // PowerShell - language + cmdlet reference + conceptual docs.
+  // reference/<version>/ holds the per-module cmdlet pages for each
+  // supported version (5.1, 7.4 LTS, 7.5, plus preview dirs); we take
+  // only 7.5 (current stable) plus the version-agnostic docs-conceptual
+  // tree so we don't mirror ~90%-duplicated cmdlet pages across versions.
+  new DocSource({
+    name: "powershell",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/PowerShell-Docs",
+    format: "markdown",
+    paths: ["reference/7.5", "reference/docs-conceptual"],
+    rootPath: "reference",
+  }),
+
+  // WSL - Windows Subsystem for Linux. Docs live in the WSL/ dir at the
+  // repo root (install, config, networking, enterprise, troubleshooting).
+  new DocSource({
+    name: "wsl",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/WSL",
+    format: "markdown",
+    paths: ["WSL"],
+    rootPath: "WSL",
+  }),
+
+  // Windows Server - command-line reference (netsh + the full cmd.exe
+  // command set under windows-commands/), TCP/IP and network-stack docs
+  // (networking/), plus the small OpenSSH and performance-tuning admin
+  // guides. All four subtrees are fetched as ONE source with multiple
+  // sparse-checkout paths - sharding the same repo into per-subtree
+  // sources exhausts GitHub's parallel-clone throttle (see Azure note).
+  // Served paths keep the administration/... and networking/... prefixes.
+  new DocSource({
+    name: "windows-server",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/windowsserverdocs",
+    format: "markdown",
+    paths: [
+      "WindowsServerDocs/administration/windows-commands",
+      "WindowsServerDocs/administration/OpenSSH",
+      "WindowsServerDocs/administration/performance-tuning",
+      "WindowsServerDocs/networking",
+    ],
+    rootPath: "WindowsServerDocs",
+  }),
+
   // ─── GCP API ─────────────────────────────────────────────────────
   //
   // GCP prose docs (cloud.google.com) have no llms.txt and no per-product

@@ -260,6 +260,11 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "azure-monitor":             ["cloud", "monitoring"],
   "azure-entra":               ["cloud", "auth"],
 
+  // ─── Windows ──────────────────────────────────────────────────────
+  powershell: ["windows", "terminal", "languages"],
+  wsl: ["windows", "linux"],
+  "windows-server": ["windows", "networking"],
+
     // ─── API specs ──────────────────────────────────────────────────
   "aws-api": ["api-specs"],
   "gcp-api": ["api-specs"],
@@ -381,6 +386,7 @@ export const TAG_LABELS: Record<string, string> = {
   "api-specs": "API specs",
   osint: "OSINT & reconnaissance",
   linux: "Linux distros",
+  windows: "Windows",
   filesystems: "Filesystems",
   backup: "Backups",
   nas: "NAS & home server",
