@@ -541,8 +541,15 @@ const sourcesTool = defineTool({
     // tree with find - on hundreds of sources x thousands of files the find
     // walk takes seconds; awk on the index is ~ms. Falls back to the find
     // walk if the index is missing or empty.
+    //
+    // The awk splits on TAB first, then takes the path's first component,
+    // filtered to plausible source names. A bare awk -F/ '{c[$1]++}'
+    // mis-groups indexes whose summaries contain embedded newlines (literal
+    // block scalars in frontmatter - fixed at the source in build-index.ts,
+    // but a pre-fix index may still be deployed): continuation prose lines
+    // then surface as fake "source" names.
     const result = await ssh(
-      `if [ -s /docs/_index.tsv ]; then awk -F/ '{c[$1]++} END{for (d in c) printf "%s: %d files\\n", d, c[d]}' /docs/_index.tsv | sort${filterCmd}; else find /docs -mindepth 2 -type f 2>/dev/null | awk -F/ '{c[$3]++} END{for (d in c) printf "%s: %d files\\n", d, c[d]}' | sort${filterCmd}; fi`,
+      `if [ -s /docs/_index.tsv ]; then awk -F'\\t' '{n=split($1,a,"/"); if (n>1 && a[1] ~ /^[a-z0-9][a-z0-9._-]*$/) c[a[1]]++} END{for (d in c) printf "%s: %d files\\n", d, c[d]}' /docs/_index.tsv | sort${filterCmd}; else find /docs -mindepth 2 -type f 2>/dev/null | awk -F/ '{c[$3]++} END{for (d in c) printf "%s: %d files\\n", d, c[d]}' | sort${filterCmd}; fi`,
     )
     return {
       content: [{ type: "text", text: result }],

@@ -17,7 +17,12 @@
  *     and silently mishandled the rest.
  *   - Code-fence tracking with both ``` and ~~~ delimiters.
  *   - Same sanitisation as ContentSanitiser (ANSI + control bytes).
- *   - Tabs in titles/summary become spaces so the TSV stays parseable.
+ *   - Tabs AND newlines in titles/summary become spaces so the TSV
+ *     stays one-row-per-file. Literal block scalars (`description: |`)
+ *     parse to strings with embedded \n - without this the index
+ *     sprouted continuation lines that downstream awk/rg consumers
+ *     mis-read as rows (docs_sources returned summary prose as
+ *     source names; verified against the live index 2026-08).
  *
  * Usage:
  *   node --import tsx/esm src/commands/build-index.ts /docs > /docs/_index.tsv
@@ -56,6 +61,16 @@ const CONTROL_RE = /[\x01-\x08\x0b\x0c\x0e-\x1a\x1c-\x1f\x7f]/g;
 
 function sanitise(s: string): string {
   return s.replace(ANSI_RE, "").replace(/\t/g, " ").replace(/\r/g, "").replace(CONTROL_RE, "");
+}
+
+// Field-level sanitise for TSV columns: everything sanitise does, plus
+// newline -> space so title/summary can never break the one-row-per-file
+// shape. MUST NOT be applied to the multi-line YAML frontmatter body
+// (parseFrontmatter pre-sanitises the whole body with sanitise() before
+// yaml.load - collapsing \n there fuses all keys onto one line and YAML
+// parsing silently yields nothing).
+function sanitiseField(s: string): string {
+  return sanitise(s).replace(/\n/g, " ");
 }
 
 // ─── Frontmatter split ─────────────────────────────────────────────
@@ -209,7 +224,7 @@ export function buildRow(relpath: string, raw: string, opts: ParseOptions = {}):
   // Title precedence: frontmatter > first heading > first prose line.
   // The prose-line fallback keeps untitled files discoverable at all.
   let title = fm.title || signals.firstHeading || signals.content;
-  title = sanitise(title).slice(0, o.titleMax);
+  title = sanitiseField(title).slice(0, o.titleMax);
 
   // Summary precedence: frontmatter description (optionally extended
   // with headings up to summaryMax) > "headings + content". The latter
@@ -229,7 +244,7 @@ export function buildRow(relpath: string, raw: string, opts: ParseOptions = {}):
   // space ahead of the prose snippet. Functionally invisible to ripgrep
   // and `cut`, but the inconsistency between files-with-headings and
   // files-without is ugly; trim once here keeps the column shape stable.
-  summary = sanitise(summary.trim()).slice(0, o.summaryMax);
+  summary = sanitiseField(summary.trim()).slice(0, o.summaryMax);
 
   return { path: relpath, title, summary };
 }

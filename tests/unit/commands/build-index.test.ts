@@ -66,6 +66,25 @@ describe("build-index: buildRow", () => {
     expect(row.summary).toContain("Two lines here");
   });
 
+  it("literal block scalar newlines become spaces - one TSV row per file", () => {
+    // A literal `description: |` block parses to a string with embedded
+    // \n. If those survive into the index row, downstream awk/rg
+    // consumers over _index.tsv mis-read the continuation lines as rows.
+    const md = [
+      "---",
+      "title: Literal Desc",
+      "description: |",
+      "  Two lines here",
+      "  preserved as-is.",
+      "---",
+      "Body.",
+    ].join("\n");
+    const row = buildRow("p.md", md);
+    expect(row.summary).not.toContain("\n");
+    expect(row.title).not.toContain("\n");
+    expect(row.summary).toContain("Two lines here preserved as-is.");
+  });
+
   it("supports `oneline` as a description alias", () => {
     const md = [
       "---",
