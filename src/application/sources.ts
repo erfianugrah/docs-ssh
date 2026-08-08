@@ -69,16 +69,17 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs",
   }),
 
-  // Supabase ETL — the engine behind managed external replication (Astro
-  // Starlight). The main docs cover only the Dashboard UX; architecture,
+  // Supabase ETL - the engine behind managed external replication (Fumadocs
+  // site; docs moved from docs/src/content/docs to site/content/docs in the
+  // upstream repo). The main docs cover only the Dashboard UX; architecture,
   // events, schema-changes and destination guides live here.
   new DocSource({
     name: "supabase-etl",
     type: "git",
     url: "https://github.com/supabase/etl",
-    format: "markdown",
-    paths: ["docs/src/content/docs"],
-    rootPath: "docs/src/content/docs",
+    format: "mdx",
+    paths: ["site/content/docs"],
+    rootPath: "site/content/docs",
   }),
 
   // Supabase CLI reference — auto-generated per-command markdown (db dump/push,
