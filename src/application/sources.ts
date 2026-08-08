@@ -397,6 +397,12 @@ export const SOURCES: readonly DocSource[] = [
     format: "markdown",
     discovery: "texinfo",
     discoveryUrl: "https://downloads.mysql.com/docs/mysql-8.4.info.zip",
+    // Oracle's CDN 403s downloads.mysql.com from GitHub runner and some
+    // residential IP ranges (observed 2026-08: every daily build failed
+    // with HTTP 403). Fall back to a Wayback Machine capture; the manual
+    // is stable enough that a snapshot beats an absent source.
+    fallbackDiscoveryUrl:
+      "https://web.archive.org/web/20260310101758if_/https://downloads.mysql.com/docs/mysql-8.4.info.zip",
     description: "MySQL 8.4 Reference Manual (from the GNU info build)",
   }),
 
@@ -1414,14 +1420,17 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Effect ────────────────────────────────────────────────────
 
-  // llms.txt — TypeScript effect system (concurrency, streams, schema)
+  // Effect - TypeScript effect system (concurrency, streams, schema).
+  // Was http+llms-txt via effect.website/llms.txt until upstream dropped
+  // it (the apex now 308s to www, which 404s). The docs are Starlight MDX
+  // in the Effect-TS/website repo - fetch from git instead.
   new DocSource({
     name: "effect",
-    type: "http",
-    url: "https://effect.website/docs/",
-    format: "html",
-    discovery: "llms-txt",
-    discoveryUrl: "https://effect.website/llms.txt",
+    type: "git",
+    url: "https://github.com/Effect-TS/website",
+    format: "mdx",
+    paths: ["apps/web/src/content/docs/v3"],
+    rootPath: "apps/web/src/content/docs/v3",
   }),
 
   // ─── Argo CD ───────────────────────────────────────────────────
@@ -3098,8 +3107,11 @@ export const SOURCES: readonly DocSource[] = [
   // discovery; sharding splits that into independent fetches.
   // ─── Akamai ────────────────────────────────────────────────────────
   //
-  // techdocs.akamai.com publishes a single top-level llms.txt enumerating
-  // ~8,870 per-page `.md` URLs across every PUBLIC product (Property
+  // techdocs.akamai.com (ReadMe.io) publishes a top-level llms.txt that
+  // now enumerates ~982 child llms.txt files (product + section + category
+  // indexes, all levels flattened) rather than pages directly - hence
+  // llms-index discovery. The leaves list per-page `.md` URLs (~8-9k pages
+  // before URL dedup) across every PUBLIC product (Property
   // Manager, App & API Protector, EdgeWorkers, Edge DNS, NetStorage,
   // Cloudlets, Linode/cloud-computing, PowerShell, Terraform, all API
   // references). The `.md` variants return clean markdown directly.
@@ -3113,7 +3125,7 @@ export const SOURCES: readonly DocSource[] = [
   // about-bots, security-ctr bot-reports, edgeworkers botscore-object,
   // ~49 pages) is already inside this index and captured automatically.
   //
-  // ~8,870 pages makes this the second-largest source after AWS, so it
+  // ~8-9k pages makes this the second-largest source after AWS, so it
   // sits in the slow tier and is throttled (pageConcurrency: 6) with a
   // generous 40-min deadline. urlPattern keeps only `.md` page URLs and
   // drops the two stray `.html` links + the index self-reference.
@@ -3122,7 +3134,7 @@ export const SOURCES: readonly DocSource[] = [
     type: "http",
     url: "https://techdocs.akamai.com/",
     format: "markdown",
-    discovery: "llms-txt",
+    discovery: "llms-index",
     discoveryUrl: "https://techdocs.akamai.com/llms.txt",
     urlPattern: "techdocs\\.akamai\\.com/.+\\.md$",
     pageConcurrency: 6,

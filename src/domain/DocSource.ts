@@ -50,6 +50,15 @@ export interface DocSourceConfig {
   readonly discovery?: DiscoveryMethod;
   /** URL to discover pages from (sitemap, tarball, llms-full.txt, TOC page, etc) */
   readonly discoveryUrl?: string;
+  /**
+   * Mirror to try when discoveryUrl fails with a non-retryable status
+   * (4xx). Used by mysql: Oracle's CDN 403s downloads.mysql.com from CI
+   * runner and residential IP ranges, so the texinfo ingestor falls back
+   * to a Wayback Machine capture of the info archive. Only consulted on
+   * non-retryable failures - a stalled/timed-out primary retries instead,
+   * since the fallback is usually a stale snapshot.
+   */
+  readonly fallbackDiscoveryUrl?: string;
   /** Regex pattern — only include URLs matching this */
   readonly urlPattern?: string;
   /** Regex pattern — exclude URLs matching this */
@@ -97,6 +106,7 @@ export class DocSource {
   readonly rootPath: string | undefined;
   readonly discovery: DiscoveryMethod;
   readonly discoveryUrl: string | undefined;
+  readonly fallbackDiscoveryUrl: string | undefined;
   readonly urlPattern: string | undefined;
   readonly urlExclude: string | undefined;
   readonly urlSuffix: string | undefined;
@@ -122,6 +132,7 @@ export class DocSource {
     this.rootPath = config.rootPath;
     this.discovery = config.discovery ?? "none";
     this.discoveryUrl = config.discoveryUrl;
+    this.fallbackDiscoveryUrl = config.fallbackDiscoveryUrl;
     this.urlPattern = config.urlPattern;
     this.urlExclude = config.urlExclude;
     this.urlSuffix = config.urlSuffix;

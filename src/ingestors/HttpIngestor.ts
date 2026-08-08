@@ -15,6 +15,7 @@ import {
   BULK_TIMEOUT,
   CONCURRENCY,
   MAX_RETRIES,
+  NonRetryableHttpError,
   fetchBufferWithRetry,
   fetchWithRetry,
 } from "./http-client.js";
@@ -415,7 +416,20 @@ export class HttpIngestor implements DocIngestor {
    */
   private async ingestFromTexinfo(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
     console.log(`  [${source.name}] downloading info archive…`);
-    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
+    const buffer = await fetchBufferWithRetry(
+      source.discoveryUrl!,
+      MAX_RETRIES,
+      BULK_TIMEOUT,
+      signal,
+    ).catch((err) => {
+      if (err instanceof NonRetryableHttpError && source.fallbackDiscoveryUrl) {
+        console.log(
+          `  [${source.name}] primary returned HTTP ${err.status}; trying fallback mirror`,
+        );
+        return fetchBufferWithRetry(source.fallbackDiscoveryUrl, MAX_RETRIES, BULK_TIMEOUT, signal);
+      }
+      throw err;
+    });
     const zipBytes = new Uint8Array(buffer);
     const entries = unzipSync(zipBytes);
     // Pick the single `.info` entry (the archive contains exactly one).

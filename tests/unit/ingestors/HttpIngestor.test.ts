@@ -1011,6 +1011,97 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  // ─── Discovery: texinfo with fallback mirror ───────────────────────
+
+  it("falls back to fallbackDiscoveryUrl when the primary 403s", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // Minimal but valid texinfo: two 0x1f-delimited nodes.
+    const infoContent = [
+      "\x1f",
+      "File: test.info,  Node: Top,  Up: (dir)",
+      "",
+      "Test Manual",
+      "***********",
+      "",
+      "* Menu:",
+      "",
+      "* Intro::  Introduction.",
+      "\x1f",
+      "File: test.info,  Node: Intro,  Up: Top",
+      "",
+      "Intro",
+      "*****",
+      "",
+      "Hello from the fallback mirror.",
+    ].join("\n");
+
+    const { zipSync } = await import("fflate");
+    const zipBytes = zipSync({ "test.info": new TextEncoder().encode(infoContent) });
+    const zipBuffer = zipBytes.buffer.slice(
+      zipBytes.byteOffset,
+      zipBytes.byteOffset + zipBytes.byteLength,
+    );
+
+    // Oracle's CDN 403s downloads.mysql.com from CI runners; the texinfo
+    // ingestor must then use the configured fallback mirror.
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("downloads.mysql.com")) return { ok: false, status: 403 };
+      return { ok: true, arrayBuffer: async () => zipBuffer };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "mysql-fallback-test",
+      type: "http",
+      format: "markdown",
+      url: "https://dev.mysql.com/doc/refman/8.4/en/",
+      discovery: "texinfo",
+      discoveryUrl: "https://downloads.mysql.com/docs/mysql-8.4.info.zip",
+      fallbackDiscoveryUrl: "https://web.archive.org/web/xxx/mysql-8.4.info.zip",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    expect(set.size).toBeGreaterThan(0);
+    expect(mockFetch.mock.calls.some(([u]) => String(u).includes("web.archive.org"))).toBe(true);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("does not use the fallback mirror when the primary succeeds", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const infoContent = "\x1f\nFile: t.info,  Node: Top\n\nTop\n***\n\nBody.\n";
+    const { zipSync } = await import("fflate");
+    const zipBytes = zipSync({ "t.info": new TextEncoder().encode(infoContent) });
+    const zipBuffer = zipBytes.buffer.slice(
+      zipBytes.byteOffset,
+      zipBytes.byteOffset + zipBytes.byteLength,
+    );
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => zipBuffer,
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "mysql-primary-test",
+      type: "http",
+      format: "markdown",
+      url: "https://dev.mysql.com/doc/refman/8.4/en/",
+      discovery: "texinfo",
+      discoveryUrl: "https://downloads.mysql.com/docs/mysql-8.4.info.zip",
+      fallbackDiscoveryUrl: "https://web.archive.org/web/xxx/mysql-8.4.info.zip",
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    expect(set.size).toBeGreaterThan(0);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   // ─── Discovery: openapi ─────────────────────────────────────────────
 
   it("discovers pages from an OpenAPI spec", async () => {
