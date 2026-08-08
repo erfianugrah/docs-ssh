@@ -2535,6 +2535,92 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs",
   }),
 
+  // ─── Turing Pi ─────────────────────────────────────────────────
+
+  // docs.turingpi.com is a ReadMe.io-hosted site with no backing git
+  // repo. Its llms.txt and sitemap are BOTH incomplete (~30 of ~62
+  // pages; the sitemap even carries a malformed RK1 URL with a missing
+  // slash), so discovery scrapes the full sidebar nav rendered into
+  // every docs page (toc). Every docs page serves clean markdown at a
+  // `.md`-suffixed URL (Content-Type: text/markdown), so urlSuffix
+  // appends ".md" and pages arrive preNormalised. RK1 pages are split
+  // into their own source below via urlExclude.
+  new DocSource({
+    name: "turingpi",
+    type: "http",
+    url: "https://docs.turingpi.com",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.turingpi.com/docs/turing-pi2-intro",
+    urlPattern: "docs\\.turingpi\\.com/docs/",
+    urlExclude: "turing-rk1",
+    urlSuffix: ".md",
+  }),
+
+  // Turing RK1 compute module (RK3588) - the turing-rk1-* subset of
+  // docs.turingpi.com (specs/I/O, flashing OS, NPU/RKNN).
+  new DocSource({
+    name: "turingpi-rk1",
+    type: "http",
+    url: "https://docs.turingpi.com",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.turingpi.com/docs/turing-rk1-specs-and-io-ports",
+    urlPattern: "docs\\.turingpi\\.com/docs/turing-rk1-",
+    urlSuffix: ".md",
+  }),
+
+  // Help-center repo - the older GitHub-hosted docs/FAQ/guide articles
+  // (V1 board docs, Kickstarter FAQ, Docker Swarm / k3s guides) that
+  // predate the ReadMe.io site and aren't fully mirrored there.
+  new DocSource({
+    name: "turingpi-help-center",
+    type: "git",
+    url: "https://github.com/turing-machines/help-center",
+    format: "markdown",
+    paths: ["Docs", "FAQ", "Guides", "V1 Docs"],
+  }),
+
+  // Community NixOS flake for the Turing RK1 (u-boot + latest stable
+  // kernel; build/flashing guide). Whole repo - the README is the doc.
+  new DocSource({
+    name: "nixos-turing-rk1",
+    type: "git",
+    url: "https://github.com/GiyoMoon/nixos-turing-rk1",
+    format: "markdown",
+  }),
+
+  // ─── PiKVM ───────────────────────────────────────────────────────
+
+  // Git sparse - mkdocs-material source of docs.pikvm.org (the PiKVM
+  // Handbook, ~180 md files). Default branch is `master`. Underscore-
+  // prefixed files are markdown-include fragments transcluded into
+  // other pages at build time; kept so their content stays searchable.
+  new DocSource({
+    name: "pikvm",
+    type: "git",
+    url: "https://github.com/pikvm/pikvm",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── Talos Linux ─────────────────────────────────────────────────
+
+  // Git sparse - siderolabs/docs is the Mintlify content repo behind
+  // talos.dev (the talos repo itself now carries only generated
+  // reference). Content is versioned per directory; pinned to v1.14 -
+  // bump the path when a new minor lands. rootPath strips the
+  // public/talos/v1.14 prefix.
+  new DocSource({
+    name: "talos",
+    type: "git",
+    url: "https://github.com/siderolabs/docs",
+    format: "mdx",
+    paths: ["public/talos/v1.14"],
+    rootPath: "public/talos/v1.14",
+  }),
+
   // ─── CachyOS Wiki ──────────────────────────────────────────────
 
   // Git sparse — Astro Starlight MDX. Default branch is `next`; English

@@ -332,6 +332,14 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   borgbackup: ["backup"],
   unraid: ["nas", "filesystems", "infrastructure"],
 
+  // ─── Hardware & SBCs ────────────────────────────────────────────
+  turingpi: ["hardware", "infrastructure"],
+  "turingpi-rk1": ["hardware"],
+  "turingpi-help-center": ["hardware"],
+  pikvm: ["hardware"],
+  "nixos-turing-rk1": ["hardware", "linux"],
+  talos: ["infrastructure", "linux"],
+
   // ─── Media servers & automation ────────────────────────────────
   servarr: ["media"],
   "trash-guides": ["media"],
@@ -390,6 +398,7 @@ export const TAG_LABELS: Record<string, string> = {
   filesystems: "Filesystems",
   backup: "Backups",
   nas: "NAS & home server",
+  hardware: "Hardware & SBCs",
   media: "Media servers & automation",
 };
 
