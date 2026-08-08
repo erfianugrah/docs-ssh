@@ -6,7 +6,9 @@
  * without creating a circular reference back through HttpIngestor.
  *
  * Exports:
- *   - fetchWithRetry — retry-with-backoff fetch honouring Retry-After
+ *   - fetchWithRetry - retry-with-backoff fetch honouring Retry-After
+ *   - fetchBufferWithRetry - same, but with the body read INSIDE the retry
+ *     loop (for bulk downloads: tarballs, specs, llms-full, archives)
  *   - parseRetryAfter — RFC 7231 §7.1.3 parser (seconds or HTTP-date)
  *   - RetryableHttpError — thrown for retryable 5xx/413/429 statuses
  *   - UA — User-Agent string sent on every request
@@ -39,6 +41,17 @@ export function combineSignals(timeoutMs: number, external?: AbortSignal): Abort
     s.addEventListener("abort", () => ctrl.abort(s.reason), { once: true });
   }
   return ctrl.signal;
+}
+
+/** Thrown for a non-retryable HTTP status (4xx other than 413/429). */
+export class NonRetryableHttpError extends Error {
+  constructor(
+    public readonly status: number,
+    url: string,
+  ) {
+    super(`HTTP ${status} for ${url}`);
+    this.name = "NonRetryableHttpError";
+  }
 }
 
 /** Thrown to signal a retryable HTTP status; caller unwraps on final attempt. */
@@ -138,4 +151,51 @@ export async function fetchWithRetry(
     if (err instanceof RetryableHttpError) return err.response;
     throw err;
   });
+}
+
+/**
+ * Fetch a bulk download (tarball / OpenAPI spec / llms-full / info archive)
+ * with the body read INSIDE the retry loop.
+ *
+ * fetchWithRetry alone protects only the request up to response headers:
+ * the returned Response's body is still tied to the per-attempt timeout
+ * signal, so a stalled body rejects mid-read with undici's "terminated"
+ * once the timeout fires - outside any retry, failing the whole source
+ * (seen in CI: gitea-api's swagger download stalled on a GitHub runner
+ * and died as "terminated" despite the upstream being healthy).
+ *
+ * Status classification matches fetchWithRetry: 4xx (except 413/429)
+ * fails immediately via NonRetryableHttpError; 5xx/413/429 and body-read
+ * failures are retried with backoff, honouring Retry-After.
+ */
+export async function fetchBufferWithRetry(
+  url: string,
+  retries = MAX_RETRIES,
+  timeout = BULK_TIMEOUT,
+  signal?: AbortSignal,
+): Promise<Buffer> {
+  return retryWithBackoff(
+    async () => {
+      // retries=0: fetchWithRetry still classifies statuses, but the outer
+      // loop owns retrying so body-read errors are covered too.
+      const res = await fetchWithRetry(url, 0, timeout, signal);
+      if (!res.ok) {
+        if (res.status < 500 && res.status !== 413 && res.status !== 429) {
+          throw new NonRetryableHttpError(res.status, url);
+        }
+        throw new RetryableHttpError(`HTTP ${res.status} for ${url}`, res);
+      }
+      return Buffer.from(await res.arrayBuffer());
+    },
+    {
+      retries,
+      shouldRetry: (err) => !(err instanceof NonRetryableHttpError) && !signal?.aborted,
+      delayFromError: (err) =>
+        err instanceof RetryableHttpError ? err.retryAfterMs : undefined,
+      onRetry: (_attempt, err, delay) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`  [retry] ${url} -> ${msg}, waiting ${Math.round(delay)}ms...`);
+      },
+    },
+  );
 }

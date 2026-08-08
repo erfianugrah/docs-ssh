@@ -900,7 +900,7 @@ describe("HttpIngestor", () => {
 
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      text: async () => llmsFullContent,
+      arrayBuffer: async () => new TextEncoder().encode(llmsFullContent).buffer,
     });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -947,7 +947,7 @@ describe("HttpIngestor", () => {
 
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
-      text: async () => llmsFullContent,
+      arrayBuffer: async () => new TextEncoder().encode(llmsFullContent).buffer,
     }));
 
     const src = new DocSource({
@@ -1032,7 +1032,7 @@ describe("HttpIngestor", () => {
 
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      text: async () => openApiSpec,
+      arrayBuffer: async () => new TextEncoder().encode(openApiSpec).buffer,
     });
     vi.stubGlobal("fetch", mockFetch);
 

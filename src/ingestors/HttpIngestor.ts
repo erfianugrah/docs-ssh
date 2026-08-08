@@ -15,6 +15,7 @@ import {
   BULK_TIMEOUT,
   CONCURRENCY,
   MAX_RETRIES,
+  fetchBufferWithRetry,
   fetchWithRetry,
 } from "./http-client.js";
 import { discover } from "./discovery/index.js";
@@ -383,11 +384,7 @@ export class HttpIngestor implements DocIngestor {
     // Download to a temp file first, then extract — avoids shell injection
     // from interpolating URLs into a shell pipeline.
     const tarballPath = path.join(workDir, `${source.name}.tar.gz`);
-    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
-    if (!res.ok) {
-      throw new Error(`Failed to fetch tarball: HTTP ${res.status}`);
-    }
-    const buffer = Buffer.from(await res.arrayBuffer());
+    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
     await fs.writeFile(tarballPath, buffer);
 
     execFileSync("tar", ["-xzf", tarballPath, "-C", extractDir], {
@@ -418,11 +415,8 @@ export class HttpIngestor implements DocIngestor {
    */
   private async ingestFromTexinfo(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
     console.log(`  [${source.name}] downloading info archive…`);
-    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
-    if (!res.ok) {
-      throw new Error(`Failed to fetch info archive: HTTP ${res.status}`);
-    }
-    const zipBytes = new Uint8Array(await res.arrayBuffer());
+    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
+    const zipBytes = new Uint8Array(buffer);
     const entries = unzipSync(zipBytes);
     // Pick the single `.info` entry (the archive contains exactly one).
     const infoName = Object.keys(entries).find((n) => n.endsWith(".info"));
@@ -450,11 +444,8 @@ export class HttpIngestor implements DocIngestor {
 
   private async ingestFromLlmsFull(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
     console.log(`  [${source.name}] downloading llms-full.txt…`);
-    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
-    if (!res.ok) {
-      throw new Error(`Failed to fetch llms-full.txt: HTTP ${res.status}`);
-    }
-    const content = await res.text();
+    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
+    const content = buffer.toString("utf-8");
     console.log(`  [${source.name}] llms-full.txt: ${(content.length / 1024 / 1024).toFixed(1)} MB`);
 
     // Split into per-page files using the separator pattern
@@ -475,11 +466,8 @@ export class HttpIngestor implements DocIngestor {
 
   private async ingestFromOpenApi(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
     console.log(`  [${source.name}] downloading OpenAPI spec…`);
-    const res = await fetchWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
-    if (!res.ok) {
-      throw new Error(`Failed to fetch OpenAPI spec: HTTP ${res.status}`);
-    }
-    const raw = await res.text();
+    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
+    const raw = buffer.toString("utf-8");
     console.log(`  [${source.name}] spec: ${(raw.length / 1024).toFixed(0)} KB`);
 
     const specFiles = convertOpenApiToMarkdown(raw, source.name);
@@ -497,9 +485,8 @@ export class HttpIngestor implements DocIngestor {
   private async ingestFromStatuspage(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
     const base = source.url.replace(/\/$/, "");
     const fetchJson = async (url: string): Promise<unknown> => {
-      const res = await fetchWithRetry(url, MAX_RETRIES, BULK_TIMEOUT, signal);
-      if (!res.ok) throw new Error(`Statuspage fetch failed: HTTP ${res.status} for ${url}`);
-      return res.json();
+      const buffer = await fetchBufferWithRetry(url, MAX_RETRIES, BULK_TIMEOUT, signal);
+      return JSON.parse(buffer.toString("utf-8"));
     };
 
     console.log(`  [${source.name}] paginating history.json...`);
