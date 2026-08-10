@@ -20,6 +20,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          # needed for git describe (latest release tag for the VERSION build-arg)
+          fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -50,9 +53,13 @@ jobs:
           DOCS_WORK_DIR: /tmp/docs-work
           DOCS_MAX_AGE: "0"
 
-      - name: Generate date tag
+      - name: Generate date + version tags
         id: tag
-        run: echo "date=$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT
+        # VERSION must start with v<digit> - the landing-page JS guard
+        # (/^v\d/) blanks anything else to "dev".
+        run: |
+          echo "date=$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT
+          echo "version=$(git describe --tags --abbrev=0)-daily.$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
@@ -65,7 +72,7 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.date }}
           build-args: |
             DOCS_PREBUILT=true
-            VERSION=daily-${{ steps.tag.outputs.date }}
+            VERSION=${{ steps.tag.outputs.version }}
             SSH_HOST=${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }}
             SSH_PORT=${{ vars.DOCS_SSH_PORT || '2222' }}
           cache-from: type=gha

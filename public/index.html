@@ -379,7 +379,7 @@
     // for an actual version string instead.
     {
       const versionEl = document.getElementById("version");
-      if (!/^v\d/.test(versionEl.textContent)) {
+      if (!/^(v\d|daily-\d)/.test(versionEl.textContent)) {
         versionEl.textContent = "dev";
         fetch("https://api.github.com/repos/erfianugrah/docs-ssh/tags?per_page=1")
           .then(r => r.ok ? r.json() : null)
