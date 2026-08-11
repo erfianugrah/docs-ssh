@@ -100,6 +100,13 @@ export interface DocSourceConfig {
    * Falls back to REQUEST_TIMEOUT when unset.
    */
   readonly requestTimeoutMs?: number;
+  /**
+   * Skip markdown content negotiation (http sources only). The fetcher
+   * normally sends `Accept: text/markdown, text/html;q=0.9`; some origins'
+   * WAFs hard-reject that header (verified: openvpn.net 503s every page
+   * carrying it, 200s without). Set to fetch plain `text/html` instead.
+   */
+  readonly skipMarkdownNegotiation?: boolean;
 }
 
 /**
@@ -126,6 +133,7 @@ export class DocSource {
   readonly pageConcurrency: number | undefined;
   readonly deadlineMs: number | undefined;
   readonly requestTimeoutMs: number | undefined;
+  readonly skipMarkdownNegotiation: boolean | undefined;
 
   constructor(config: DocSourceConfig) {
     if (!config.name || config.name.trim() === "") {
@@ -153,6 +161,7 @@ export class DocSource {
     this.pageConcurrency = config.pageConcurrency;
     this.deadlineMs = config.deadlineMs;
     this.requestTimeoutMs = config.requestTimeoutMs;
+    this.skipMarkdownNegotiation = config.skipMarkdownNegotiation;
   }
 
   equals(other: DocSource): boolean {

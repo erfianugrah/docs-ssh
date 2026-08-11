@@ -1773,6 +1773,34 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://www.wireguard.com/sitemap.xml",
   }),
 
+  // strongSwan IPsec VPN - Sphinx HTML (the git repo ships reST, which
+  // the pipeline can't convert), clean sitemap scoped to /docs/latest/.
+  new DocSource({
+    name: "strongswan",
+    type: "http",
+    url: "https://docs.strongswan.org/docs/latest/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://docs.strongswan.org/sitemap.xml",
+    urlPattern: "^https://docs\\.strongswan\\.org/docs/latest/",
+    urlExclude: "(genindex|search)\\.html",
+  }),
+
+  // OpenVPN community docs - static HTML with its own scoped sitemap
+  // (54 pages). Access Server docs live behind a JS portal and are not
+  // fetchable. The openvpn.net WAF 503s any request carrying
+  // `Accept: text/markdown` (200 without it), so negotiation is off.
+  new DocSource({
+    name: "openvpn",
+    type: "http",
+    url: "https://openvpn.net/community-docs/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://openvpn.net/community-docs/sitemap.xml",
+    urlPattern: "^https://openvpn\\.net/community-docs/",
+    skipMarkdownNegotiation: true,
+  }),
+
   // ─── Router firmware ─────────────────────────────────────────────
 
   // OpenWrt Wiki - DokuWiki with clean URLs. No XML sitemap and no git
@@ -1835,6 +1863,65 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://wiki.freshtomato.org/doku.php?do=index",
     urlPattern: "wiki\\.freshtomato\\.org/doku\\.php/",
     urlExclude: "doku\\.php/(playground|wiki)/",
+  }),
+
+  // Turris user docs - CZ.NIC's OpenWrt-based router line (Omnia, MOX).
+  // MkDocs markdown straight from the GitLab repo.
+  new DocSource({
+    name: "turris",
+    type: "git",
+    url: "https://gitlab.nic.cz/turris/user-docs",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // Asuswrt-Merlin firmware docs - the GitHub wiki is a plain git repo
+  // of flat markdown files (clone with the .wiki suffix).
+  new DocSource({
+    name: "asuswrt-merlin",
+    type: "git",
+    url: "https://github.com/RMerl/asuswrt-merlin.ng.wiki",
+    format: "markdown",
+  }),
+
+  // pfSense (Netgate) docs - Sphinx HTML, scoped sitemap (~996 pages:
+  // manual, recipes, troubleshooting, release notes). No public git repo.
+  new DocSource({
+    name: "pfsense",
+    type: "http",
+    url: "https://docs.netgate.com/pfsense/en/latest/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://docs.netgate.com/pfsense/en/latest/sitemap.xml",
+    urlPattern: "^https://docs\\.netgate\\.com/pfsense/en/latest/",
+    urlExclude: "/(404|genindex|search)\\.html$",
+  }),
+
+  // OPNsense docs - Sphinx HTML. Upstream sitemap.xml is malformed
+  // (every <loc> embeds the build-version HTML in the path), so scrape
+  // the full toctree from the index page instead (110+ pages).
+  new DocSource({
+    name: "opnsense",
+    type: "http",
+    url: "https://docs.opnsense.org/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.opnsense.org/",
+    urlPattern: "^https://docs\\.opnsense\\.org/",
+    urlExclude: "(genindex|search)\\.html",
+  }),
+
+  // GL.iNet router docs (firmware 4.x) - MkDocs Material, scoped
+  // sitemap (~216 pages).
+  new DocSource({
+    name: "glinet",
+    type: "http",
+    url: "https://docs.gl-inet.com/router/en/4/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://docs.gl-inet.com/router/en/4/sitemap.xml",
+    urlPattern: "^https://docs\\.gl-inet\\.com/router/en/4/",
   }),
 
   // ─── Firewall / netfilter ───────────────────────────────────────
@@ -2004,6 +2091,29 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern: "kea\\.readthedocs\\.io/en/latest/",
     urlExclude: "(genindex|search|_static/|_sources/|#)",
     requestTimeoutMs: 90_000,
+  }),
+
+  // Pi-hole docs - MkDocs markdown straight from the repo.
+  new DocSource({
+    name: "pihole",
+    type: "git",
+    url: "https://github.com/pi-hole/docs",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // AdGuard Home docs - the product docs are the AdGuard DNS knowledge
+  // base (Docusaurus, server-rendered); filter the KB sitemap to the
+  // adguard-home section.
+  new DocSource({
+    name: "adguard-home",
+    type: "http",
+    url: "https://adguard-dns.io/kb/adguard-home/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://adguard-dns.io/kb/sitemap.xml",
+    urlPattern: "^https://adguard-dns\\.io/kb/adguard-home/",
   }),
 
   // ─── miekg/dns (Go DNS library) ────────────────────────────────

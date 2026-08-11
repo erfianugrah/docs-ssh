@@ -96,12 +96,19 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "http-caching-rfcs": ["caching", "apis"],
   "http-caching-tutorial": ["caching"],
   traefik: ["networking"],
-  wireguard: ["networking"],
+  wireguard: ["networking", "vpn"],
+  strongswan: ["networking", "vpn"],
+  openvpn: ["networking", "vpn"],
 
   // ─── Router firmware ──────────────────────────────────────────────
   openwrt: ["networking", "router-firmware"],
   ddwrt: ["networking", "router-firmware"],
   freshtomato: ["networking", "router-firmware"],
+  turris: ["networking", "router-firmware"],
+  "asuswrt-merlin": ["networking", "router-firmware"],
+  pfsense: ["networking", "router-firmware", "firewall"],
+  opnsense: ["networking", "router-firmware", "firewall"],
+  glinet: ["networking", "router-firmware"],
 
   // ─── Firewall / netfilter ─────────────────────────────────────────
   nftables: ["networking", "firewall"],
@@ -113,6 +120,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   powerdns: ["dns", "networking"],
   bind9: ["dns", "networking"],
   kea: ["dns", "networking"],
+  pihole: ["dns", "networking"],
+  "adguard-home": ["dns", "networking"],
   "miekg-dns": ["dns", "languages"],
   "miekg-dns-v2": ["dns", "languages"],
 
@@ -396,6 +405,7 @@ export const TAG_LABELS: Record<string, string> = {
   networking: "Reverse proxy & networking",
   caching: "HTTP caching",
   dns: "DNS servers",
+  vpn: "VPN",
   "router-firmware": "Router firmware",
   firewall: "Firewall & packet filtering",
   frontend: "Frontend frameworks",

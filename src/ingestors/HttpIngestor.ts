@@ -132,9 +132,10 @@ async function fetchPage(
   url: string,
   signal?: AbortSignal,
   requestTimeoutMs?: number,
+  skipMarkdownNegotiation?: boolean,
 ): Promise<FetchPageResult> {
   let res = await fetchWithRetry(url, undefined, requestTimeoutMs, signal, {
-    Accept: PAGE_ACCEPT,
+    Accept: skipMarkdownNegotiation ? "text/html" : PAGE_ACCEPT,
   });
   let outcome: FetchOutcome = "html";
 
@@ -332,6 +333,7 @@ export class HttpIngestor implements DocIngestor {
             url,
             signal,
             source.requestTimeoutMs,
+            source.skipMarkdownNegotiation,
           );
           let filePath = urlToPath(url, source.url);
           // urlToPath defaults trailing-slash URLs to `index.html` and
