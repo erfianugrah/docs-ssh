@@ -363,6 +363,16 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   slskd: ["media"],
   gluetun: ["media", "networking"],
 
+  // ─── Smart home & IoT ───────────────────────────────────────────
+  "home-assistant": ["smarthome"],
+  zigbee2mqtt: ["smarthome"],
+  "zwave-js": ["smarthome"],
+  esphome: ["smarthome"],
+  matter: ["smarthome"],
+  openthread: ["smarthome"],
+  athom: ["smarthome", "hardware"],
+  airgradient: ["smarthome", "hardware"],
+
   // ─── Other ──────────────────────────────────────────────────────
   opencode: ["build-tools"],
   pi: ["build-tools"],
@@ -412,6 +422,7 @@ export const TAG_LABELS: Record<string, string> = {
   nas: "NAS & home server",
   hardware: "Hardware & SBCs",
   media: "Media servers & automation",
+  smarthome: "Smart home & IoT",
 };
 
 /**

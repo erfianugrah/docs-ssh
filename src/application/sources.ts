@@ -3271,7 +3271,121 @@ export const SOURCES: readonly DocSource[] = [
       "Liftosaur weightlifting tracker — Liftoscript DSL, REST API, MCP server, exercise reference",
   }),
 
-  // ─── AWS, sharded per service (kept last — slowest tier) ──────
+  // ─── Smart home / IoT ──────────────────────────────────────────
+
+  // Home Assistant - the git repo keeps content as Jekyll .markdown
+  // files (outside the git ingestor's .md/.mdx walk), so the working
+  // route is the flat 4040-URL sitemap on the server-rendered site.
+  // urlPattern keeps the doc corpus (integrations + actions/triggers/
+  // conditions/template-functions references + guides), drops the
+  // 633-post blog and marketing pages (~3.3k pages remain).
+  new DocSource({
+    name: "home-assistant",
+    type: "http",
+    url: "https://www.home-assistant.io/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://www.home-assistant.io/sitemap.xml",
+    urlPattern:
+      "home-assistant\\.io/(integrations|actions|template-functions|triggers|conditions|docs|dashboards|more-info|faq|voice_control|installation|getting-started|common-tasks|help|cloud)/",
+    pageConcurrency: 8, // 15-wide burst trips fetch timeouts on Netlify
+    deadlineMs: 1_800_000, // ~3.3k pages blow the 10-min default
+  }),
+
+  // Zigbee2MQTT - VuePress site sourced from the repo's docs/ tree:
+  // hand-written guides (guide/, advanced/) plus ~5.2k generated
+  // per-device pairing/config pages (devices/). All markdown.
+  new DocSource({
+    name: "zigbee2mqtt",
+    type: "git",
+    url: "https://github.com/Koenkk/zigbee2mqtt.io",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // Z-Wave JS - the reference open Z-Wave stack (and the driver behind
+  // Home Assistant's Z-Wave integration). Monorepo; docs/ is the whole
+  // published site corpus (~135 markdown pages).
+  new DocSource({
+    name: "zwave-js",
+    type: "git",
+    url: "https://github.com/zwave-js/zwave-js",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ESPHome - Astro site; content lives as MDX under src/content/docs
+  // (~837 pages: components, guides, cookbook). Repo was renamed from
+  // esphome/esphome-docs; default branch is `current`.
+  new DocSource({
+    name: "esphome",
+    type: "git",
+    url: "https://github.com/esphome/esphome.io",
+    format: "mdx",
+    paths: ["src/content/docs"],
+    rootPath: "src/content/docs",
+  }),
+
+  // Matter (CSA / Project CHIP) - docs/ tree of the connectedhomeip
+  // monorepo: getting-started, guides, cluster/device-type dev, testing
+  // (~196 markdown pages). Sparse checkout keeps the giant repo cheap.
+  new DocSource({
+    name: "matter",
+    type: "git",
+    url: "https://github.com/project-chip/connectedhomeip",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // OpenThread - the open Thread implementation; ot-docs is the
+  // openthread.io site source (guides/codelabs/reference, ~62 markdown
+  // pages under site/en; zh-cn translation dropped).
+  new DocSource({
+    name: "openthread",
+    type: "git",
+    url: "https://github.com/openthread/ot-docs",
+    format: "markdown",
+    paths: ["site/en"],
+    rootPath: "site/en",
+  }),
+
+  // Athom (ESPHome/Tasmota pre-flashed devices) - Wix store whose
+  // product pages double as the device docs (specs, GPIO pinouts,
+  // setup steps), server-rendered so plain fetch works. The Wix
+  // sitemap index lists them under /blank-1/ (~127 pages) plus the
+  // per-protocol category pages. Wix pages are ~2.3MB of HTML each,
+  // so keep the burst modest.
+  new DocSource({
+    name: "athom",
+    type: "http",
+    url: "https://www.athom.tech/",
+    format: "html",
+    discovery: "sitemap-index",
+    discoveryUrl: "https://www.athom.tech/sitemap.xml",
+    urlPattern:
+      "athom\\.tech/(blank-1|esphome|wled|tasmota|bthome|zigbee|homekit|home-bridge)",
+    pageConcurrency: 6,
+  }),
+
+  // AirGradient - open-hardware air-quality monitors. Docs are the
+  // /documentation/ tree (build instructions + ~36 KB articles) on the
+  // server-rendered Kirby site; no sitemap, so harvest the listing
+  // page's hrefs. Bare /documentation/ (the listing itself) is dropped
+  // by the urlPattern requiring a subpath.
+  new DocSource({
+    name: "airgradient",
+    type: "http",
+    url: "https://www.airgradient.com/documentation/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://www.airgradient.com/documentation/",
+    urlPattern: "airgradient\\.com/documentation/[a-z0-9-]+/",
+  }),
+
+  // ─── AWS, sharded per service (kept last - slowest tier) ──────
   //
   // Each AWS service publishes its own llms.txt with .md page URLs.
   // We shard the umbrella 'aws' DocSource into per-service entries so
