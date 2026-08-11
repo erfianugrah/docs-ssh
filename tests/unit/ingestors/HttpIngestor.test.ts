@@ -2147,4 +2147,31 @@ describe("HttpIngestor", () => {
 
     await fs.rm(tmpDir, { recursive: true });
   });
+
+  it("hash-truncates path segments over 200 bytes (ENAMETOOLONG guard)", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-long-"));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, text: async () => "<h1>t</h1>" }),
+    );
+
+    // URL-encoded Cyrillic title, ~9 bytes/char -> 600+ byte segment
+    const longTitle = "Page_" + "%D0%BF".repeat(100);
+    const src = new DocSource({
+      name: "long-name",
+      type: "http",
+      format: "html",
+      url: "https://example.com/wiki/",
+      urls: [`https://example.com/wiki/${longTitle}`],
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const [file] = [...set.files.keys()];
+    const segment = file.split("/").pop()!;
+    expect(Buffer.byteLength(segment, "utf8")).toBeLessThanOrEqual(200 + 3); // cap + ".md"
+    expect(segment).toMatch(/~[0-9a-f]{8}\.md$/);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
 });

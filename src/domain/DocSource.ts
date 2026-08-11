@@ -13,6 +13,7 @@ export type DocSourceType = "git" | "http";
  * - "llms-index":    parses a top-level llms.txt for child llms.txt URLs, then uses those as TOCs
  * - "llms-txt":     parses a llms.txt for page URLs and fetches each one directly
  * - "rss":          parses an RSS feed for <link> URLs within <item> elements
+ * - "dokuwiki":     BFS over a DokuWiki `?do=index` namespace tree (idx= links)
  * - "openapi":      downloads a single OpenAPI/Swagger spec and converts to per-tag markdown
  * - "openapi-dir":  git repo containing multiple OpenAPI specs in a directory structure
  * - "statuspage":   paginates an Atlassian Statuspage /history.json, then fetches each
@@ -29,6 +30,7 @@ export type DiscoveryMethod =
   | "llms-index"
   | "llms-txt"
   | "rss"
+  | "dokuwiki"
   | "openapi"
   | "openapi-dir"
   | "mediawiki"
@@ -90,6 +92,14 @@ export interface DocSourceConfig {
    * deadline aborts it. Falls back to UpdateDocSets' sourceDeadline default.
    */
   readonly deadlineMs?: number;
+  /**
+   * Override the global per-page request timeout (milliseconds). Raise it
+   * for sources behind Cloudflare's Markdown-for-Agents: the on-the-fly
+   * HTML->markdown conversion is synchronous and can exceed the default
+   * 30s on multi-MB pages (verified: kea-messages.html takes ~61s).
+   * Falls back to REQUEST_TIMEOUT when unset.
+   */
+  readonly requestTimeoutMs?: number;
 }
 
 /**
@@ -115,6 +125,7 @@ export class DocSource {
   readonly resolvePartials: boolean;
   readonly pageConcurrency: number | undefined;
   readonly deadlineMs: number | undefined;
+  readonly requestTimeoutMs: number | undefined;
 
   constructor(config: DocSourceConfig) {
     if (!config.name || config.name.trim() === "") {
@@ -141,6 +152,7 @@ export class DocSource {
     this.resolvePartials = config.resolvePartials ?? false;
     this.pageConcurrency = config.pageConcurrency;
     this.deadlineMs = config.deadlineMs;
+    this.requestTimeoutMs = config.requestTimeoutMs;
   }
 
   equals(other: DocSource): boolean {

@@ -90,6 +90,28 @@ describe("HtmlNormaliser", () => {
     expect(result.content).toContain("Main Content");
   });
 
+  it("prefers <article> over a sidebar-wrapping <main> (DokuWiki bootstrap3)", async () => {
+    const prose = "Device specifications and installation instructions.".repeat(30); // >1KB
+    const navJunk = "SidebarNavLink".repeat(50);
+    const file = new DocFile(
+      "page.html",
+      `<main role="main"><aside>${navJunk}</aside><article id="dokuwiki__content"><h1>Device Page</h1><p>${prose}</p></article></main>`,
+    );
+    const result = await normaliser.normalise(file);
+    expect(result.content).toContain("Device Page");
+    expect(result.content).not.toContain("SidebarNavLink");
+  });
+
+  it("falls back to <main> when the first <article> converts thin", async () => {
+    const prose = "Real documentation content lives in main.".repeat(30); // >1KB
+    const file = new DocFile(
+      "page.html",
+      `<article class="comment">tiny</article><main><h1>Post Body</h1><p>${prose}</p></main>`,
+    );
+    const result = await normaliser.normalise(file);
+    expect(result.content).toContain("Post Body");
+  });
+
   it("drops the page when RSC page produces <1% output (input > 1000 chars)", async () => {
     // Input must be >1000 chars for the empty-conversion guard to activate.
     // An app-shell HTML page whose conversion is near-empty has no doc

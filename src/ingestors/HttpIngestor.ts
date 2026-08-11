@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { DocFile } from "../domain/DocFile.js";
 import { DocSet, type NegotiationStats } from "../domain/DocSet.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
@@ -130,8 +131,9 @@ interface FetchPageResult {
 async function fetchPage(
   url: string,
   signal?: AbortSignal,
+  requestTimeoutMs?: number,
 ): Promise<FetchPageResult> {
-  let res = await fetchWithRetry(url, undefined, undefined, signal, {
+  let res = await fetchWithRetry(url, undefined, requestTimeoutMs, signal, {
     Accept: PAGE_ACCEPT,
   });
   let outcome: FetchOutcome = "html";
@@ -151,7 +153,7 @@ async function fetchPage(
   // nothing to return, so the error must propagate to the batch loop and
   // be recorded as a page failure.
   if ((res.status === 404 || res.status === 406) && !signal?.aborted) {
-    const retry = await fetchWithRetry(url, undefined, undefined, signal, {
+    const retry = await fetchWithRetry(url, undefined, requestTimeoutMs, signal, {
       Accept: "text/html",
     });
     if (retry.ok) {
@@ -192,7 +194,7 @@ async function fetchPage(
   // a similarly-thin HTML 404 page when both representations are empty.
   if (isMarkdown && body.length < MIN_MARKDOWN_BODY && !signal?.aborted) {
     try {
-      const fallback = await fetchWithRetry(url, undefined, undefined, signal, {
+      const fallback = await fetchWithRetry(url, undefined, requestTimeoutMs, signal, {
         Accept: "text/html",
       });
       if (fallback.ok) {
@@ -326,7 +328,11 @@ export class HttpIngestor implements DocIngestor {
       const batch = urls.slice(i, i + concurrency);
       const results = await Promise.allSettled(
         batch.map(async (url) => {
-          const { body, preNormalised, outcome, tokens } = await fetchPage(url, signal);
+          const { body, preNormalised, outcome, tokens } = await fetchPage(
+            url,
+            signal,
+            source.requestTimeoutMs,
+          );
           let filePath = urlToPath(url, source.url);
           // urlToPath defaults trailing-slash URLs to `index.html` and
           // strips extensions to `.md`. When we received markdown
@@ -567,6 +573,8 @@ function urlToPath(url: string, baseUrl: string): string {
     }
   }
   relative = relative.replace(/^\/+/, "").split("?")[0];
+  // Cap BEFORE appending extensions so .md/.html survive the truncation.
+  relative = relative.split("/").map(capSegmentBytes).join("/");
   if (!relative || relative.endsWith("/")) {
     relative = relative + "index.html";
   }
@@ -574,6 +582,27 @@ function urlToPath(url: string, baseUrl: string): string {
     relative = relative + ".md";
   }
   return relative;
+}
+
+// Filesystems cap filenames at 255 BYTES; URL-encoded non-ASCII titles
+// (e.g. Cyrillic wiki pages, ~9 bytes per char) blow past it and a
+// single ENAMETOOLONG aborts the whole source's write. Cap each path
+// segment, keeping an 8-char hash of the full segment for uniqueness.
+const MAX_SEGMENT_BYTES = 200;
+
+function capSegmentBytes(segment: string): string {
+  if (Buffer.byteLength(segment, "utf8") <= MAX_SEGMENT_BYTES) return segment;
+  const hash = createHash("md5").update(segment).digest("hex").slice(0, 8);
+  const budget = MAX_SEGMENT_BYTES - 9; // "~" + hash
+  let out = "";
+  let bytes = 0;
+  for (const ch of segment) {
+    const n = Buffer.byteLength(ch, "utf8");
+    if (bytes + n > budget) break;
+    out += ch;
+    bytes += n;
+  }
+  return `${out}~${hash}`;
 }
 
 /**

@@ -67,29 +67,37 @@ export class HtmlNormaliser implements DocNormaliser {
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     const htmlTitle = titleMatch?.[1]?.trim().replace(/\s*(?:\||–|—)\s.*$/, "").replace(/\s+-\s+.*$/, "") ?? "";
 
-    // If there's a <main> or <article> element, use only its contents.
-    // This is a *selection*, not a removal — Turndown has no native
-    // equivalent — so it stays as regex. Noise elements (head, nav,
-    // header, footer, script, style) are dropped by the constructor's
-    // td.remove() registration via Turndown's real HTML parser.
-    const mainMatch = html.match(/<(?:main|article)[^>]*>([\s\S]*?)<\/(?:main|article)>/i);
-    const selected = mainMatch ? mainMatch[1] : html;
-
-    let markdown = this.td.turndown(selected).trim();
-
-    // The non-greedy selection regex grabs the FIRST <main|article>,
-    // which on some themes is not the post body (e.g. WordPress pages
-    // where the first <article> is a comment block and the content
-    // lives in plain <div>s). If the selected fragment is too small to
-    // be a real doc page, retry against the full document before
-    // concluding the page is an SPA shell. Only swap when the full-page
-    // conversion is larger - on well-structured pages the selection is
-    // the clean one and the full page just adds nav junk.
-    if (mainMatch && originalSize > 1000 && markdown.length < MIN_CONTENT_SIZE) {
+    // Content-selection cascade: <article> first, then <main>, then
+    // the full document. This is a *selection*, not a removal -
+    // Turndown has no native equivalent - so it stays as regex. Noise
+    // elements (head, nav, header, footer, script, style) are dropped
+    // by the constructor's td.remove() via Turndown's real HTML parser.
+    //
+    // <article> wins over <main> because some themes wrap sidebar+
+    // content in <main> but the prose in <article> (DokuWiki's
+    // bootstrap3 on openwrt.org: <main> is 100+ lines of nav junk).
+    // Each step is only taken when the previous converted thin
+    // (<MIN_CONTENT_SIZE): the first <article> on some themes is a
+    // comment block (WordPress) or teaser card, not the post body.
+    // Only swap when the next candidate converts larger - on
+    // well-structured pages the first selection is the clean one and
+    // the wider candidates just add nav junk.
+    const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+    const mainMatch = html.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
+    const selections = [articleMatch?.[1], mainMatch?.[1]].filter((s): s is string => s !== undefined);
+    let markdown = "";
+    for (const candidate of selections) {
+      const converted = this.td.turndown(candidate).trim();
+      if (converted.length > markdown.length) markdown = converted;
+      if (markdown.length >= MIN_CONTENT_SIZE) break;
+    }
+    // Widen to the full document only when a selection converted thin
+    // AND the page is big enough that the thinness means "wrong
+    // fragment" rather than "genuinely small page" - on a small page
+    // the selection IS the page and widening just adds chrome.
+    if (selections.length === 0 || (originalSize > 1000 && markdown.length < MIN_CONTENT_SIZE)) {
       const fullPage = this.td.turndown(html).trim();
-      if (fullPage.length > markdown.length) {
-        markdown = fullPage;
-      }
+      if (fullPage.length > markdown.length) markdown = fullPage;
     }
 
     // Inject HTML <title> as H1 if markdown doesn't already have one
