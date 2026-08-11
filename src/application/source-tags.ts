@@ -98,11 +98,21 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   traefik: ["networking"],
   wireguard: ["networking"],
 
+  // ─── Router firmware ──────────────────────────────────────────────
+  openwrt: ["networking", "router-firmware"],
+  ddwrt: ["networking", "router-firmware"],
+  freshtomato: ["networking", "router-firmware"],
+
+  // ─── Firewall / netfilter ─────────────────────────────────────────
+  nftables: ["networking", "firewall"],
+  iptables: ["networking", "firewall"],
+
   // ─── DNS servers ────────────────────────────────────────────────
   nsd: ["dns", "networking"],
   "knot-dns": ["dns", "networking"],
   powerdns: ["dns", "networking"],
   bind9: ["dns", "networking"],
+  kea: ["dns", "networking"],
   "miekg-dns": ["dns", "languages"],
   "miekg-dns-v2": ["dns", "languages"],
 
@@ -376,6 +386,8 @@ export const TAG_LABELS: Record<string, string> = {
   networking: "Reverse proxy & networking",
   caching: "HTTP caching",
   dns: "DNS servers",
+  "router-firmware": "Router firmware",
+  firewall: "Firewall & packet filtering",
   frontend: "Frontend frameworks",
   languages: "Languages & runtimes",
   cloud: "Cloud platforms",

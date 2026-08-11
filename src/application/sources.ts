@@ -1773,6 +1773,167 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://www.wireguard.com/sitemap.xml",
   }),
 
+  // ─── Router firmware ─────────────────────────────────────────────
+
+  // OpenWrt Wiki - DokuWiki with clean URLs. No XML sitemap and no git
+  // mirror, so we BFS the `?do=index` namespace tree (dokuwiki
+  // discovery). The wiki carries ~20 translation namespaces (top-level
+  // lang codes) plus DokuWiki boilerplate (playground/talk/user) - all
+  // excluded, which also prunes those subtrees from the crawl. Also
+  // excluded: `packages` (27.5k auto-generated one-page-per-package
+  // stubs - 97% of the raw crawl), `dataentry`/`tag` (auto-generated
+  // device-data forms / tag indexes). What remains is the real doc
+  // corpus: docs/faq/developers/releases + the `toh` Table of Hardware
+  // subtree (one vendor namespace each, hence the raised crawl cap in
+  // dokuwiki.ts). Verified: idx pages are server-rendered.
+  new DocSource({
+    name: "openwrt",
+    type: "http",
+    url: "https://openwrt.org/",
+    format: "html",
+    discovery: "dokuwiki",
+    discoveryUrl: "https://openwrt.org/start?do=index",
+    urlPattern: "^https://openwrt\\.org/",
+    urlExclude:
+      "openwrt\\.org/(ar|cs|de|es|fr|ga|hu|it|ja|jp|ko|pl|pt|pt-br|ru|tr|uk|zh|zh-cn|zh-tw|playground|talk|user|packages|dataentry|tag)/",
+    pageConcurrency: 6,
+    deadlineMs: 1_800_000,
+  }),
+
+  // DD-WRT Wiki - MediaWiki at wiki.dd-wrt.com (API under /wiki/,
+  // articlepath /wiki/$1). The wiki is spam-infested, but the spam
+  // pages all have "("-prefixed titles (sorts first in allpages;
+  // verified 10/1048 pages) and encodeURIComponent leaves parens
+  // unescaped, so the `wiki/\(` arm drops them. The %D[01] arm drops
+  // Cyrillic-titled translation pages (UTF-8 Cyrillic encodes to
+  // %D0/%D1 xx); their 9-bytes-per-char filenames also blow the 255-byte
+  // filesystem filename cap (urlToPath now hash-truncates those, but
+  // translated dupes are noise anyway).
+  new DocSource({
+    name: "ddwrt",
+    type: "http",
+    url: "https://wiki.dd-wrt.com/wiki/",
+    format: "html",
+    discovery: "mediawiki",
+    discoveryUrl: "https://wiki.dd-wrt.com/wiki/api.php",
+    urlPattern: "wiki\\.dd-wrt\\.com/wiki/",
+    urlExclude:
+      "(Special:|Talk:|User:|File:|Template:|Category:|Help:|MediaWiki:|wiki/\\(|%D[01][0-9A-F])",
+    pageConcurrency: 6, // 15-wide burst trips ~14% connection failures on this shared host
+  }),
+
+  // FreshTomato Wiki - DokuWiki with doku.php PATH_INFO URLs. Original
+  // Tomato docs (polarcloud.com) are dead; FreshTomato is the
+  // maintained fork. Index tree is nearly flat (4 namespaces); drop
+  // DokuWiki boilerplate namespaces.
+  new DocSource({
+    name: "freshtomato",
+    type: "http",
+    url: "https://wiki.freshtomato.org/doku.php/",
+    format: "html",
+    discovery: "dokuwiki",
+    discoveryUrl: "https://wiki.freshtomato.org/doku.php?do=index",
+    urlPattern: "wiki\\.freshtomato\\.org/doku\\.php/",
+    urlExclude: "doku\\.php/(playground|wiki)/",
+  }),
+
+  // ─── Firewall / netfilter ───────────────────────────────────────
+
+  // nftables wiki - MediaWiki, small (~94 ns0 pages verified via API).
+  new DocSource({
+    name: "nftables",
+    type: "http",
+    url: "https://wiki.nftables.org/wiki-nftables/index.php/",
+    format: "html",
+    discovery: "mediawiki",
+    discoveryUrl: "https://wiki.nftables.org/wiki-nftables/api.php",
+    urlPattern: "wiki\\.nftables\\.org/wiki-nftables/index\\.php/",
+    urlExclude: "(Special:|Talk:|User:|File:|Template:|Category:|Help:|MediaWiki:)",
+    pageConcurrency: 2, // 15-wide burst trips connection failures on this old Apache
+  }),
+
+  // iptables / netfilter documentation - the canonical 2002-era
+  // DocBook HOWTOs on netfilter.org. Frozen upstream, chunked HTML
+  // (index page links NAME-N.html section pages), directory listing
+  // forbidden, no sitemap: an explicit urls list is the durable option.
+  new DocSource({
+    name: "iptables",
+    type: "http",
+    url: "https://www.netfilter.org/documentation/",
+    format: "html",
+    urls: [
+      "https://www.netfilter.org/documentation/FAQ/netfilter-faq.html",
+      "https://www.netfilter.org/documentation/FAQ/netfilter-faq-1.html",
+      "https://www.netfilter.org/documentation/FAQ/netfilter-faq-2.html",
+      "https://www.netfilter.org/documentation/FAQ/netfilter-faq-3.html",
+      "https://www.netfilter.org/documentation/FAQ/netfilter-faq-4.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-1.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-2.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-3.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-4.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-5.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-6.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-7.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-8.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-9.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-10.html",
+      "https://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-11.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-double-nat-HOWTO.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-double-nat-HOWTO-1.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-double-nat-HOWTO-2.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-double-nat-HOWTO-3.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-double-nat-HOWTO-4.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-double-nat-HOWTO-5.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-double-nat-HOWTO-6.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-double-nat-HOWTO-7.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-1.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-2.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-3.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-4.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-5.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-6.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-7.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-8.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-9.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-1.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-2.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-4.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-5.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-6.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-7.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-8.html",
+      "https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-9.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-1.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-2.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-3.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-4.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-5.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-6.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-7.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-8.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-9.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-10.html",
+      "https://www.netfilter.org/documentation/HOWTO/networking-concepts-HOWTO-11.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-1.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-2.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-3.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-4.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-5.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-6.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-7.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-8.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-9.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-10.html",
+      "https://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO-11.html",
+    ],
+  }),
+
   // ─── DNS servers ────────────────────────────────────────────────
 
   // NSD (NLnet Labs) — authoritative-only DNS server.
@@ -1825,6 +1986,24 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://bind9.readthedocs.io/en/latest/",
     urlPattern: "bind9\\.readthedocs\\.io/en/latest/",
     urlExclude: "(genindex|search|_static/|_sources/|#)",
+  }),
+
+  // Kea (ISC) - DHCPv4/DHCPv6/DDNS server. Sphinx docs on
+  // readthedocs; same layout as bind9 (sitemap only lists version
+  // roots), so TOC discovery against /en/latest/. requestTimeoutMs:
+  // RTD honours Accept: text/markdown via Cloudflare's on-the-fly
+  // conversion, which takes ~61s on the 1.7MB kea-messages.html -
+  // double the 30s default or that one page deterministically fails.
+  new DocSource({
+    name: "kea",
+    type: "http",
+    url: "https://kea.readthedocs.io/en/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://kea.readthedocs.io/en/latest/",
+    urlPattern: "kea\\.readthedocs\\.io/en/latest/",
+    urlExclude: "(genindex|search|_static/|_sources/|#)",
+    requestTimeoutMs: 90_000,
   }),
 
   // ─── miekg/dns (Go DNS library) ────────────────────────────────

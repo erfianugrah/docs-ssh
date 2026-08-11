@@ -15,6 +15,7 @@ import { discoverFromToc } from "./toc.js";
 import { discoverFromMediaWiki } from "./mediawiki.js";
 import { discoverFromLlmsIndex, discoverFromLlmsTxt } from "./llms.js";
 import { discoverFromRss } from "./rss.js";
+import { discoverFromDokuWiki } from "./dokuwiki.js";
 
 export async function discover(source: DocSource): Promise<string[]> {
   const { discovery, discoveryUrl, url: baseUrl } = source;
@@ -35,6 +36,8 @@ export async function discover(source: DocSource): Promise<string[]> {
       return discoverFromLlmsTxt(discoveryUrl);
     case "rss":
       return discoverFromRss(discoveryUrl);
+    case "dokuwiki":
+      return discoverFromDokuWiki(discoveryUrl, baseUrl, source.urlExclude);
     default:
       return [];
   }
