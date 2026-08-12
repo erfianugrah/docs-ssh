@@ -1,0 +1,27 @@
+name: docs-builder
+services:
+  builder:
+    image: docs-builder:local
+    container_name: docs-builder
+    pull_policy: never
+    restart: unless-stopped
+    network_mode: host
+    init: true
+    working_dir: /work/repo
+    command: ["sleep", "infinity"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - repo:/work/repo
+      - docs:/work/repo/docs
+      - dockerconf:/root/.docker
+      - pnpmstore:/root/.local/share/pnpm
+    deploy:
+      resources:
+        limits:
+          cpus: "6"
+          memory: 6G
+volumes:
+  repo:
+  docs:
+  dockerconf:
+  pnpmstore:
