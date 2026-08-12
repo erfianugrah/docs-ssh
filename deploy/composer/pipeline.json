@@ -9,7 +9,11 @@
       "timeout": "5m0s",
       "config": {
         "container": "docs-builder",
-        "cmd": ["sh", "-lc", "set -e; cd /work/repo; if [ ! -d .git ]; then git init -q .; git remote add origin https://github.com/erfianugrah/docs-ssh.git; fi; git fetch --tags --prune origin '+refs/heads/main:refs/remotes/origin/main'; git reset --hard origin/main; git log --oneline -1"]
+        "cmd": [
+          "sh",
+          "-lc",
+          "set -e; cd /work/repo; if [ ! -d .git ]; then git init -q .; git remote add origin https://github.com/erfianugrah/docs-ssh.git; fi; git fetch --tags --prune origin '+refs/heads/main:refs/remotes/origin/main'; git reset --hard origin/main; git log --oneline -1"
+        ]
       }
     },
     {
@@ -17,10 +21,16 @@
       "name": "Install dependencies",
       "type": "docker_exec",
       "timeout": "10m0s",
-      "depends_on": ["sync-repo"],
+      "depends_on": [
+        "sync-repo"
+      ],
       "config": {
         "container": "docs-builder",
-        "cmd": ["sh", "-lc", "cd /work/repo && pnpm install --frozen-lockfile"]
+        "cmd": [
+          "sh",
+          "-lc",
+          "cd /work/repo && pnpm install --frozen-lockfile"
+        ]
       }
     },
     {
@@ -28,10 +38,16 @@
       "name": "Fetch docs (cached)",
       "type": "docker_exec",
       "timeout": "180m0s",
-      "depends_on": ["install-deps"],
+      "depends_on": [
+        "install-deps"
+      ],
       "config": {
         "container": "docs-builder",
-        "cmd": ["sh", "-lc", "cd /work/repo && DOCS_OUT_DIR=/work/repo/docs DOCS_WORK_DIR=/tmp/docs-work DOCS_MAX_AGE=0 pnpm fetch-docs"]
+        "cmd": [
+          "sh",
+          "-lc",
+          "cd /work/repo && DOCS_OUT_DIR=/work/repo/docs DOCS_WORK_DIR=/tmp/docs-work DOCS_MAX_AGE=0 pnpm fetch-docs"
+        ]
       }
     },
     {
@@ -39,10 +55,16 @@
       "name": "Build image + tag latest + date",
       "type": "docker_exec",
       "timeout": "45m0s",
-      "depends_on": ["fetch-docs"],
+      "depends_on": [
+        "fetch-docs"
+      ],
       "config": {
         "container": "docs-builder",
-        "cmd": ["sh", "-lc", "set -e; cd /work/repo; DATE=$(date -u +%Y%m%d); VER=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)-daily.$DATE; echo \"building VERSION=$VER\"; docker build --build-arg DOCS_PREBUILT=true --build-arg VERSION=$VER --build-arg SSH_HOST=docs.erfi.io --build-arg SSH_PORT=2222 -t ghcr.io/erfianugrah/docs-ssh:latest -t ghcr.io/erfianugrah/docs-ssh:$DATE ."]
+        "cmd": [
+          "sh",
+          "-lc",
+          "set -e; cd /work/repo; DATE=$(date -u +%Y%m%d); VER=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)-daily.$DATE; echo \"building VERSION=$VER\"; docker build --build-arg DOCS_PREBUILT=true --build-arg VERSION=$VER --build-arg SSH_HOST=docs.erfi.io --build-arg SSH_PORT=2222 -t ghcr.io/erfianugrah/docs-ssh:latest -t ghcr.io/erfianugrah/docs-ssh:$DATE ."
+        ]
       }
     },
     {
@@ -51,10 +73,16 @@
       "type": "docker_exec",
       "timeout": "20m0s",
       "continue_on_error": true,
-      "depends_on": ["build-image"],
+      "depends_on": [
+        "build-image"
+      ],
       "config": {
         "container": "docs-builder",
-        "cmd": ["sh", "-lc", "rc=0; docker push ghcr.io/erfianugrah/docs-ssh:latest || rc=1; DATE=$(date -u +%Y%m%d); docker push ghcr.io/erfianugrah/docs-ssh:$DATE || rc=1; docker images --format '{{.Repository}}:{{.Tag}}' ghcr.io/erfianugrah/docs-ssh | grep -E ':[0-9]{8}$' | sort -r | tail -n +8 | xargs -r docker rmi >/dev/null 2>&1 || true; exit $rc"]
+        "cmd": [
+          "sh",
+          "-lc",
+          "rc=0; docker push ghcr.io/erfianugrah/docs-ssh:latest || rc=1; DATE=$(date -u +%Y%m%d); docker push ghcr.io/erfianugrah/docs-ssh:$DATE || rc=1; docker images --format '{{.Repository}}:{{.Tag}}' ghcr.io/erfianugrah/docs-ssh | grep -E ':[0-9]{8}$' | sort -r | tail -n +8 | xargs -r docker rmi >/dev/null 2>&1 || true; exit $rc"
+        ]
       }
     },
     {
@@ -62,25 +90,50 @@
       "name": "Recreate docs-ssh stack",
       "type": "compose_up",
       "timeout": "10m0s",
-      "depends_on": ["push-image"],
-      "config": { "stack": "docs-ssh" }
+      "depends_on": [
+        "push-image"
+      ],
+      "config": {
+        "stack": "docs-ssh"
+      }
     },
     {
       "id": "settle",
       "name": "Wait for cascade redeploys",
       "type": "wait",
-      "depends_on": ["deploy"],
-      "config": { "duration": "60s" }
+      "depends_on": [
+        "deploy"
+      ],
+      "config": {
+        "duration": "60s"
+      }
     },
     {
       "id": "smoke",
       "name": "Smoke against live",
       "type": "docker_exec",
       "timeout": "15m0s",
-      "depends_on": ["settle"],
+      "depends_on": [
+        "settle"
+      ],
       "config": {
         "container": "docs-builder",
-        "cmd": ["sh", "-lc", "cd /work/repo && DOCS_SSH_HOST=docs.erfi.io DOCS_SSH_PORT=2222 pnpm test:smoke"]
+        "cmd": [
+          "sh",
+          "-lc",
+          "cd /work/repo && DOCS_SSH_HOST=docs.erfi.io DOCS_SSH_PORT=2222 pnpm test:smoke"
+        ]
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "manual"
+    },
+    {
+      "type": "schedule",
+      "config": {
+        "cron": "0 2 * * *"
       }
     }
   ]
