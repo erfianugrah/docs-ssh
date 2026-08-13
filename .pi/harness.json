@@ -1,14 +1,47 @@
 {
-  "task": "Eliminate all wall-clock timing dependence from the unit test suite by converting the timing-sensitive tests to vitest fake timers. This repo just had a release (v0.23.27) fail CI on a timing flake in the per-source deadline test; the goal is that this class of flake can NEVER recur.\n\nFiles to convert (all under tests/unit/):\n1. application/UpdateDocSets.test.ts - the 'per-source deadline' describe block: one test races a hung ingestor against a 500ms sourceDeadline with real timers and asserts `elapsed < 2000`; another uses a 300ms real setTimeout ingestor against a deadlineMs override. Convert to vi.useFakeTimers() + vi.advanceTimersByTimeAsync() so the deadline fires deterministically at fake-500ms regardless of CI load. The deadlineMs: 60_000 override on the fast source (added as a stopgap) can be simplified away once fake timers make the deadline deterministic.\n2. shared/retry.test.ts - the delayFromError hint test asserts 70 <= elapsed < 500 against real time.\n3. ingestors/GitIngestor.test.ts - 'retries transient clone failures with backoff' asserts elapsed >= 25 (real git spawns + real backoff sleeps).\n4. ingestors/HttpIngestor.test.ts - the Retry-After test asserts elapsed >= 800 (real 1000ms wait).\n\nHow (researched against the vitest docs):\n- vi.useFakeTimers() in the test (or beforeEach), vi.useRealTimers() in afterEach. Default toFake fakes Date too, so Date.now() becomes deterministic: it only advances when fake timers advance. Real async work (fs, child_process spawn, mocked fetch promises) still completes on the real event loop but does NOT move fake Date.\n- Pattern: start the async operation WITHOUT awaiting it, then `await vi.advanceTimersByTimeAsync(ms)` (or vi.runAllTimersAsync()) to fire the timer callbacks and flush microtasks, THEN await the operation promise. Never advance timers after already awaiting.\n- Where jitter makes delays nondeterministic (backoffDelay adds raw * Math.random() * jitter), either pass jitter: 0 in the options or vi.spyOn(Math, 'random').mockReturnValue(0), then assert the EXACT delay (e.g. elapsed === 75, === 30, === 1000) instead of a range - fake Date makes this exact.\n- Keep every behavioural assertion intact (status values, error messages, attempt counts, file counts). Do not weaken, skip, or delete any test. Do not touch src/ - this is a test-only refactor.\n\nDone when: all four files use fake timers for their timing-sensitive tests, the full unit suite passes, and repeated runs are stable.",
-  "maxIterations": 10,
-  "models": ["openrouter/deepseek/deepseek-v4-pro", "openrouter/z-ai/glm-5.2", "anthropic/claude-sonnet-5"],
-  "stallPatience": 3,
-  "tools": ["read", "edit", "write", "bash", "grep"],
-  "writeScope": ["tests/unit/**"],
+  "task": "Change the cache-freshness policy in src/application/UpdateDocSets.ts for sources whose remote freshness CANNOT be determined, so the daily Composer pipeline stops re-scraping them blindly.\n\nCurrent behaviour (verified): within the maxAge window the updater calls checkRemoteFreshness (checkGitFreshness for git sources, checkHttpFreshness for http). When the check CANNOT determine freshness - http: no ETag and no Last-Modified on the discovery URL, or the HEAD request errors; git: the stamp has no gitSha - it returns false ('assume stale, re-fetch to be safe') and the source is re-scraped in full. On the daily cron this makes heavy validator-less sources (cloudflare-blog ~7.8k pages, cloudflare llms-full ~54MB, vercel-blog/vercel-changelog, AWS services, postgres) re-fetch every single day; the 'warm' fetch is 62 minutes.\n\nNew policy: 'cannot determine' is NOT the same as 'changed'. When freshness cannot be determined AND prevStamp age is within maxAge, treat the cache as fresh and SKIP the fetch, logging one line per source: `[<name>] no remote validators; trusting cache (age Xh of Yh window)`. When age >= maxAge the source re-fetches as today - the window bounds the staleness. Sources with working validators keep today's exact semantics (verified fresh/changed daily).\n\nImplementation guidance (alternatives allowed if the observable behaviour matches): checkRemoteFreshness currently returns boolean - make it (or an inner helper) tri-state: fresh / changed / unknown. 'changed' MUST still re-fetch (an ETag or SHA that differs is a real upstream change, never a skip). The tri-state must not leak into sources that CAN be checked - their path is unchanged. Do not touch src/application/sources.ts. Keep the change inside UpdateDocSets.ts unless a type genuinely belongs in src/domain/. No new dependencies. ESM imports keep their .js extensions.\n\nAcceptance tests (you must write them): create tests/unit/application/update-doc-sets-trust-window.test.ts following the patterns in tests/unit/application/UpdateDocSets.test.ts (it exercises private methods via `as any` - do the same). Cover exactly: (1) validator-less http source, stamp age within maxAge -> SKIPPED (no fetch, the trust log line emitted); (2) same source, stamp age beyond maxAge -> fetched; (3) http source whose ETag CHANGED, within window -> fetched; (4) http source whose ETag is unchanged, within window -> skipped; (5) git source whose stamp has no gitSha, within window -> SKIPPED. Tests 1 and 5 must FAIL on the pre-change code (that is the sensor contract); 2-4 pin behaviour that must not regress.",
+  "maxIterations": 5,
+  "models": ["llama-server/loop", "openrouter/moonshotai/kimi-k3"],
+  "stallPatience": 2,
+  "tools": ["read", "edit", "write", "bash", "grep", "glob"],
+  "writeScope": ["src/application/**", "src/domain/**", "tests/unit/**"],
+  "timeoutMs": 600000,
+  "agentTimeoutMs": 3600000,
+  "guide": ["AGENTS.md"],
+  "rules": [
+    "ESM-only repo: every import keeps its .js extension even though sources are .ts. Scripts run via node --import tsx/esm - no build step.",
+    "EDIT DISCIPLINE: no whole-file rewrites. Read the exact region first, then edit with exact oldText copied from that read. Run `pnpm lint` after every edit and fix what breaks before moving on.",
+    "Do not modify or weaken any existing test assertion. New tests go in tests/unit/application/update-doc-sets-trust-window.test.ts.",
+    "Do not run git commit / git reset / git checkout / git stash - the loop harness owns git state.",
+    "No new dependencies. Do not touch src/application/sources.ts.",
+    "A 'changed' freshness verdict (different ETag/Last-Modified/git SHA) must ALWAYS re-fetch - never turn a real upstream change into a skip."
+  ],
   "sensors": [
-    { "name": "lint", "cmd": "pnpm lint" },
-    { "name": "fake-timers", "cmd": "for f in tests/unit/application/UpdateDocSets.test.ts tests/unit/shared/retry.test.ts tests/unit/ingestors/GitIngestor.test.ts tests/unit/ingestors/HttpIngestor.test.ts; do rg -q 'useFakeTimers' \"$f\" || { echo \"missing fake timers: $f\"; exit 1; }; done", "hint": "Each of the four timing-sensitive test files must use vi.useFakeTimers() for its timing tests. See the task description for the exact pattern (start promise, advanceTimersByTimeAsync, then await)." },
-    { "name": "unit", "cmd": "pnpm test" },
-    { "name": "stress", "cmd": "for i in 1 2 3 4 5; do npx vitest run tests/unit/application/UpdateDocSets.test.ts tests/unit/shared/retry.test.ts tests/unit/ingestors/GitIngestor.test.ts tests/unit/ingestors/HttpIngestor.test.ts >/dev/null 2>&1 || { echo \"stress run $i failed\"; exit 1; }; done", "hint": "The timing tests must pass 5 consecutive runs. If a run fails intermittently, a real wall-clock dependency remains - find it (rg -n 'Date.now|elapsed|setTimeout' the failing file) and convert it to fake timers." }
+    {
+      "name": "lint",
+      "cmd": "pnpm lint",
+      "hint": "tsc --noEmit type errors. Read the named file/line and fix the type mismatch - remember ESM imports need .js extensions.",
+      "canary": "printf '\\nconst canaryBroken: number = \"not a number\";\\n' >> src/application/UpdateDocSets.ts"
+    },
+    {
+      "name": "unit",
+      "cmd": "pnpm test",
+      "timeoutMs": 600000,
+      "hint": "vitest unit failures. If UpdateDocSets.test.ts regressed, you changed existing verified-freshness semantics - only the cannot-determine path may change.",
+      "canary": "printf '\\nit(\"zz canary unit fail\", () => { throw new Error(\"canary\"); });\\n' >> tests/unit/application/UpdateDocSets.test.ts"
+    },
+    {
+      "name": "feature-trust-window",
+      "expect": "fail",
+      "cmd": "npx vitest run tests/unit/application/update-doc-sets-trust-window.test.ts",
+      "hint": "The acceptance test file does not exist yet or its trust-window tests fail. Write it (patterns: tests/unit/application/UpdateDocSets.test.ts) and implement the tri-state freshness change until tests 1 and 5 pass - they must fail on the pre-change code."
+    },
+    {
+      "name": "judge",
+      "after": ["lint", "unit", "feature-trust-window"],
+      "cmd": "judge --base HEAD --spec 'The diff must change ONLY the cannot-determine-freshness path in UpdateDocSets.ts: when no validators exist (or the check errors / no gitSha) and the stamp is within maxAge, the source is now skipped with a one-line trust log; beyond maxAge it still re-fetches. Sources with working validators must behave exactly as before, and a changed ETag/Last-Modified/git SHA must ALWAYS re-fetch - turning a real change into a skip is a FAIL. The new tests must cover the five cases in the task and tests 1+5 must be incapable of passing on the pre-change code. Reject: tri-state leaking into the validatable path, new dependencies, sources.ts edits, paragraph-long justification comments, weakened existing assertions.' --model openrouter/moonshotai/kimi-k3",
+      "timeoutMs": 600000,
+      "hint": "The judge found a correctness or scope problem deterministic sensors are blind to. Read its finding literally and fix the code, not the message."
+    }
   ]
 }
