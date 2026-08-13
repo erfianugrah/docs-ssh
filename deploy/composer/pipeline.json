@@ -46,7 +46,7 @@
         "cmd": [
           "sh",
           "-lc",
-          "cd /work/repo && DOCS_OUT_DIR=/work/repo/docs DOCS_WORK_DIR=/tmp/docs-work pnpm fetch-docs"
+          "cd /work/repo && DOCS_OUT_DIR=/work/repo/docs DOCS_WORK_DIR=/tmp/docs-work DOCS_MAX_AGE=129600 pnpm fetch-docs"
         ]
       }
     },
