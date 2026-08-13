@@ -5,5 +5,5 @@ coverage/
 *.env
 .env.*
 /tmp/
-.pi/harness-report.json
-.pi/baselines/
+.pi/*
+!.pi/harness.json
