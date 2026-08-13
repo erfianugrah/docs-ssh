@@ -91,6 +91,13 @@ export interface SourceResult {
   error?: string;
 }
 
+/**
+ * Freshness verdict for a cached source. "unknown" means the remote
+ * offered no comparable validators (or the check failed) - distinct
+ * from "changed", which is a confirmed upstream difference.
+ */
+type FreshnessVerdict = "fresh" | "changed" | "unknown";
+
 /** Persisted per-source freshness metadata. */
 interface StampData {
   fetchedAt: string;
@@ -359,12 +366,25 @@ export class UpdateDocSets {
         const ageMs = Date.now() - new Date(prevStamp.fetchedAt).getTime();
         if (ageMs < this.maxAge * 1000) {
           progress.update(source.name, "checking freshness…");
-          const fresh = await this.checkRemoteFreshness(source, prevStamp);
-          if (fresh) {
+          const verdict = await this.checkRemoteFreshness(source, prevStamp);
+          if (verdict === "fresh") {
             const mins = Math.round(ageMs / 60_000);
             progress.done(source.name, `cached (${mins}min ago)`);
             return { source: source.name, status: "skipped" };
           }
+          if (verdict === "unknown") {
+            // Cannot-determine is not changed: trust the cache for the
+            // rest of the maxAge window instead of blindly re-scraping
+            // validator-less sources every run.
+            const ageH = Math.round(ageMs / 3_600_000);
+            const windowH = Math.round(this.maxAge / 3600);
+            console.log(
+              `[${source.name}] no remote validators; trusting cache (age ${ageH}h of ${windowH}h window)`,
+            );
+            progress.done(source.name, `cached (unverifiable, ${ageH}h ago)`);
+            return { source: source.name, status: "skipped" };
+          }
+          // "changed" -> a validator differed; fall through to full fetch.
         }
       }
     } catch {
@@ -448,23 +468,30 @@ export class UpdateDocSets {
 
   /**
    * Check if a source's remote content has changed since last fetch.
-   * Returns true if content is unchanged (fresh), false if stale or unknown.
+   * Tri-state: "fresh" (validator matches), "changed" (validator
+   * differs - a real upstream change, always re-fetch), "unknown"
+   * (no comparable validators, or the check itself failed).
    */
-  private async checkRemoteFreshness(source: DocSource, stamp: StampData): Promise<boolean> {
+  private async checkRemoteFreshness(source: DocSource, stamp: StampData): Promise<FreshnessVerdict> {
     try {
       if (source.type === "git") {
-        return await this.checkGitFreshness(source, stamp);
+        return await this.checkGitFreshnessVerdict(source, stamp);
       }
-      return await this.checkHttpFreshness(source, stamp);
+      return await this.checkHttpFreshnessVerdict(source, stamp);
     } catch {
-      // Can't check → assume stale, re-fetch to be safe
-      return false;
+      // Can't check -> unknown; the caller decides whether to trust the cache
+      return "unknown";
     }
   }
 
-  /** git ls-remote HEAD — compare SHA without cloning. Retries on transient network errors. */
+  /** Boolean view of the git verdict: true only when verifiably fresh. */
   private async checkGitFreshness(source: DocSource, stamp: StampData): Promise<boolean> {
-    if (!stamp.gitSha) return false;
+    return (await this.checkGitFreshnessVerdict(source, stamp)) === "fresh";
+  }
+
+  /** git ls-remote HEAD - compare SHA without cloning. Retries on transient network errors. */
+  private async checkGitFreshnessVerdict(source: DocSource, stamp: StampData): Promise<FreshnessVerdict> {
+    if (!stamp.gitSha) return "unknown";
     const { stdout } = await retryWithBackoff(
       () =>
         execFileAsync("git", ["ls-remote", source.url, "HEAD"], {
@@ -474,40 +501,45 @@ export class UpdateDocSets {
     );
     // Output: "<full-40-char-sha>\tHEAD"
     const remoteSha = stdout.trim().split(/\s/)[0];
-    if (!remoteSha) return false;
+    if (!remoteSha) return "unknown";
     // Full-SHA equality. Legacy stamps stored a truncated --short SHA
     // (7-10 chars); tolerate those via prefix match so the cache doesn't
     // invalidate on upgrade. New stamps store full 40-char SHAs.
-    if (remoteSha === stamp.gitSha) return true;
-    if (stamp.gitSha.length < 40 && remoteSha.startsWith(stamp.gitSha)) return true;
+    if (remoteSha === stamp.gitSha) return "fresh";
+    if (stamp.gitSha.length < 40 && remoteSha.startsWith(stamp.gitSha)) return "fresh";
     console.log(`[${source.name}] remote SHA changed: ${stamp.gitSha} → ${remoteSha}`);
-    return false;
+    return "changed";
   }
 
-  /** HEAD request on discoveryUrl — compare ETag / Last-Modified. Retries once on network error. */
+  /** Boolean view of the http verdict: true only when verifiably fresh. */
   private async checkHttpFreshness(source: DocSource, stamp: StampData): Promise<boolean> {
+    return (await this.checkHttpFreshnessVerdict(source, stamp)) === "fresh";
+  }
+
+  /** HEAD request on discoveryUrl - compare ETag / Last-Modified. Retries once on network error. */
+  private async checkHttpFreshnessVerdict(source: DocSource, stamp: StampData): Promise<FreshnessVerdict> {
     const checkUrl = source.discoveryUrl ?? source.url;
     const res = await fetchHead(checkUrl);
-    if (!res.ok) return false;
+    if (!res.ok) return "unknown";
 
     // ETag is the strongest signal
     const etag = res.headers.get("etag");
     if (etag && stamp.etag) {
-      if (etag === stamp.etag) return true;
+      if (etag === stamp.etag) return "fresh";
       console.log(`[${source.name}] ETag changed`);
-      return false;
+      return "changed";
     }
 
     // Last-Modified is next best
     const lastMod = res.headers.get("last-modified");
     if (lastMod && stamp.lastModified) {
-      if (lastMod === stamp.lastModified) return true;
+      if (lastMod === stamp.lastModified) return "fresh";
       console.log(`[${source.name}] Last-Modified changed`);
-      return false;
+      return "changed";
     }
 
-    // No comparable headers → can't determine, assume stale
-    return false;
+    // No comparable headers -> can't determine
+    return "unknown";
   }
 
   /** After a successful fetch, capture freshness metadata for next comparison. */

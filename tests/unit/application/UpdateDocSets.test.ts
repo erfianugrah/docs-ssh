@@ -867,6 +867,7 @@ describe("UpdateDocSets", () => {
           outDir,
           workDir,
           // Disable regression guard since we're testing drift, not file-count change
+          maxAge: 0, // skip freshness; force re-fetch (stamp fixture has no validators)
           regressionThreshold: 0,
         });
         await updater.run();
@@ -940,6 +941,7 @@ describe("UpdateDocSets", () => {
           normalisers: [noopNormaliser],
           outDir,
           workDir,
+          maxAge: 0, // skip freshness; force re-fetch (stamp fixture has no validators)
           regressionThreshold: 0,
         });
         await updater.run();
@@ -999,6 +1001,7 @@ describe("UpdateDocSets", () => {
           ingestors: [mockIngestor(newDocSet)],
           normalisers: [noopNormaliser],
           outDir,
+          maxAge: 0, // skip freshness; force re-fetch (stamp fixture has no validators)
           workDir,
           regressionThreshold: 0,
         });
