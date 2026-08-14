@@ -3495,6 +3495,85 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern: "airgradient\\.com/documentation/[a-z0-9-]+/",
   }),
 
+  // ─── S3-compatible object storage (MinIO alternatives) ─────────
+
+  // Silo (pgsty/silo) - community-maintained MinIO fork. The docs site
+  // carries BOTH the fork-specific pages (migration, compatibility audit,
+  // manifesto, release notes) AND a full mirror of the MinIO server docs
+  // tree (/administration, /operations, /reference, ...), which also covers
+  // the "minio" content since min.io's own docs went AIStor-only. Every
+  // page serves clean markdown at <url>/index.md (text/markdown), so we
+  // harvest the /docs/ sidebar TOC and append the suffix (preNormalised
+  // path, Turndown bypassed). baseUrl is the site ROOT (not /docs/)
+  // because the sidebar links are root-absolute (/administration/...)
+  // and toc filters harvested URLs to those under baseUrl. /_print/ is
+  // the docsy print view (full duplicate), /zh/ the Chinese mirror.
+  new DocSource({
+    name: "silo",
+    type: "http",
+    url: "https://silo.pgsty.com/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://silo.pgsty.com/docs/",
+    urlPattern: "silo\\.pgsty\\.com/",
+    urlExclude: "(_print/|/zh/|/tags/|/categories/|favicon|\\.xml)",
+    urlSuffix: "/index.md",
+  }),
+
+  // Garage (Deuxfleurs) - geo-distributed S3 store. Website documentation
+  // is built from doc/book/ in the repo (Gitea; default branch is main-v2,
+  // which plain clone follows).
+  new DocSource({
+    name: "garage",
+    type: "git",
+    url: "https://git.deuxfleurs.fr/Deuxfleurs/garage",
+    format: "markdown",
+    paths: ["doc/book"],
+    rootPath: "doc/book",
+  }),
+
+  // SeaweedFS - docs live in the GitHub wiki (separate cloneable repo).
+  new DocSource({
+    name: "seaweedfs",
+    type: "git",
+    url: "https://github.com/seaweedfs/seaweedfs.wiki",
+    format: "markdown",
+  }),
+
+  // RustFS - MinIO-clone in Rust. Fumadocs site; English content tree only
+  // (de/fr/ja/zh siblings dropped).
+  new DocSource({
+    name: "rustfs",
+    type: "git",
+    url: "https://github.com/rustfs/docs.rustfs.com",
+    format: "markdown",
+    paths: ["content/en"],
+    rootPath: "content/en",
+  }),
+
+  // Versity S3 Gateway - S3 facade over POSIX/other backends. Docs live in
+  // the GitHub wiki (POSIX versioning design, terraform-backend notes, ...).
+  new DocSource({
+    name: "versitygw",
+    type: "git",
+    url: "https://github.com/versity/versitygw.wiki",
+    format: "markdown",
+  }),
+
+  // Ceph RADOS Gateway - the broadest S3 API coverage of the self-hosted
+  // set (versioning, object lock, policies, SSE). Sphinx dirhtml site;
+  // scrape the radosgw section only (full Ceph docs are out of scope).
+  new DocSource({
+    name: "ceph-rgw",
+    type: "http",
+    url: "https://docs.ceph.com/en/latest/radosgw/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.ceph.com/en/latest/radosgw/",
+    urlPattern: "docs\\.ceph\\.com/en/latest/radosgw/",
+    urlExclude: "(_static/|_sources/|genindex|search)",
+  }),
+
   // ─── AWS, sharded per service (kept last - slowest tier) ──────
   //
   // Each AWS service publishes its own llms.txt with .md page URLs.

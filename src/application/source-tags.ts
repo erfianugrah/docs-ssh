@@ -351,6 +351,14 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   borgbackup: ["backup"],
   unraid: ["nas", "filesystems", "infrastructure"],
 
+  // ─── Object storage (S3-compatible) ─────────────────────────────
+  silo: ["object-storage", "infrastructure"],
+  garage: ["object-storage", "infrastructure"],
+  seaweedfs: ["object-storage", "infrastructure"],
+  rustfs: ["object-storage", "infrastructure"],
+  versitygw: ["object-storage", "infrastructure"],
+  "ceph-rgw": ["object-storage", "infrastructure"],
+
   // ─── Hardware & SBCs ────────────────────────────────────────────
   turingpi: ["hardware", "infrastructure"],
   "turingpi-rk1": ["hardware"],
@@ -429,6 +437,7 @@ export const TAG_LABELS: Record<string, string> = {
   windows: "Windows",
   filesystems: "Filesystems",
   backup: "Backups",
+  "object-storage": "Object storage (S3-compatible)",
   nas: "NAS & home server",
   hardware: "Hardware & SBCs",
   media: "Media servers & automation",
