@@ -82,16 +82,16 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "site/content/docs",
   }),
 
-  // Supabase CLI reference — auto-generated per-command markdown (db dump/push,
-  // config push, …). Not in the docs tarball (the reference tree is generated
-  // separately). Default branch is `develop`, which carries apps/cli-go/docs.
+  // Supabase CLI reference. Upstream removed the committed per-command
+  // markdown (apps/cli-go/docs) when porting the CLI from Go to TypeScript -
+  // the reference is now generated at build time and published as a single
+  // server-rendered page with #supabase-<command> anchors. Per-command URLs
+  // all return the same shell, so we mirror the one usage page.
   new DocSource({
     name: "supabase-cli",
-    type: "git",
-    url: "https://github.com/supabase/cli",
-    format: "markdown",
-    paths: ["apps/cli-go/docs"],
-    rootPath: "apps/cli-go/docs",
+    type: "http",
+    url: "https://supabase.com/docs/reference/cli/usage",
+    format: "html",
   }),
 
   // Changelog - the full history (2022 to present, ~200 entries) lives on
