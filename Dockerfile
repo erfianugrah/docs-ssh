@@ -1,5 +1,5 @@
 # ─── Stage 1: fetch and normalise docs ───────────────────────────────────────
-FROM node:22-alpine AS fetcher
+FROM node:26-alpine AS fetcher
 
 RUN apk add --no-cache git curl
 
@@ -44,7 +44,7 @@ COPY src/mcp/ ./src/mcp/
 RUN bun build --compile src/mcp/main.ts --outfile /docs-mcp
 
 # ─── Stage 2: SSH server ──────────────────────────────────────────────────────
-FROM alpine:3.21
+FROM alpine:3.24
 
 # Link GHCR package to the repository so GITHUB_TOKEN gets write access
 LABEL org.opencontainers.image.source=https://github.com/erfianugrah/docs-ssh
