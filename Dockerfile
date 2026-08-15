@@ -44,7 +44,7 @@ COPY src/mcp/ ./src/mcp/
 RUN bun build --compile src/mcp/main.ts --outfile /docs-mcp
 
 # ─── Stage 2: SSH server ──────────────────────────────────────────────────────
-FROM alpine:3.21
+FROM alpine:3.24
 
 # Link GHCR package to the repository so GITHUB_TOKEN gets write access
 LABEL org.opencontainers.image.source=https://github.com/erfianugrah/docs-ssh
