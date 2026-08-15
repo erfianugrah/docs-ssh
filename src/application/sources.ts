@@ -774,6 +774,91 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://quarto.org/llms.txt",
   }),
 
+  // ─── Docs craft & technical writing ─────────────────────────────
+
+  // The Diataxis documentation framework (tutorials / how-to / reference /
+  // explanation). Sphinx on ReadTheDocs; the sitemap lists only the
+  // homepage, so scrape the index TOC instead - the whole site is ~20
+  // long-form pages, all linked from it. RTD honours markdown content
+  // negotiation, so pages arrive preNormalised. /pl/ is the Polish
+  // translation; genindex/search are Sphinx utility pages.
+  new DocSource({
+    name: "diataxis",
+    type: "http",
+    url: "https://diataxis.fr/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://diataxis.fr/",
+    urlExclude: "diataxis\\.fr/(pl/|genindex|search)",
+  }),
+
+  // Write the Docs documentation guide. Sphinx/RTD like diataxis (markdown
+  // via content negotiation), but the /guide/ index links only its section
+  // pages, not the writing/* subpages, and the sitemap lists just the
+  // homepage - so enumerate the (small, stable) page set explicitly.
+  new DocSource({
+    name: "writethedocs-guide",
+    type: "http",
+    url: "https://www.writethedocs.org/guide/",
+    format: "html",
+    urls: [
+      "https://www.writethedocs.org/guide/",
+      "https://www.writethedocs.org/guide/about/",
+      "https://www.writethedocs.org/guide/about/alternatives/",
+      "https://www.writethedocs.org/guide/about/community/",
+      "https://www.writethedocs.org/guide/about/vision/",
+      "https://www.writethedocs.org/guide/api/api-documentation-tools/",
+      "https://www.writethedocs.org/guide/choosing-tools/",
+      "https://www.writethedocs.org/guide/contributing/",
+      "https://www.writethedocs.org/guide/doc-ops/",
+      "https://www.writethedocs.org/guide/docs-as-code/",
+      "https://www.writethedocs.org/guide/imposter/",
+      "https://www.writethedocs.org/guide/seo/",
+      "https://www.writethedocs.org/guide/starting/",
+      "https://www.writethedocs.org/guide/tools/",
+      "https://www.writethedocs.org/guide/tools/sphinx-community/",
+      "https://www.writethedocs.org/guide/tools/sphinx-themes/",
+      "https://www.writethedocs.org/guide/tools/sphinx/",
+      "https://www.writethedocs.org/guide/tools/testing/",
+      "https://www.writethedocs.org/guide/ux-writing/",
+      "https://www.writethedocs.org/guide/writing/accessibility/",
+      "https://www.writethedocs.org/guide/writing/asciidoc/",
+      "https://www.writethedocs.org/guide/writing/beginners-guide-to-docs/",
+      "https://www.writethedocs.org/guide/writing/docs-principles/",
+      "https://www.writethedocs.org/guide/writing/markdown/",
+      "https://www.writethedocs.org/guide/writing/mindshare/",
+      "https://www.writethedocs.org/guide/writing/reStructuredText/",
+      "https://www.writethedocs.org/guide/writing/reducing-bias/",
+      "https://www.writethedocs.org/guide/writing/style-guides/",
+      "https://www.writethedocs.org/guide/writing/support-team/",
+      "https://www.writethedocs.org/guide/writing/xml/",
+    ],
+  }),
+
+  // I'd Rather Be Writing - Tom Johnson's tech-writing site. The llms.txt
+  // indexes ~345 pages: the book-length API documentation course
+  // (learnapidoc, 186 pages), the AI courses, and selected blog posts.
+  // Jekyll .html pages (no markdown negotiation) -> Turndown.
+  new DocSource({
+    name: "idratherbewriting",
+    type: "http",
+    url: "https://idratherbewriting.com/",
+    format: "html",
+    discovery: "llms-txt",
+    discoveryUrl: "https://idratherbewriting.com/llms.txt",
+  }),
+
+  // Microsoft Writing Style Guide - the source repo behind
+  // learn.microsoft.com/style-guide (~950 markdown files under styleguide/).
+  new DocSource({
+    name: "microsoft-style-guide",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/microsoft-style-guide",
+    format: "markdown",
+    paths: ["styleguide"],
+    rootPath: "styleguide",
+  }),
+
   // ─── Bun ───────────────────────────────────────────────────────
 
   // llms.txt — comprehensive docs with .md URLs

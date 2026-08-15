@@ -248,6 +248,12 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "graphql-spec": ["apis"],
   mcp: ["apis", "diagrams"],
 
+  // ─── Technical writing & docs craft ────────────────────────────
+  diataxis: ["tech-writing"],
+  "writethedocs-guide": ["tech-writing"],
+  idratherbewriting: ["tech-writing", "apis"],
+  "microsoft-style-guide": ["tech-writing"],
+
   // ─── Docs & diagrams ───────────────────────────────────────────
   mdn: ["diagrams"],
   d2: ["diagrams"],
@@ -429,6 +435,7 @@ export const TAG_LABELS: Record<string, string> = {
   "git-forges": "Git forges",
   apis: "APIs & specs",
   diagrams: "Docs & diagrams",
+  "tech-writing": "Technical writing & docs craft",
   email: "Email & services",
   blogs: "Blogs & changelogs",
   "api-specs": "API specs",
