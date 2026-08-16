@@ -21,7 +21,12 @@ describe("SOURCES configuration", () => {
   it("has non-empty URLs for all sources", () => {
     for (const source of SOURCES) {
       expect(source.url).toBeTruthy();
-      expect(source.url.startsWith("https://")).toBe(true);
+      if (source.type === "rsync") {
+        // rsync module spec (host::module), not a URL
+        expect(source.url).toMatch(/^[^:]+::[^ ]+$/);
+      } else {
+        expect(source.url.startsWith("https://")).toBe(true);
+      }
     }
   });
 

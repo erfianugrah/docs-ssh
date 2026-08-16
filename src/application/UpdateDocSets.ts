@@ -13,7 +13,7 @@ import type { DocNormaliser } from "../domain/DocNormaliser.js";
 import { resolvePartials } from "../normaliser/resolvePartials.js";
 import type { DocSource, DocFormat } from "../domain/DocSource.js";
 
-const FORMAT_VALUES: readonly DocFormat[] = ["html", "mdx", "markdown", "godoc"];
+const FORMAT_VALUES: readonly DocFormat[] = ["html", "mdx", "markdown", "godoc", "txt"];
 const UA = "docs-ssh/0.8 (freshness-check; +https://github.com/erfianugrah/docs-ssh)";
 const HEAD_TIMEOUT = 10_000;
 const HEAD_RETRIES = 2;

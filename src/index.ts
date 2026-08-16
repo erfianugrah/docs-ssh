@@ -3,9 +3,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { GitIngestor } from "./ingestors/GitIngestor.js";
 import { HttpIngestor } from "./ingestors/HttpIngestor.js";
+import { RsyncIngestor } from "./ingestors/RsyncIngestor.js";
 import { MdxNormaliser } from "./normaliser/MdxNormaliser.js";
 import { HtmlNormaliser } from "./normaliser/HtmlNormaliser.js";
 import { GoNormaliser } from "./normaliser/GoNormaliser.js";
+import { TxtNormaliser } from "./normaliser/TxtNormaliser.js";
 import { MarkdownCleaner } from "./normaliser/MarkdownCleaner.js";
 import { ContentSanitiser } from "./normaliser/ContentSanitiser.js";
 import { UpdateDocSets } from "./application/UpdateDocSets.js";
@@ -42,8 +44,8 @@ if (onlyFilter.length > 0) {
 
 const update = new UpdateDocSets({
   sources,
-  ingestors: [new GitIngestor(), new HttpIngestor()],
-  normalisers: [new MdxNormaliser(), new HtmlNormaliser(), new GoNormaliser(), new MarkdownCleaner(), new ContentSanitiser()],
+  ingestors: [new GitIngestor(), new HttpIngestor(), new RsyncIngestor()],
+  normalisers: [new MdxNormaliser(), new HtmlNormaliser(), new GoNormaliser(), new TxtNormaliser(), new MarkdownCleaner(), new ContentSanitiser()],
   outDir: OUT_DIR,
   workDir: WORK_DIR,
   concurrency: CONCURRENCY,

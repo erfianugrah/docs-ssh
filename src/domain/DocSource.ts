@@ -1,5 +1,5 @@
-export type DocFormat = "markdown" | "mdx" | "html" | "openapi" | "godoc" | "adoc";
-export type DocSourceType = "git" | "http";
+export type DocFormat = "markdown" | "mdx" | "html" | "openapi" | "godoc" | "adoc" | "txt";
+export type DocSourceType = "git" | "http" | "rsync";
 
 /**
  * How to discover/fetch pages for an HTTP source:

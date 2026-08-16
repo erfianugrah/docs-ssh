@@ -144,6 +144,7 @@ Sources are fetched using the most reliable mechanism the upstream offers, in th
 |-----------|-------|-------|
 | **git sparse-checkout** | ~83 | Clone the upstream's docs directory. Markdown direct from source. |
 | **bulk archive** | 1 | Single `.tar.gz` (Supabase publishes one). |
+| **rsync module** | 1 | Full IETF RFC corpus (~10k RFCs + BCP/FYI/IEN/STD subseries) via `rsync.rfc-editor.org::rfcs-text-only`. |
 | **`llms-full.txt`** | ~12 | AI-targeted single-file dump (Cloudflare, Vercel, Next.js, Bitwarden, etc.). |
 | **OpenAPI spec** | ~10 | Converted to per-endpoint-group markdown at ingestion time. |
 | **per-page HTML scrape** | ~30 | Last resort — sitemap, llms-index, toc, rss, mediawiki. |

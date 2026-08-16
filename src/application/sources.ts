@@ -3922,4 +3922,20 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern:
       "^(run|storage|bigquery|container|pubsub|iam|cloudfunctions|sqladmin|compute|secretmanager|cloudbuild|cloudkms|logging|monitoring|spanner|firestore|artifactregistry)$",
   }),
+
+  // ─── IETF RFC corpus ────────────────────────────────────────────
+  //
+  // All RFCs (plus BCP/FYI/IEN/STD subseries), ~10k plain-text files,
+  // ~560MB. rsync is the RFC Editor's only sanctioned bulk channel (the
+  // RFC-all tarball was retired); it is incremental, so daily refresh
+  // transfers only new/changed RFCs against the work-dir cache.
+  // RsyncIngestor fetches, TxtNormaliser converts .txt -> fenced .md.
+  new DocSource({
+    name: "ietf-rfc",
+    type: "rsync",
+    format: "txt",
+    url: "rsync.rfc-editor.org::rfcs-text-only",
+    tags: ["standards", "networking"],
+    description: "IETF RFCs (full corpus, all series)",
+  }),
 ];
