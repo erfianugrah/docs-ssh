@@ -1285,9 +1285,65 @@ export const SOURCES: readonly DocSource[] = [
     format: "markdown",
   }),
 
+  // ─── Vault ───────────────────────────────────────────────────────
+
+  // HashiCorp Vault. Docs moved out of hashicorp/vault into the
+  // web-unified-docs monorepo, which carries every released version side
+  // by side - pin to the current v2.x tree (docs + API reference) instead
+  // of mirroring ~20 version dirs of near-duplicate content.
+  new DocSource({
+    name: "vault",
+    type: "git",
+    url: "https://github.com/hashicorp/web-unified-docs",
+    format: "mdx",
+    paths: [
+      "content/vault/v2.x/content/docs",
+      "content/vault/v2.x/content/api-docs",
+    ],
+    rootPath: "content/vault/v2.x/content",
+  }),
+
+  // ─── OpenBao ─────────────────────────────────────────────────────
+
+  // Open-source Vault fork (LF Edge). Classic pre-migration HashiCorp
+  // site layout inside the main repo; MDX docs, no separate api-docs dir.
+  new DocSource({
+    name: "openbao",
+    type: "git",
+    url: "https://github.com/openbao/openbao",
+    format: "mdx",
+    paths: ["website/content/docs"],
+    rootPath: "website/content/docs",
+  }),
+
+  // ─── Infisical ───────────────────────────────────────────────────
+
+  // Mintlify docs from the main monorepo (platform, CLI, SDKs,
+  // integrations, self-hosting, API reference). paths enumerates the
+  // content dirs to skip the docs/snippets partials (13 .mdx fragments
+  // that are transcluded into pages, not pages themselves) and static
+  // assets.
+  new DocSource({
+    name: "infisical",
+    type: "git",
+    url: "https://github.com/Infisical/infisical",
+    format: "mdx",
+    paths: [
+      "docs/documentation",
+      "docs/cli",
+      "docs/integrations",
+      "docs/self-hosting",
+      "docs/api-reference",
+      "docs/sdks",
+      "docs/internals",
+      "docs/changelog",
+    ],
+    rootPath: "docs",
+  }),
+
   // ─── tmux ──────────────────────────────────────────────────────
 
-  // GitHub wiki — curated guides (getting started, advanced use, FAQ, etc.)
+  // GitHub wiki - curated guides (getting started, advanced use, FAQ, etc.)
   new DocSource({
     name: "tmux",
     type: "git",
@@ -2388,6 +2444,19 @@ export const SOURCES: readonly DocSource[] = [
     name: "vaultwarden",
     type: "git",
     url: "https://github.com/dani-garcia/vaultwarden.wiki",
+    format: "markdown",
+  }),
+
+  // ─── rbw ─────────────────────────────────────────────────────────
+
+  // Unofficial Bitwarden CLI in Rust. The README is the complete manual
+  // (config, agent, pinentry, rbw-* helpers); docs.rs/crate/rbw renders
+  // the same README and the crate is a binary, so there is no API
+  // surface worth adding beyond it.
+  new DocSource({
+    name: "rbw",
+    type: "git",
+    url: "https://github.com/doy/rbw",
     format: "markdown",
   }),
 

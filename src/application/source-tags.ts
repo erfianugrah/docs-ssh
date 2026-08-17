@@ -222,6 +222,10 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   // ─── Secrets & encryption ───────────────────────────────────────
   age: ["secrets"],
   sops: ["secrets"],
+  vault: ["secrets", "infrastructure"],
+  openbao: ["secrets", "infrastructure"],
+  infisical: ["secrets", "infrastructure"],
+  rbw: ["auth", "secrets"],
 
   // ─── Terminal & editor ──────────────────────────────────────────
   neovim: ["terminal"],
