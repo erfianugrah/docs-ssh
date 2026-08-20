@@ -133,9 +133,14 @@ async function fetchPage(
   signal?: AbortSignal,
   requestTimeoutMs?: number,
   skipMarkdownNegotiation?: boolean,
+  userAgent?: string,
 ): Promise<FetchPageResult> {
   let res = await fetchWithRetry(url, undefined, requestTimeoutMs, signal, {
     Accept: skipMarkdownNegotiation ? "text/html" : PAGE_ACCEPT,
+    // extraHeaders spread AFTER the shared UA inside fetchWithRetry, so
+    // a per-source userAgent overrides it (gov legislation sites that
+    // block the docs-ssh UA - see DocSource.userAgent).
+    ...(userAgent ? { "User-Agent": userAgent } : {}),
   });
   let outcome: FetchOutcome = "html";
 
@@ -334,6 +339,7 @@ export class HttpIngestor implements DocIngestor {
             signal,
             source.requestTimeoutMs,
             source.skipMarkdownNegotiation,
+            source.userAgent,
           );
           let filePath = urlToPath(url, source.url);
           // urlToPath defaults trailing-slash URLs to `index.html` and

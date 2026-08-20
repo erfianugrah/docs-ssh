@@ -401,6 +401,13 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   athom: ["smarthome", "hardware"],
   airgradient: ["smarthome", "hardware"],
 
+  // ─── Legal: privacy & data protection (per Supabase region) ──────
+  "privacy-laws-us": ["legal"],
+  "privacy-laws-canada": ["legal"],
+  "privacy-laws-europe": ["legal"],
+  "privacy-laws-apac": ["legal"],
+  "privacy-laws-brazil": ["legal"],
+
   // ─── Other ──────────────────────────────────────────────────────
   opencode: ["build-tools"],
   pi: ["build-tools"],
@@ -455,6 +462,7 @@ export const TAG_LABELS: Record<string, string> = {
   hardware: "Hardware & SBCs",
   media: "Media servers & automation",
   smarthome: "Smart home & IoT",
+  legal: "Privacy & data protection law",
 };
 
 /**

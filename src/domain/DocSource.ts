@@ -107,6 +107,14 @@ export interface DocSourceConfig {
    * carrying it, 200s without). Set to fetch plain `text/html` instead.
    */
   readonly skipMarkdownNegotiation?: boolean;
+  /**
+   * Override the User-Agent sent for this source's page fetches (http
+   * sources only). Some government legislation sites block non-browser
+   * UAs at the WAF/TLS layer (verified: planalto.gov.br ECONNRESETs,
+   * legisquebec.gouv.qc.ca and sso.agc.gov.sg 403 the docs-ssh UA; all
+   * 200 with a browser UA). Falls back to the shared UA when unset.
+   */
+  readonly userAgent?: string;
 }
 
 /**
@@ -134,6 +142,7 @@ export class DocSource {
   readonly deadlineMs: number | undefined;
   readonly requestTimeoutMs: number | undefined;
   readonly skipMarkdownNegotiation: boolean | undefined;
+  readonly userAgent: string | undefined;
 
   constructor(config: DocSourceConfig) {
     if (!config.name || config.name.trim() === "") {
@@ -162,6 +171,7 @@ export class DocSource {
     this.deadlineMs = config.deadlineMs;
     this.requestTimeoutMs = config.requestTimeoutMs;
     this.skipMarkdownNegotiation = config.skipMarkdownNegotiation;
+    this.userAgent = config.userAgent;
   }
 
   equals(other: DocSource): boolean {

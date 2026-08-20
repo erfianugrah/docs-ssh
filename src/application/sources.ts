@@ -1,5 +1,12 @@
 import { DocSource } from "../domain/DocSource.js";
 
+// Browser User-Agent for the few government legislation sites that
+// block non-browser UAs at the WAF/TLS layer (verified: planalto.gov.br
+// ECONNRESETs, legisquebec.gouv.qc.ca and sso.agc.gov.sg 403 the
+// docs-ssh UA, all 200 with a browser UA). Passed via DocSource.userAgent.
+const BROWSER_UA =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+
 /**
  * Canonical definitions of all doc sources.
  *
@@ -3726,6 +3733,190 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://docs.ceph.com/en/latest/radosgw/",
     urlPattern: "docs\\.ceph\\.com/en/latest/radosgw/",
     urlExclude: "(_static/|_sources/|genindex|search)",
+  }),
+
+  // ─── Data residency / sovereignty law, per Supabase region ──────
+  //
+  // Primary data-protection statutes (plus residency-adjacent material)
+  // for every jurisdiction Supabase lets a user deploy a project to.
+  // Jurisdiction list verified against the region enum in
+  // supabase/supabase packages/shared-data/regions.ts (17 AWS regions:
+  // 4x US, ca-central-1, eu-west-1/2/3, eu-central-1/2, eu-north-1,
+  // ap-south-1, ap-southeast-1/2, ap-northeast-1/2, sa-east-1).
+  //
+  // Several official sources are unfetchable directly (AWS WAF JS
+  // challenge: eur-lex.europa.eu, legislation.gov.uk; bot-blocked:
+  // legifrance.gouv.fr; geo/egress-blocked from the fetcher: codes.ohio.gov)
+  // so those come from Wayback Machine raw captures (the `id_` suffix
+  // serves the original bytes without the Wayback toolbar). Statute text
+  // changes slowly, so a pinned capture is acceptable - the capture date
+  // is in the URL. Wayback rate-limits aggressively, hence the low
+  // pageConcurrency and raised requestTimeoutMs on sources using it.
+
+  // US regions (us-west-1 CA, us-west-2 OR, us-east-1 VA, us-east-2 OH).
+  // No federal comprehensive privacy law exists; these are the four
+  // states' statutes. Ohio has NO comprehensive consumer privacy law
+  // (HB 376/HB 345 both died in committee) - ORC Chapter 1354 is the
+  // 2018 Data Protection Act, a cybersecurity safe-harbor law, included
+  // as the adjacent Ohio material. Oregon's official oregonlegislature.gov
+  // blocks the fetcher network, so OCPA comes from oregon.public.law
+  // (unofficial but current and complete, sections 646A.570-.589).
+  new DocSource({
+    name: "privacy-laws-us",
+    type: "http",
+    url: "https://law.lis.virginia.gov/",
+    format: "html",
+    description:
+      "US state privacy laws for Supabase US regions: CCPA/CPRA (California), VCDPA (Virginia), OCPA (Oregon), Ohio ORC ch. 1354 cybersecurity safe harbor (Ohio has no comprehensive consumer privacy law)",
+    urls: [
+      // California - CCPA as amended by CPRA (Civ. Code title 1.81.5)
+      "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?division=3.&part=4.&lawCode=CIV&title=1.81.5",
+      // Virginia - Consumer Data Protection Act (Va. Code ch. 53)
+      "https://law.lis.virginia.gov/vacodefull/title59.1/chapter53/",
+      // Ohio - ORC Chapter 1354 (Data Protection Act, cyber safe harbor)
+      "https://web.archive.org/web/2025id_/https://codes.ohio.gov/ohio-revised-code/chapter-1354",
+      "https://web.archive.org/web/20211015053417id_/https://codes.ohio.gov/ohio-revised-code/section-1354.01",
+      "https://web.archive.org/web/20210702183838id_/https://codes.ohio.gov/ohio-revised-code/section-1354.02",
+      "https://web.archive.org/web/20211015060427id_/https://codes.ohio.gov/ohio-revised-code/section-1354.03",
+      "https://web.archive.org/web/20211015061619id_/https://codes.ohio.gov/ohio-revised-code/section-1354.04",
+      "https://web.archive.org/web/20211015060309id_/https://codes.ohio.gov/ohio-revised-code/section-1354.05",
+      // Oregon - Consumer Privacy Act (ORS 646A.570-646A.589)
+      "https://oregon.public.law/statutes/ors_646a.570",
+      "https://oregon.public.law/statutes/ors_646a.571",
+      "https://oregon.public.law/statutes/ors_646a.572",
+      "https://oregon.public.law/statutes/ors_646a.573",
+      "https://oregon.public.law/statutes/ors_646a.574",
+      "https://oregon.public.law/statutes/ors_646a.575",
+      "https://oregon.public.law/statutes/ors_646a.576",
+      "https://oregon.public.law/statutes/ors_646a.577",
+      "https://oregon.public.law/statutes/ors_646a.578",
+      "https://oregon.public.law/statutes/ors_646a.579",
+      "https://oregon.public.law/statutes/ors_646a.580",
+      "https://oregon.public.law/statutes/ors_646a.581",
+      "https://oregon.public.law/statutes/ors_646a.582",
+      "https://oregon.public.law/statutes/ors_646a.583",
+      "https://oregon.public.law/statutes/ors_646a.584",
+      "https://oregon.public.law/statutes/ors_646a.585",
+      "https://oregon.public.law/statutes/ors_646a.586",
+      "https://oregon.public.law/statutes/ors_646a.587",
+      "https://oregon.public.law/statutes/ors_646a.588",
+      "https://oregon.public.law/statutes/ors_646a.589",
+    ],
+    pageConcurrency: 3,
+    requestTimeoutMs: 60_000,
+  }),
+
+  // Canada (ca-central-1 is in Montreal): federal PIPEDA applies everywhere,
+  // Quebec's Law 25 (modernized private-sector act, P-39.1) is the
+  // provincial statute with real residency teeth.
+  new DocSource({
+    name: "privacy-laws-canada",
+    type: "http",
+    url: "https://laws-lois.justice.gc.ca/",
+    format: "html",
+    description:
+      "Canadian data protection law for the Supabase ca-central-1 region: PIPEDA (federal) and Quebec Law 25 (Act respecting the protection of personal information in the private sector)",
+    urls: [
+      "https://laws-lois.justice.gc.ca/eng/acts/P-8.6/FullText.html",
+      "https://www.legisquebec.gouv.qc.ca/en/document/cs/P-39.1",
+    ],
+    // legisquebec.gouv.qc.ca 403s the docs-ssh UA (browser UA passes).
+    userAgent: BROWSER_UA,
+  }),
+
+  // Europe regions: eu-west-1 (Ireland), eu-west-2 (London), eu-west-3
+  // (Paris), eu-central-1 (Frankfurt), eu-central-2 (Zurich), eu-north-1
+  // (Stockholm). GDPR is the superset instrument; the rest are national
+  // implementing/supplementing acts. Language caveats: France and Sweden
+  // publish French/Swedish only; Germany's BDSG and Switzerland's FADP
+  // are official English translations (fedlex marks EN as non-binding).
+  // France's capture is the 2021 consolidated text (later amendments not
+  // reflected). legislation.gov.uk `data.htm` = whole-act single page.
+  new DocSource({
+    name: "privacy-laws-europe",
+    type: "http",
+    url: "https://www.irishstatutebook.ie/",
+    format: "html",
+    description:
+      "European data protection law for Supabase EU/UK/CH regions: EU GDPR, UK GDPR + UK DPA 2018, Ireland DPA 2018, Germany BDSG, France Loi Informatique et Libertes, Sweden Dataskyddslagen, Switzerland FADP",
+    urls: [
+      // EU GDPR (Regulation 2016/679)
+      "https://web.archive.org/web/2024id_/https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32016R0679",
+      // UK GDPR (retained EU law version) + Data Protection Act 2018
+      "https://web.archive.org/web/2025id_/https://www.legislation.gov.uk/eur/2016/679/data.htm",
+      "https://web.archive.org/web/2025id_/https://www.legislation.gov.uk/ukpga/2018/12/data.htm",
+      // Ireland - Data Protection Act 2018
+      "https://www.irishstatutebook.ie/eli/2018/act/7/enacted/en/html",
+      // Germany - BDSG (official English translation)
+      "https://www.gesetze-im-internet.de/englisch_bdsg/englisch_bdsg.html",
+      // France - Loi 78-17 Informatique et Libertes (French, 2021 capture)
+      "https://web.archive.org/web/20210123054454id_/https://www.legifrance.gouv.fr/loda/id/JORFTEXT000000886460/",
+      // Sweden - Dataskyddslagen 2018:218 (Swedish). riksdagen.se has a
+      // broken IPv6 route that hangs undici's fetch (curl -6 times out
+      // too); rkrattsbaser.gov.se is the official government
+      // consolidated-statute DB and fetches cleanly.
+      "https://rkrattsbaser.gov.se/sfst?bet=2018:218",
+      // Switzerland - revFADP (fedlex filestore, English translation,
+      // in-force 2023-09-01 version; the /eli/cc/2022/491/en landing
+      // page is a JS app, the filestore URL is the raw document)
+      "https://www.fedlex.admin.ch/filestore/fedlex.data.admin.ch/eli/cc/2022/491/20230901/en/html/fedlex-data-admin-ch-eli-cc-2022-491-20230901-en-html.html",
+    ],
+    pageConcurrency: 3,
+    requestTimeoutMs: 60_000,
+  }),
+
+  // APAC regions: ap-south-1 (Mumbai), ap-southeast-1 (Singapore),
+  // ap-southeast-2 (Sydney), ap-northeast-1 (Tokyo), ap-northeast-2
+  // (Seoul). Caveats: India's DPDP Act 2023 has no official HTML full
+  // text (egazette/indiacode are PDF/JS-only) - the PRS page is the
+  // act summary + key provisions; Korea's KLRI English translation lags
+  // the current statute (lawViewContent.do is the real content URL - the
+  // lawView.do wrapper is an iframe shell); Australia's Privacy Act URL
+  // pins the 2026-06-04 compilation (the /latest/ path serves a JS shell
+  // - the dated epub-extracted HTML is the real text; old compilations
+  // stay fetchable but lag future recompilations).
+  new DocSource({
+    name: "privacy-laws-apac",
+    type: "http",
+    url: "https://sso.agc.gov.sg/",
+    format: "html",
+    description:
+      "APAC data protection law for Supabase APAC regions: India DPDP Act 2023 (PRS summary), Singapore PDPA, Japan APPI, South Korea PIPA, Australia Privacy Act 1988 + OAIC Australian Privacy Principles",
+    urls: [
+      // India - DPDP Act 2023 (summary + key provisions; full text is
+      // PDF-only on egazette)
+      "https://prsindia.org/billtrack/digital-personal-data-protection-bill-2023",
+      // Singapore - Personal Data Protection Act 2012
+      "https://sso.agc.gov.sg/Act/PDPA2012",
+      // Japan - Act on the Protection of Personal Information (official
+      // English translation)
+      "https://www.japaneselawtranslation.go.jp/en/laws/view/4241",
+      // South Korea - Personal Information Protection Act (KLRI English)
+      "https://elaw.klri.re.kr/eng_service/lawViewContent.do?hseq=53044&lang=ENG",
+      // Australia - Privacy Act 1988 (current compilation, full text incl.
+      // Schedule 1 APPs) + OAIC regulator pages
+      "https://www.legislation.gov.au/C2004A03712/2026-06-04/2026-06-04/text/original/epub/OEBPS/document_1/document_1.html",
+      "https://www.oaic.gov.au/privacy/the-privacy-act",
+      "https://www.oaic.gov.au/privacy/australian-privacy-principles/australian-privacy-principles-quick-reference",
+    ],
+    pageConcurrency: 3,
+    requestTimeoutMs: 60_000,
+    // sso.agc.gov.sg 403s the docs-ssh UA (browser UA passes).
+    userAgent: BROWSER_UA,
+  }),
+
+  // Brazil (sa-east-1): LGPD, Lei 13.709/2018. planalto.gov.br publishes
+  // Portuguese only; that is the authoritative text.
+  new DocSource({
+    name: "privacy-laws-brazil",
+    type: "http",
+    url: "https://www.planalto.gov.br/",
+    format: "html",
+    description:
+      "Brazil LGPD (Lei 13.709/2018, Portuguese) - data protection law for the Supabase sa-east-1 region",
+    urls: ["https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm"],
+    // planalto.gov.br ECONNRESETs the docs-ssh UA (browser UA passes).
+    userAgent: BROWSER_UA,
   }),
 
   // ─── AWS, sharded per service (kept last - slowest tier) ──────
