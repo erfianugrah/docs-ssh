@@ -247,6 +247,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   github: ["git-forges"],
   gitlab: ["git-forges"],
   gitea: ["git-forges"],
+  forgejo: ["git-forges"],
 
   // ─── APIs & specs ───────────────────────────────────────────────
   graphql: ["apis"],

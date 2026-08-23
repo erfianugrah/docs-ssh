@@ -1064,6 +1064,22 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "content",
   }),
 
+  // ─── Forgejo ────────────────────────────────────────────────────
+
+  // Git sparse - Docusaurus source for forgejo.org/docs (Codeberg,
+  // default branch `next`; 138 md files under docs/: user/, admin/,
+  // contributor/). The gitea source covers the fork's shared heritage;
+  // this carries Forgejo-specific surface (forgejo-cli, federation,
+  // release notes).
+  new DocSource({
+    name: "forgejo",
+    type: "git",
+    url: "https://codeberg.org/forgejo/docs",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
   // ─── Authentik ─────────────────────────────────────────────────
 
   // MDX/MD docs from the goauthentik monorepo
