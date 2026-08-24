@@ -15,6 +15,11 @@ import { convertAsciiDocTree } from "./asciidoc-converter.js";
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
 const GO_EXTENSIONS = new Set(["go"]);
+// txt-format git sources (nvapi-headers, penguinburner-src): source
+// files served as fenced text via TxtNormaliser. .txt first (ietf-rfc
+// parity), .h for the NVAPI SDK headers, .py/.cpp for PenguinBurner's
+// hidden-NVAPI reference code (DocFile path keeps its extension).
+const TXT_EXTENSIONS = new Set(["txt", "h", "py", "cpp"]);
 const OPENAPI_FILENAMES = new Set(["openapi.yaml", "openapi.json", "swagger.yaml", "swagger.json"]);
 
 /**
@@ -194,9 +199,15 @@ export class GitIngestor implements DocIngestor {
     const files = new Map<string, DocFile>();
 
     // godoc sources walk .go files (excluding tests and generated
-     // code); everything else walks markdown.
+    // code); txt sources walk code/text files for fenced serving;
+    // everything else walks markdown.
     const isGodoc = source.format === "godoc";
-    const walkExtensions = isGodoc ? GO_EXTENSIONS : MARKDOWN_EXTENSIONS;
+    const isTxt = source.format === "txt";
+    const walkExtensions = isGodoc
+      ? GO_EXTENSIONS
+      : isTxt
+        ? TXT_EXTENSIONS
+        : MARKDOWN_EXTENSIONS;
     const walkSkipFile = isGodoc ? shouldSkipGoFile : undefined;
 
     for (const root of scanRoots) {

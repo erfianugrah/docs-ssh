@@ -379,6 +379,13 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "nixos-turing-rk1": ["hardware", "linux"],
   talos: ["infrastructure", "linux"],
 
+  // ─── GPU / NVIDIA ─────────────────────────────────────────────
+  nvapi: ["gpu", "windows", "apis"],
+  "nvapi-structs": ["gpu", "windows", "apis"],
+  "nvapi-headers": ["gpu", "windows", "apis"],
+  penguinburner: ["gpu", "linux"],
+  "penguinburner-src": ["gpu", "linux"],
+
   // ─── Media servers & automation ────────────────────────────────
   servarr: ["media"],
   "trash-guides": ["media"],
@@ -461,6 +468,7 @@ export const TAG_LABELS: Record<string, string> = {
   "object-storage": "Object storage (S3-compatible)",
   nas: "NAS & home server",
   hardware: "Hardware & SBCs",
+  gpu: "GPU & graphics",
   media: "Media servers & automation",
   smarthome: "Smart home & IoT",
   legal: "Privacy & data protection law",

@@ -61,7 +61,11 @@ export class TxtNormaliser implements DocNormaliser {
   readonly name = "TxtNormaliser";
 
   supports(file: DocFile): boolean {
-    return file.extension === "txt";
+    // .txt (ietf-rfc) plus the extensions GitIngestor walks for txt
+    // git sources: .h (NVAPI SDK headers) and .py/.cpp (PenguinBurner
+    // hidden-NVAPI reference code). Heading extraction falls back to
+    // the bare filename when no RFC header block matches.
+    return ["txt", "h", "py", "cpp"].includes(file.extension);
   }
 
   supportsFormat(format: DocFormat): boolean {
@@ -79,14 +83,17 @@ export class TxtNormaliser implements DocNormaliser {
     const abstract = extractAbstract(body);
     const parts = [`# ${heading}`];
     if (abstract) parts.push(abstract);
+    // Strip any source extension (.txt for RFCs, .h/.py/.cpp for git
+    // code sources) - the served file is always .md.
+    const mdPath = file.path.replace(/\.[a-z0-9]+$/i, ".md");
     parts.push(`${fence}text\n${body}\n${fence}`);
-    return new DocFile(file.path.replace(/\.txt$/i, ".md"), parts.join("\n\n") + "\n");
+    return new DocFile(mdPath, parts.join("\n\n") + "\n");
   }
 }
 
 function extractHeading(filePath: string, content: string): string {
   const base = filePath.split("/").pop() ?? filePath;
-  const stem = base.replace(/\.txt$/i, "");
+  const stem = base.replace(/\.[a-z0-9]+$/i, "");
   const m = stem.match(SERIES_FILE_RE);
   const label = m ? `${m[1].toUpperCase()} ${parseInt(m[2], 10)}` : stem;
 

@@ -3935,6 +3935,85 @@ export const SOURCES: readonly DocSource[] = [
     userAgent: BROWSER_UA,
   }),
 
+  // ─── GPU / NVIDIA ────────────────────────────────────────────
+  //
+  // NVAPI reference (Doxygen HTML). The function docs live as anchors
+  // inside per-group pages (group__*.html), all linked from
+  // topics.html; struct pages (structNV_*.html) are linked from
+  // annotated.html. `toc` discovery scrapes one page, so this is two
+  // sources: `nvapi` (functions/groups) and `nvapi-structs` (structs).
+  // No sitemap exists under docs.nvidia.com/gameworks (404). Stable,
+  // decade-old Doxygen output; plain HTML, no JS rendering needed.
+  new DocSource({
+    name: "nvapi",
+    type: "http",
+    url: "https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl:
+      "https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/topics.html",
+    urlPattern: "coresdk/nvapi/",
+    description: "NVAPI function reference (per-group Doxygen pages)",
+  }),
+
+  new DocSource({
+    name: "nvapi-structs",
+    type: "http",
+    url: "https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl:
+      "https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/annotated.html",
+    urlPattern: "coresdk/nvapi/",
+    description: "NVAPI struct/enum reference (annotated Doxygen index)",
+  }),
+
+  // The official NVAPI SDK headers from GitHub (the repo's docs/ dir is
+  // a CHM+PDF, not mirrorable). Ground truth for struct byte layouts and
+  // MAKE_NVAPI_VERSION constants when writing bindings - the Doxygen
+  // pages don't carry those. Root-level *.h files are the payload;
+  // TxtNormaliser wraps them as fenced markdown (same path as ietf-rfc).
+  // No sparse paths: cone-mode sparse-checkout always includes root
+  // files anyway, and restricting scanRoots would drop them.
+  new DocSource({
+    name: "nvapi-headers",
+    type: "git",
+    url: "https://github.com/NVIDIA/nvapi",
+    format: "txt",
+    description: "NVAPI SDK C headers (nvapi.h, NvApiDriverSettings.h, ...)",
+  }),
+
+  // PenguinBurner - Linux NVIDIA undervolt/OC tool. Its docs/ markdown
+  // covers the NVAPI shim, adaptive/auto undervolt, curve editor, and
+  // Afterburner profile import. drivers/nvidia/hidden_nvapi_vf.py is the
+  // reverse-engineered reference for the undocumented client VF-points
+  // API (struct layouts the official headers omit) - mirrored as fenced
+  // text via penguinburner-src alongside the Afterburner importers and
+  // the C++ NVAPI shim.
+  new DocSource({
+    name: "penguinburner",
+    type: "git",
+    url: "https://github.com/jpietek/PenguinBurner",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+    description: "PenguinBurner docs (Linux NVIDIA UV/OC, nvapi-shim, adaptive-uv)",
+  }),
+
+  new DocSource({
+    name: "penguinburner-src",
+    type: "git",
+    url: "https://github.com/jpietek/PenguinBurner",
+    format: "txt",
+    paths: [
+      "drivers/nvidia",
+      "integrations/afterburner",
+      "overlay/native/nvapi_shim",
+    ],
+    description:
+      "PenguinBurner binding reference (hidden NVAPI VF-points, Afterburner import, C++ shim)",
+  }),
+
   // ─── AWS, sharded per service (kept last - slowest tier) ──────
   //
   // Each AWS service publishes its own llms.txt with .md page URLs.
