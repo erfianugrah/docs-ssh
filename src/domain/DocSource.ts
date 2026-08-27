@@ -115,6 +115,15 @@ export interface DocSourceConfig {
    * 200 with a browser UA). Falls back to the shared UA when unset.
    */
   readonly userAgent?: string;
+  /**
+   * BFS depth for `toc` discovery (http sources only). Default 1 = scrape
+   * links off the single toc page. Raise to 2 when the toc page only links
+   * section index pages that in turn link the actual doc pages (verified:
+   * openzfs-docs /man/v2.4/ index links 5 section indexes, each of which
+   * links its man pages; depth 1 found only 6 URLs). Bounded by an
+   * internal 5000-visited-page cap.
+   */
+  readonly tocDepth?: number;
 }
 
 /**
@@ -143,6 +152,7 @@ export class DocSource {
   readonly requestTimeoutMs: number | undefined;
   readonly skipMarkdownNegotiation: boolean | undefined;
   readonly userAgent: string | undefined;
+  readonly tocDepth: number | undefined;
 
   constructor(config: DocSourceConfig) {
     if (!config.name || config.name.trim() === "") {
@@ -172,6 +182,7 @@ export class DocSource {
     this.requestTimeoutMs = config.requestTimeoutMs;
     this.skipMarkdownNegotiation = config.skipMarkdownNegotiation;
     this.userAgent = config.userAgent;
+    this.tocDepth = config.tocDepth;
   }
 
   equals(other: DocSource): boolean {

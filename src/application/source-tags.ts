@@ -354,6 +354,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
 
   // ─── Filesystems ────────────────────────────────────────────────
   openzfs: ["filesystems", "nas"],
+  "openzfs-man": ["filesystems", "nas"],
+  "cr0x-zfs": ["filesystems", "nas"],
   btrfs: ["filesystems"],
   "linux-fs": ["filesystems", "linux"],
   samba: ["filesystems", "networking", "nas"],

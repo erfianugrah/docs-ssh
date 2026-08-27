@@ -437,6 +437,47 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("tocDepth 2 crawls section index pages to reach linked docs", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    const pages: Record<string, string> = {
+      "https://docs.example.com/man/v1/": `<html><body>
+<a href="1/index.html">Section 1</a>
+<a href="8/index.html">Section 8</a>
+</body></html>`,
+      "https://docs.example.com/man/v1/1/index.html": `<html><body>
+<a href="foo.1.html">foo</a>
+</body></html>`,
+      "https://docs.example.com/man/v1/8/index.html": `<html><body>
+<a href="bar.8.html">bar</a>
+</body></html>`,
+    };
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (pages[url]) return { ok: true, text: async () => pages[url] };
+      return { ok: true, text: async () => `<h1>Page</h1>` };
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "toc-depth-test",
+      type: "http",
+      format: "html",
+      url: "https://docs.example.com/man/v1/",
+      discovery: "toc",
+      discoveryUrl: "https://docs.example.com/man/v1/",
+      tocDepth: 2,
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const names = [...set.files.keys()].sort();
+    // Section index pages + the docs they link; depth 1 would only get the
+    // section indexes and miss foo/bar.
+    expect(names).toEqual(["1/foo.1.html", "1/index.html", "8/bar.8.html", "8/index.html"]);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   it("discovers URLs from TOC with uppercase HREF (DocBook/XHTML)", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
 

@@ -27,7 +27,7 @@ export async function discover(source: DocSource): Promise<string[]> {
     case "sitemap-index":
       return discoverFromSitemapIndex(discoveryUrl, source.urlPattern);
     case "toc":
-      return discoverFromToc(discoveryUrl, baseUrl);
+      return discoverFromToc(discoveryUrl, baseUrl, source.tocDepth);
     case "mediawiki":
       return discoverFromMediaWiki(discoveryUrl, baseUrl);
     case "llms-index":

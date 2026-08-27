@@ -105,7 +105,7 @@ Add a `case` entry in `log-cmd.sh:44-59` and a script in `commands/`. Human-faci
 
 ## Adding a new doc source
 
-Add a `new DocSource({...})` to `src/application/sources.ts`. Pick a discovery method that matches how the upstream provides docs. The ingestor and normaliser are selected automatically by type/format matching. Discovery methods: `none`, `tarball`, `texinfo`, `llms-full`, `llms-index`, `llms-txt`, `sitemap`, `sitemap-index`, `toc`, `rss`, `openapi`, `openapi-dir`, `mediawiki`, `dokuwiki`.
+Add a `new DocSource({...})` to `src/application/sources.ts`. Pick a discovery method that matches how the upstream provides docs. The ingestor and normaliser are selected automatically by type/format matching. Discovery methods: `none`, `tarball`, `texinfo`, `llms-full`, `llms-index`, `llms-txt`, `sitemap`, `sitemap-index`, `toc`, `rss`, `openapi`, `openapi-dir`, `mediawiki`, `dokuwiki`. Optional knobs: `tocDepth` (BFS depth for `toc` discovery; default 1 = single toc page; 2 = also crawl section index pages, e.g. openzfs-man), `pageConcurrency`, `deadlineMs`, `requestTimeoutMs`, `userAgent`, `skipMarkdownNegotiation`.
 
 **Source-type preference order** (most → least reliable; pick the highest one the upstream actually offers):
 
