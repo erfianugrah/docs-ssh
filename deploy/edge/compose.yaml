@@ -1,15 +1,14 @@
-# docs-ssh - EDGE variant (MS-01 NixOS edge router).
+# docs-ssh - servarr variant (moved off the MS-01 router 2026-08-29).
 # Managed by the edge composer instance (stack: docs-ssh), git-synced.
 # Explicit project name REQUIRED (deploy/edge dir-name collision - one stack's
 # `up --remove-orphans` would delete another's containers).
 name: docs-ssh
 
 # Stateless service: docs baked into the image, host keys ephemeral per
-# container, no volumes. Only differences from compose.prod.yaml:
-#   - bridge subnet 172.31.7.0/24 with a STABLE bridge name (docs0) so the
-#     router's nftables can reference it (router.nix dockerBridges)
-#   - no published ports - edge Caddy (host-mode) terminates HTTP on 443 and
-#     L4-proxies SSH on :2222 to the static IP below
+# container, no volumes. Servarr differences:
+#   - no pinned bridge/subnet; ports publish on servarr's LAN IP instead
+#   - edge Caddy terminates HTTP on 443 (reverse_proxy 10.0.71.2:18086) and
+#     L4-proxies SSH :2222 -> 10.0.71.2:18087
 services:
   docs-ssh:
     image: ghcr.io/erfianugrah/docs-ssh:latest
@@ -37,9 +36,9 @@ services:
       options:
         max-size: 10m
         max-file: "3"
-    expose:
-      - 2222
-      - 8080
+    ports:
+      - "10.0.71.2:18086:8080"
+      - "10.0.71.2:18087:2222"
     tmpfs:
       - /tmp:size=16M
       - /run/sshd:size=1M
@@ -58,16 +57,8 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      docs:
-        ipv4_address: 172.31.7.2
+      - docs
 
 networks:
   docs:
     driver: bridge
-    name: edge-docs
-    driver_opts:
-      com.docker.network.bridge.name: docs0
-    ipam:
-      config:
-        - subnet: 172.31.7.0/24
-          gateway: 172.31.7.1
