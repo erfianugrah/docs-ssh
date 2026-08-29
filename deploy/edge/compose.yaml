@@ -6,9 +6,10 @@ name: docs-ssh
 
 # Stateless service: docs baked into the image, host keys ephemeral per
 # container, no volumes. Servarr differences:
-#   - no pinned bridge/subnet; ports publish on servarr's LAN IP instead
-#   - edge Caddy terminates HTTP on 443 (reverse_proxy 10.0.71.2:18086) and
-#     L4-proxies SSH :2222 -> 10.0.71.2:18087
+#   - macvlan IP on servarr_lan (10.0.71.65), not host-published ports -
+#     first-class LAN service, same class as copyparty/jellyfin
+#   - edge Caddy terminates HTTP on 443 (reverse_proxy 10.0.71.65:8080) and
+#     L4-proxies SSH :2222 -> 10.0.71.65:2222
 services:
   docs-ssh:
     image: ghcr.io/erfianugrah/docs-ssh:latest
@@ -36,9 +37,9 @@ services:
       options:
         max-size: 10m
         max-file: "3"
-    ports:
-      - "10.0.71.2:18086:8080"
-      - "10.0.71.2:18087:2222"
+    expose:
+      - 2222
+      - 8080
     tmpfs:
       - /tmp:size=16M
       - /run/sshd:size=1M
@@ -57,8 +58,10 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - docs
+      lan:
+        ipv4_address: 10.0.71.65
 
 networks:
-  docs:
-    driver: bridge
+  lan:
+    external: true
+    name: servarr_lan
