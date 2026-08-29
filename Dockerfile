@@ -1,5 +1,5 @@
 # ─── Stage 1: fetch and normalise docs ───────────────────────────────────────
-FROM node:22-alpine AS fetcher
+FROM node:26-alpine AS fetcher
 
 RUN apk add --no-cache git curl rsync
 
