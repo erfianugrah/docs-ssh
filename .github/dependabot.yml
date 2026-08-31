@@ -4,7 +4,17 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    versioning-strategy: lockfile-only
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "@types/node"
+        versions: [">=23"]
+      - dependency-name: "typescript"
+        versions: [">=6"]
+      - dependency-name: "vitest"
+        versions: [">=3"]
+      - dependency-name: "@vitest/coverage-v8"
+        versions: [">=3"]
     groups:
       all:
         patterns:
@@ -14,6 +24,9 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "node"
+        versions: [">=23"]
     groups:
       all:
         patterns:
