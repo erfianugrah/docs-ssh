@@ -236,6 +236,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   zinit: ["terminal"],
   powerlevel10k: ["terminal"],
   mise: ["terminal"],
+  helix: ["terminal"],
 
   // ─── CLI tools ──────────────────────────────────────────────────
   curl: ["cli-tools"],
@@ -309,6 +310,16 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "authentik-api": ["api-specs"],
   "keycloak-api": ["api-specs"],
   "stripe-api": ["api-specs"],
+  "sonarr-api-v3": ["api-specs", "media"],
+  "sonarr-api-v5": ["api-specs", "media"],
+  "radarr-api": ["api-specs", "media"],
+  "lidarr-api": ["api-specs", "media"],
+  "readarr-api": ["api-specs", "media"],
+  "prowlarr-api": ["api-specs", "media"],
+  "whisparr-api": ["api-specs", "media"],
+  "grafana-api": ["api-specs", "monitoring"],
+  "prometheus-api": ["api-specs", "monitoring"],
+  "tailscale-api": ["api-specs", "networking"],
 
   // ─── Supabase ecosystem (non-Postgres) ──────────────────────────
   "supabase-server": ["supabase-ecosystem", "auth"],
@@ -400,6 +411,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   sabnzbd: ["media"],
   slskd: ["media"],
   gluetun: ["media", "networking"],
+  transmission: ["media"],
+  navidrome: ["media"],
 
   // ─── Smart home & IoT ───────────────────────────────────────────
   "home-assistant": ["smarthome"],

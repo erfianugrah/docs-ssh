@@ -3588,9 +3588,150 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs",
   }),
 
-  // ─── qBittorrent ───────────────────────────────────────────────
+  // --- *arr API specs ----------------------------------------------------
 
-  // GitHub wiki — BitTorrent client setup, Web UI API, search plugins.
+  // OpenAPI 3.0 JSON, auto-generated from C# controllers.
+
+  // Sonarr V3 API - tv show management.
+  new DocSource({
+    name: "sonarr-api-v3",
+    type: "http",
+    url: "https://sonarr.tv/docs/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/Sonarr/Sonarr/develop/src/Sonarr.Api.V3/openapi.json",
+  }),
+
+  // Sonarr V5 API - tv show management (v5-only endpoints).
+  new DocSource({
+    name: "sonarr-api-v5",
+    type: "http",
+    url: "https://sonarr.tv/docs/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/Sonarr/Sonarr/v5-develop/src/Sonarr.Api.V5/openapi.json",
+  }),
+
+  // Radarr API - movie collection management.
+  new DocSource({
+    name: "radarr-api",
+    type: "http",
+    url: "https://radarr.video/docs/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/Radarr/Radarr/develop/src/Radarr.Api.V3/openapi.json",
+  }),
+
+  // Lidarr API - music collection management.
+  new DocSource({
+    name: "lidarr-api",
+    type: "http",
+    url: "https://lidarr.audio/docs/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/Lidarr/Lidarr/develop/src/Lidarr.Api.V1/openapi.json",
+  }),
+
+  // Readarr API - book/audiobook collection management.
+  new DocSource({
+    name: "readarr-api",
+    type: "http",
+    url: "https://readarr.com/docs/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/Readarr/Readarr/develop/src/Readarr.Api.V1/openapi.json",
+  }),
+
+  // Prowlarr API - indexer/tracker management.
+  new DocSource({
+    name: "prowlarr-api",
+    type: "http",
+    url: "https://prowlarr.com/docs/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/Prowlarr/Prowlarr/develop/src/Prowlarr.Api.V1/openapi.json",
+  }),
+
+  // Whisparr API - adult content management.
+  new DocSource({
+    name: "whisparr-api",
+    type: "http",
+    url: "https://whisparr.com/docs/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/Whisparr/Whisparr/develop/src/Whisparr.Api.V3/openapi.json",
+  }),
+
+  // --- Infrastructure APIs --------------------------------------------------
+
+  // Grafana HTTP API - Swagger 2.0 JSON, merged from go-swagger annotations.
+  // Covers datasources, dashboards, folders, teams, users, orgs, alerts, annotations.
+  new DocSource({
+    name: "grafana-api",
+    type: "http",
+    url: "https://grafana.com/docs/grafana/latest/developers/http_api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/grafana/grafana/main/public/api-merged.json",
+  }),
+
+  // Prometheus HTTP API - OpenAPI 3.1 YAML, golden file from testdata.
+  // Covers query, query_range, metadata, labels, series, targets, rules, alerts, status, admin.
+  new DocSource({
+    name: "prometheus-api",
+    type: "http",
+    url: "https://prometheus.io/docs/prometheus/latest/querying/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/prometheus/prometheus/main/web/api/v1/testdata/openapi_3.1_golden.yaml",
+  }),
+
+  // Tailscale REST API - OpenAPI 3.x, served live by the Tailscale API.
+  // Covers devices, DNS, keys, logging, ACL policy, invites, tailnet management.
+  new DocSource({
+    name: "tailscale-api",
+    type: "http",
+    url: "https://tailscale.com/api",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://api.tailscale.com/api/v2?outputOpenapiSchema=true",
+  }),
+
+  // --- More tools & docs -------------------------------------------------
+
+  // Helix editor - mdBook markdown in book/src/ (summary, commands, config, keymap).
+  new DocSource({
+    name: "helix",
+    type: "git",
+    url: "https://github.com/helix-editor/helix",
+    format: "markdown",
+    paths: ["book/src"],
+    rootPath: "book/src",
+  }),
+
+  // Transmission - markdown docs in docs/ (RPC spec, building, config, blocklists).
+  new DocSource({
+    name: "transmission",
+    type: "git",
+    url: "https://github.com/transmission/transmission",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // Navidrome - Hugo/Docusaurus website (Subsonic-compatible music server docs).
+  new DocSource({
+    name: "navidrome",
+    type: "git",
+    url: "https://github.com/navidrome/website",
+    format: "markdown",
+    paths: ["content"],
+    rootPath: "content",
+  }),
+
+  // --- qBittorrent --------------------------------------------------------
+
+  // GitHub wiki - BitTorrent client setup, Web UI API, search plugins.
   new DocSource({
     name: "qbittorrent",
     type: "git",
