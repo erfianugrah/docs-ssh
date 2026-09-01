@@ -116,6 +116,14 @@ export interface DocSourceConfig {
    */
   readonly userAgent?: string;
   /**
+   * Resolve TRaSH-Guides MkDocs preprocessing directives (`--8<--` snippets,
+   * `{! include-markdown !}`, `[[% ... %]]` macros, and `{{ ... }}`
+   * markdownextradata lookups) against the repo's `docs/json` data files
+   * and root-level `includes/` tree. Git sources only; requires the
+   * `includes` dir in `paths` so it is sparse-checked out.
+   */
+  readonly resolveTrashGuides?: boolean;
+  /**
    * BFS depth for `toc` discovery (http sources only). Default 1 = scrape
    * links off the single toc page. Raise to 2 when the toc page only links
    * section index pages that in turn link the actual doc pages (verified:
@@ -153,6 +161,7 @@ export class DocSource {
   readonly skipMarkdownNegotiation: boolean | undefined;
   readonly userAgent: string | undefined;
   readonly tocDepth: number | undefined;
+  readonly resolveTrashGuides: boolean;
 
   constructor(config: DocSourceConfig) {
     if (!config.name || config.name.trim() === "") {
@@ -183,6 +192,7 @@ export class DocSource {
     this.skipMarkdownNegotiation = config.skipMarkdownNegotiation;
     this.userAgent = config.userAgent;
     this.tocDepth = config.tocDepth;
+    this.resolveTrashGuides = config.resolveTrashGuides ?? false;
   }
 
   equals(other: DocSource): boolean {

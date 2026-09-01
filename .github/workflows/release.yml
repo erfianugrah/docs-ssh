@@ -84,6 +84,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Jinja2 (TRaSH-Guides converter)
+        # pnpm fetch-docs renders TRaSH-Guides' full-Jinja templates via
+        # src/ingestors/jinja-render.py; jinja2 is not pre-installed on
+        # ubuntu-latest so it must be added here.
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Jinja2 package
+        run: pip install jinja2
+
       - name: Fetch docs
         run: pnpm fetch-docs
         env:

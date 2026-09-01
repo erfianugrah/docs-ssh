@@ -3517,15 +3517,19 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── TRaSH-Guides ──────────────────────────────────────────────
 
-  // MkDocs source — canonical quality-profile / custom-format / hardlink
+  // MkDocs source - canonical quality-profile / custom-format / hardlink
   // guides for the *arr stack (~90MB repo, docs/ tree is markdown).
+  // `includes/` (repo root) is sparse-checked out too: the docs reference
+  // it via `--8<--` and `{! include-markdown !}` directives, and
+  // `resolveTrashGuides` inlines them during ingest.
   new DocSource({
     name: "trash-guides",
     type: "git",
     url: "https://github.com/TRaSH-Guides/Guides",
     format: "markdown",
-    paths: ["docs"],
+    paths: ["docs", "includes"],
     rootPath: "docs",
+    resolveTrashGuides: true,
   }),
 
   // ─── Recyclarr ─────────────────────────────────────────────────

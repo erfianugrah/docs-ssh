@@ -12,6 +12,7 @@ import { walkDir } from "../shared/walkDir.js";
 import { retryWithBackoff, type RetryOptions } from "../shared/retry.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { convertAsciiDocTree } from "./asciidoc-converter.js";
+import { convertTrashGuides } from "./trash-guides-converter.js";
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
 const GO_EXTENSIONS = new Set(["go"]);
@@ -179,6 +180,11 @@ export class GitIngestor implements DocIngestor {
       return this.ingestAsciiDoc(source, cloneDir, version);
     }
 
+    // ─── trash-guides: resolve MkDocs jinja/snippet/macro directives ──
+    if (source.resolveTrashGuides) {
+      return this.ingestTrashGuides(source, cloneDir, version);
+    }
+
     // Determine which directories to scan
     const scanRoots =
       source.paths.length > 0
@@ -249,6 +255,30 @@ export class GitIngestor implements DocIngestor {
       files.set(cf.path, new DocFile(cf.path, cf.content));
     }
     console.log(`  [${source.name}] converted ${files.size} AsciiDoc pages`);
+    return new DocSet(source, files, new Date(), version);
+  }
+
+  // ─── TRaSH-Guides directive resolution ────────────────────────────
+
+  /**
+   * Resolve the four MkDocs preprocessing layers TRaSH-Guides uses
+   * (snippets, include-markdown, macros, markdownextradata) against the
+   * checkout, producing readable markdown. See trash-guides-converter.ts.
+   */
+  private async ingestTrashGuides(
+    source: DocSource,
+    cloneDir: string,
+    version: string | undefined,
+  ): Promise<DocSet> {
+    const converted = await convertTrashGuides(cloneDir);
+    if (converted.length === 0) {
+      throw new Error(`GitIngestor: trash-guides conversion produced 0 pages for ${source.name}`);
+    }
+    const files = new Map<string, DocFile>();
+    for (const cf of converted) {
+      files.set(cf.path, new DocFile(cf.path, cf.content));
+    }
+    console.log(`  [${source.name}] resolved ${files.size} markdown pages`);
     return new DocSet(source, files, new Date(), version);
   }
 
