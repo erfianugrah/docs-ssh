@@ -2515,6 +2515,62 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs",
   }),
 
+  // ─── jq ─────────────────────────────────────────────────────────
+
+  // Single-page manual from jqlang.org - the canonical jq reference.
+  // The manual is one large HTML page; `none` discovery with a direct
+  // URL list fetches it as a single file.
+  new DocSource({
+    name: "jq",
+    type: "http",
+    url: "https://jqlang.org/manual/",
+    format: "html",
+    discovery: "none",
+    urls: ["https://jqlang.org/manual/"],
+    description: "jq manual - the definitive jq reference",
+  }),
+
+  // ─── yq ─────────────────────────────────────────────────────────
+
+  // GitBook docs with llms.txt - each page available as .md directly.
+  // Exclude v3.x (legacy version series).
+  new DocSource({
+    name: "yq",
+    type: "http",
+    url: "https://mikefarah.gitbook.io/yq/",
+    format: "markdown",
+    discovery: "llms-txt",
+    discoveryUrl: "https://mikefarah.gitbook.io/yq/llms.txt",
+    urlExclude: "v3\\.x/",
+    description: "yq - YAML/JSON/XML processor with jq-like syntax",
+  }),
+
+  // ─── fd ─────────────────────────────────────────────────────────
+
+  // README.md is the canonical fd documentation (~600 lines). No paths
+  // filter - picks up README + CHANGELOG + CONTRIBUTING.
+  new DocSource({
+    name: "fd",
+    type: "git",
+    url: "https://github.com/sharkdp/fd",
+    format: "markdown",
+  }),
+
+  // ─── Miller ─────────────────────────────────────────────────────
+
+  // Compiled markdown docs from the miller repo (docs/src/*.md).
+  // The .md.in source templates coexist but are skipped by the
+  // markdown format filter.
+  new DocSource({
+    name: "miller",
+    type: "git",
+    url: "https://github.com/johnkerl/miller",
+    format: "markdown",
+    paths: ["docs/src"],
+    rootPath: "docs/src",
+    description: "Miller (mlr) - CLI data processing for CSV/TSV/JSON",
+  }),
+
   // ─── GraphQL ───────────────────────────────────────────────────
 
   // Official spec — 12 markdown files covering language, type system, execution, etc.

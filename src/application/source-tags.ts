@@ -243,6 +243,10 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   ripgrep: ["cli-tools"],
   httpie: ["cli-tools"],
   rclone: ["cli-tools"],
+  jq: ["cli-tools"],
+  yq: ["cli-tools"],
+  fd: ["cli-tools"],
+  miller: ["cli-tools"],
 
   // ─── Git forges ─────────────────────────────────────────────────
   github: ["git-forges"],
