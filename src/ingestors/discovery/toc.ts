@@ -7,7 +7,7 @@
  * collects its links (needed for Sphinx sites whose version index only
  * links section index pages, which in turn link the actual pages).
  */
-import { fetchWithRetry } from "../http-client.js";
+import { BULK_RETRIES, fetchWithRetry } from "../http-client.js";
 
 const SKIP_EXTENSIONS = /\.(css|js|json|xml|png|jpe?g|gif|svg|ico|woff2?|ttf|eot|zip|tar|gz|pdf)$/i;
 const MAX_VISITED = 5000;
@@ -38,7 +38,7 @@ export async function discoverFromToc(tocUrl: string, baseUrl: string, depth = 1
     for (const page of frontier) {
       if (visited.has(page) || visited.size >= MAX_VISITED) continue;
       visited.add(page);
-      const res = await fetchWithRetry(page);
+      const res = await fetchWithRetry(page, BULK_RETRIES);
       if (!res.ok) {
         if (page === tocUrl) throw new Error(`Failed to fetch TOC ${tocUrl}: HTTP ${res.status}`);
         continue;

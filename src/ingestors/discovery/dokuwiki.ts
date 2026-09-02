@@ -15,7 +15,7 @@
  * tested against the regex, so language or playground subtrees cost no
  * requests. The regex still applies to final page URLs in HttpIngestor.
  */
-import { CONCURRENCY, fetchWithRetry } from "../http-client.js";
+import { BULK_RETRIES, CONCURRENCY, fetchWithRetry } from "../http-client.js";
 
 const SKIP_EXTENSIONS = /\.(css|js|json|xml|png|jpe?g|gif|svg|ico|woff2?|ttf|eot|zip|tar|gz|pdf)$/i;
 // DokuWiki chrome paths that leak from idx-page sidebars when the wiki
@@ -50,7 +50,7 @@ export async function discoverFromDokuWiki(
 
     const results = await Promise.allSettled(
       batch.map(async (u) => {
-        const res = await fetchWithRetry(u);
+        const res = await fetchWithRetry(u, BULK_RETRIES);
         return res.ok ? { html: await res.text(), base: u } : { html: "", base: u };
       }),
     );

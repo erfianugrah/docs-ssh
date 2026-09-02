@@ -5,11 +5,11 @@
  * transparently delegates to the index path, so misconfigured sources
  * still work.
  */
-import { CONCURRENCY, fetchWithRetry } from "../http-client.js";
+import { BULK_RETRIES, CONCURRENCY, fetchWithRetry } from "../http-client.js";
 import { extractLocs, resolveLocs } from "./sitemap-utils.js";
 
 export async function discoverFromSitemap(sitemapUrl: string, urlPattern?: string): Promise<string[]> {
-  const res = await fetchWithRetry(sitemapUrl);
+  const res = await fetchWithRetry(sitemapUrl, BULK_RETRIES);
   if (!res.ok) throw new Error(`Failed to fetch sitemap ${sitemapUrl}: HTTP ${res.status}`);
   const xml = await res.text();
 
@@ -26,7 +26,7 @@ export async function discoverFromSitemapIndex(
   indexUrl: string,
   urlPattern?: string,
 ): Promise<string[]> {
-  const res = await fetchWithRetry(indexUrl);
+  const res = await fetchWithRetry(indexUrl, BULK_RETRIES);
   if (!res.ok) throw new Error(`Failed to fetch sitemap index ${indexUrl}: HTTP ${res.status}`);
   let childUrls = resolveLocs(extractLocs(await res.text()), indexUrl);
 

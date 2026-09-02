@@ -13,9 +13,9 @@ import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { collectIncidentCodes, incidentToMarkdown } from "./statuspage-converter.js";
 import { walkDir } from "../shared/walkDir.js";
 import {
+  BULK_RETRIES,
   BULK_TIMEOUT,
   CONCURRENCY,
-  MAX_RETRIES,
   NonRetryableHttpError,
   fetchBufferWithRetry,
   fetchWithRetry,
@@ -399,7 +399,7 @@ export class HttpIngestor implements DocIngestor {
     // Download to a temp file first, then extract — avoids shell injection
     // from interpolating URLs into a shell pipeline.
     const tarballPath = path.join(workDir, `${source.name}.tar.gz`);
-    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
+    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, BULK_RETRIES, BULK_TIMEOUT, signal);
     await fs.writeFile(tarballPath, buffer);
 
     execFileSync("tar", ["-xzf", tarballPath, "-C", extractDir], {
@@ -432,7 +432,7 @@ export class HttpIngestor implements DocIngestor {
     console.log(`  [${source.name}] downloading info archive…`);
     const buffer = await fetchBufferWithRetry(
       source.discoveryUrl!,
-      MAX_RETRIES,
+      BULK_RETRIES,
       BULK_TIMEOUT,
       signal,
     ).catch((err) => {
@@ -440,7 +440,7 @@ export class HttpIngestor implements DocIngestor {
         console.log(
           `  [${source.name}] primary returned HTTP ${err.status}; trying fallback mirror`,
         );
-        return fetchBufferWithRetry(source.fallbackDiscoveryUrl, MAX_RETRIES, BULK_TIMEOUT, signal);
+        return fetchBufferWithRetry(source.fallbackDiscoveryUrl, BULK_RETRIES, BULK_TIMEOUT, signal);
       }
       throw err;
     });
@@ -472,7 +472,7 @@ export class HttpIngestor implements DocIngestor {
 
   private async ingestFromLlmsFull(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
     console.log(`  [${source.name}] downloading llms-full.txt…`);
-    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
+    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, BULK_RETRIES, BULK_TIMEOUT, signal);
     const content = buffer.toString("utf-8");
     console.log(`  [${source.name}] llms-full.txt: ${(content.length / 1024 / 1024).toFixed(1)} MB`);
 
@@ -494,7 +494,7 @@ export class HttpIngestor implements DocIngestor {
 
   private async ingestFromOpenApi(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
     console.log(`  [${source.name}] downloading OpenAPI spec…`);
-    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, MAX_RETRIES, BULK_TIMEOUT, signal);
+    const buffer = await fetchBufferWithRetry(source.discoveryUrl!, BULK_RETRIES, BULK_TIMEOUT, signal);
     const raw = buffer.toString("utf-8");
     console.log(`  [${source.name}] spec: ${(raw.length / 1024).toFixed(0)} KB`);
 
@@ -513,7 +513,7 @@ export class HttpIngestor implements DocIngestor {
   private async ingestFromStatuspage(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
     const base = source.url.replace(/\/$/, "");
     const fetchJson = async (url: string): Promise<unknown> => {
-      const buffer = await fetchBufferWithRetry(url, MAX_RETRIES, BULK_TIMEOUT, signal);
+      const buffer = await fetchBufferWithRetry(url, BULK_RETRIES, BULK_TIMEOUT, signal);
       return JSON.parse(buffer.toString("utf-8"));
     };
 

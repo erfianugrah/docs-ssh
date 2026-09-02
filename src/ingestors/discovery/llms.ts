@@ -8,7 +8,7 @@
  *     Supports absolute URLs and relative paths inside markdown links
  *     `[title](path.md)` resolved against the llms.txt URL's origin.
  */
-import { CONCURRENCY, fetchWithRetry } from "../http-client.js";
+import { BULK_RETRIES, CONCURRENCY, fetchWithRetry } from "../http-client.js";
 
 const URL_REGEX = /https?:\/\/[^\s)>]+/g;
 
@@ -28,7 +28,7 @@ export async function discoverFromLlmsIndex(
   indexUrl: string,
   urlPattern?: string,
 ): Promise<string[]> {
-  const res = await fetchWithRetry(indexUrl);
+  const res = await fetchWithRetry(indexUrl, BULK_RETRIES);
   if (!res.ok) throw new Error(`Failed to fetch llms index ${indexUrl}: HTTP ${res.status}`);
   const text = await res.text();
 
@@ -81,7 +81,7 @@ export async function discoverFromLlmsIndex(
 }
 
 export async function discoverFromLlmsTxt(llmsTxtUrl: string): Promise<string[]> {
-  const res = await fetchWithRetry(llmsTxtUrl);
+  const res = await fetchWithRetry(llmsTxtUrl, BULK_RETRIES);
   if (!res.ok) throw new Error(`Failed to fetch llms.txt ${llmsTxtUrl}: HTTP ${res.status}`);
   const text = await res.text();
 

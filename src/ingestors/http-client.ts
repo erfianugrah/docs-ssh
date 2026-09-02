@@ -12,13 +12,22 @@
  *   - parseRetryAfter — RFC 7231 §7.1.3 parser (seconds or HTTP-date)
  *   - RetryableHttpError — thrown for retryable 5xx/413/429 statuses
  *   - UA — User-Agent string sent on every request
- *   - REQUEST_TIMEOUT / BULK_TIMEOUT / MAX_RETRIES — defaults
+ *   - REQUEST_TIMEOUT / BULK_TIMEOUT / MAX_RETRIES / BULK_RETRIES - defaults
  *   - CONCURRENCY — page-fetch parallelism cap (shared by discovery)
  */
 import { retryWithBackoff } from "../shared/retry.js";
 
 export const UA = "docs-ssh/0.8 (doc-fetcher; +https://github.com/erfianugrah/docs-ssh)";
 export const MAX_RETRIES = 2;
+// Bulk downloads (tarball, llms-full, OpenAPI spec) and discovery fetches
+// (sitemap, toc, llms.txt, rss) gate an ENTIRE source: one failed fetch
+// drops the source to zero files, whereas a failed per-page fetch only
+// loses one page. A multi-second network blip on a GH runner is common
+// enough that 2 retries (~3s of backoff) isn't enough - bump these to 5
+// (~30s of exponential backoff) so a transient blip doesn't silently
+// drop a source (seen 2026-09: sops dropped from the v0.26.0 image when
+// getsops.io/sitemap.xml failed all 3 attempts).
+export const BULK_RETRIES = 5;
 export const REQUEST_TIMEOUT = 30_000; // 30s per page fetch
 export const BULK_TIMEOUT = 120_000;   // 120s for large single-file downloads (llms-full, tarball, specs)
 export const CONCURRENCY = 15;
@@ -170,7 +179,7 @@ export async function fetchWithRetry(
  */
 export async function fetchBufferWithRetry(
   url: string,
-  retries = MAX_RETRIES,
+  retries = BULK_RETRIES,
   timeout = BULK_TIMEOUT,
   signal?: AbortSignal,
 ): Promise<Buffer> {

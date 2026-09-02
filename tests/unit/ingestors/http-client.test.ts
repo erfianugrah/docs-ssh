@@ -50,4 +50,23 @@ describe("fetchBufferWithRetry", () => {
     ).rejects.toThrow("HTTP 500");
     expect(mockFetch).toHaveBeenCalledTimes(2);
   }, 15_000);
+
+  it("default is 5 retries for bulk/gating fetches", async () => {
+    // A 500 on a bulk download (sitemap, tarball, spec) drops the
+    // entire source. Default must be high enough to ride out a
+    // multi-second network blip on CI runners.
+    vi.useFakeTimers();
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    // Don't await - runTimersToCompletion would hang forever.
+    const assertion = expect(
+      fetchBufferWithRetry("https://example.com/bulk"),
+    ).rejects.toThrow("HTTP 500");
+    await vi.runAllTimersAsync();
+    await assertion;
+    // default BULK_RETRIES = 5: initial + 5 retries = 6 total
+    expect(mockFetch).toHaveBeenCalledTimes(6);
+    vi.useRealTimers();
+  });
 });

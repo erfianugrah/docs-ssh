@@ -8,7 +8,7 @@
  * Caps at 20 pagination rounds (10k pages) — defensive against
  * runaway APIs; large wikis we consume have <5k pages.
  */
-import { fetchWithRetry } from "../http-client.js";
+import { BULK_RETRIES, fetchWithRetry } from "../http-client.js";
 
 const MAX_ROUNDS = 20;
 
@@ -28,7 +28,7 @@ export async function discoverFromMediaWiki(apiUrl: string, baseUrl: string): Pr
     if (continueFrom) params.set("apcontinue", continueFrom);
 
     const url = `${apiUrl}?${params}`;
-    const res = await fetchWithRetry(url);
+    const res = await fetchWithRetry(url, BULK_RETRIES);
     if (!res.ok) throw new Error(`MediaWiki API error: HTTP ${res.status}`);
     const data = JSON.parse(await res.text());
 

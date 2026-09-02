@@ -3,10 +3,10 @@
  * `<item>` blocks only; the top-level channel `<link>` (the feed's own
  * homepage) is ignored on purpose.
  */
-import { fetchWithRetry } from "../http-client.js";
+import { BULK_RETRIES, fetchWithRetry } from "../http-client.js";
 
 export async function discoverFromRss(rssUrl: string): Promise<string[]> {
-  const res = await fetchWithRetry(rssUrl);
+  const res = await fetchWithRetry(rssUrl, BULK_RETRIES);
   if (!res.ok) throw new Error(`Failed to fetch RSS ${rssUrl}: HTTP ${res.status}`);
   const xml = await res.text();
 
