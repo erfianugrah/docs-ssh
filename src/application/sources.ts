@@ -3142,7 +3142,22 @@ export const SOURCES: readonly DocSource[] = [
     deadlineMs: 1_800_000,
   }),
 
-  // ─── NixOS Manual ──────────────────────────────────────────────
+  // --- NixOS Wiki -------------------------------------------------
+
+  // MediaWiki - the official NixOS wiki (wiki.nixos.org). ~461 articles
+  // in the main namespace, covering ZFS, GPU passthrough, virt, and
+  // other community-maintained NixOS HOWTOs the manual doesn't cover.
+  new DocSource({
+    name: "nixos-wiki",
+    type: "http",
+    url: "https://wiki.nixos.org/wiki/",
+    format: "html",
+    discovery: "mediawiki",
+    discoveryUrl: "https://wiki.nixos.org/w/api.php",
+    urlPattern: "^https://wiki\\.nixos\\.org/wiki/",
+  }),
+
+  // --- NixOS Manual ------------------------------------------------
 
   // Git sparse - the NixOS manual in nixpkgs (CommonMark, ~140 files,
   // self-contained: all {=include=} refs stay inside nixos/doc/manual).
@@ -3160,7 +3175,25 @@ export const SOURCES: readonly DocSource[] = [
     urlExclude: "(README|contributing-to-this-manual)\\.md$",
   }),
 
-  // ─── Debian Administrator's Handbook ───────────────────────────
+  // --- nixpkgs Manual ----------------------------------------------
+
+  // Git sparse - the full nixpkgs manual (doc/ tree, ~205 CommonMark
+  // files). Covers build-helpers, functions, hooks, languages-frameworks,
+  // stdenv, packages, module-system, and more. Complements the `nixos`
+  // source (which only covers nixos/doc/manual). Same repo, different
+  // sparse-checkout path. {=include=} directives are left raw - the
+  // referenced files are still present as separate pages.
+  new DocSource({
+    name: "nixpkgs",
+    type: "git",
+    url: "https://github.com/NixOS/nixpkgs",
+    format: "markdown",
+    paths: ["doc"],
+    rootPath: "doc",
+    urlExclude: "^README\\.md$",
+  }),
+
+  // --- Debian Administrator's Handbook -----------------------------
 
   // TOC - debian-handbook.info serves per-chapter HTML (source is
   // Publican DocBook XML on salsa.debian.org; no markdown form exists).

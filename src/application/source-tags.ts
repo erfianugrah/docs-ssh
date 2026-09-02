@@ -151,7 +151,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   zod: ["languages"],
   nix: ["languages"],
 
-  // ─── Cloud platforms ────────────────────────────────────────────
+  // --- Cloud platforms ────────────────────────────────────────────
   // AWS is sharded per-service (see sources.ts). Each shard tagged
   // 'cloud'; the umbrella 'aws' tag is gone with the umbrella source.
   "aws-lambda": ["cloud"],
@@ -341,7 +341,9 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   // ─── Linux distros ──────────────────────────────────────────────
   cachyos: ["linux"],
   archwiki: ["linux"],
+  "nixos-wiki": ["linux", "nix"],
   nixos: ["linux"],
+  nixpkgs: ["linux", "nix"],
   "debian-handbook": ["linux"],
   "debian-reference": ["linux"],
   "ubuntu-server": ["linux"],
@@ -477,6 +479,7 @@ export const TAG_LABELS: Record<string, string> = {
   "api-specs": "API specs",
   osint: "OSINT & reconnaissance",
   linux: "Linux distros",
+  nix: "Nix & NixOS",
   windows: "Windows",
   filesystems: "Filesystems",
   backup: "Backups",
