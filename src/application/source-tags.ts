@@ -126,7 +126,11 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "miekg-dns": ["dns", "languages"],
   "miekg-dns-v2": ["dns", "languages"],
 
-  // ─── Frontend frameworks ────────────────────────────────────────
+  // --- DNS providers (registrar APIs) ------------------------------
+  porkbun: ["dns", "networking"],
+  godaddy: ["dns", "networking"],
+
+  // --- Frontend frameworks -----------------------------------------
   nextjs: ["frontend"],
   react: ["frontend"],
   astro: ["frontend"],

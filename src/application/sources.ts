@@ -2303,7 +2303,33 @@ export const SOURCES: readonly DocSource[] = [
     format: "godoc",
   }),
 
-  // ─── Nix ───────────────────────────────────────────────────────
+  // --- DNS providers (registrar + management APIs) --------------
+
+  // llms-full.txt -- complete API reference as a single markdown file.
+  // Porkbun publishes AI-friendly docs per the acceptmarkdown.com
+  // spec -- preNormalised=true, no Turndown pass needed.
+  new DocSource({
+    name: "porkbun",
+    type: "http",
+    url: "https://porkbun.com/api/json/v3/documentation",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://porkbun.com/llms-full.txt",
+  }),
+
+  // OpenAPI -- GoDaddy Domains API v1. Covers DNS records,
+  // nameserver management, domain registration/renewal, contacts,
+  // transfers, and availability search.
+  new DocSource({
+    name: "godaddy",
+    type: "http",
+    url: "https://developer.godaddy.com/en/docs/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://developer.godaddy.com/openapi/domains-v1.json",
+  }),
+
+  // --- Nix -------------------------------------------------------
 
   // Git sparse — nix.dev community docs source (55 md files)
   new DocSource({
