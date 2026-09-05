@@ -1179,7 +1179,65 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "content/terraform",
   }),
 
-  // ─── OpenAPI Specs (continued) ─────────────────────────────────
+  // --- DNS provider Terraform providers (docs/ dir) -------------
+
+  // marcfrederick/terraform-provider-porkbun - official Terraform
+  // provider for Porkbun domains + DNS records.
+  new DocSource({
+    name: "terraform-porkbun",
+    type: "git",
+    url: "https://github.com/marcfrederick/terraform-provider-porkbun",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // veksh/terraform-provider-godaddy-dns - GoDaddy DNS record
+  // management. Individual-record granularity (not whole-zone
+  // replacement).
+  new DocSource({
+    name: "terraform-godaddy",
+    type: "git",
+    url: "https://github.com/veksh/terraform-provider-godaddy-dns",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // namecheap/terraform-provider-namecheap - official Namecheap
+  // Terraform provider. Domains, DNS records, nameservers.
+  new DocSource({
+    name: "terraform-namecheap",
+    type: "git",
+    url: "https://github.com/namecheap/terraform-provider-namecheap",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // namecheap/terraform-provider-spaceship - official Spaceship
+  // Terraform provider. DNS record sets + domain settings.
+  new DocSource({
+    name: "terraform-spaceship",
+    type: "git",
+    url: "https://github.com/namecheap/terraform-provider-spaceship",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ns1-terraform/terraform-provider-ns1 - NS1 (now IBM NS1
+  // Connect) provider. Legacy website/docs/ dir format.
+  new DocSource({
+    name: "terraform-ns1",
+    type: "git",
+    url: "https://github.com/ns1-terraform/terraform-provider-ns1",
+    format: "markdown",
+    paths: ["website/docs"],
+    rootPath: "website/docs",
+  }),
+
+  // --- OpenAPI Specs (continued) ---------------------------------
 
   // Gitea API — Swagger 2.0, JSON (live spec from gitea.com)
   new DocSource({

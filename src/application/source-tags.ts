@@ -130,6 +130,13 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   porkbun: ["dns", "networking"],
   godaddy: ["dns", "networking"],
 
+  // --- DNS provider Terraform providers ---------------------------
+  "terraform-porkbun": ["dns", "networking", "infrastructure"],
+  "terraform-godaddy": ["dns", "networking", "infrastructure"],
+  "terraform-namecheap": ["dns", "networking", "infrastructure"],
+  "terraform-spaceship": ["dns", "networking", "infrastructure"],
+  "terraform-ns1": ["dns", "networking", "infrastructure"],
+
   // --- Frontend frameworks -----------------------------------------
   nextjs: ["frontend"],
   react: ["frontend"],
