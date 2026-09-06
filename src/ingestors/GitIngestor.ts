@@ -14,7 +14,7 @@ import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { convertAsciiDocTree } from "./asciidoc-converter.js";
 import { convertTrashGuides } from "./trash-guides-converter.js";
 
-const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
+const MARKDOWN_EXTENSIONS = new Set(["md", "mdx", "markdown"]);
 const GO_EXTENSIONS = new Set(["go"]);
 // txt-format git sources (nvapi-headers, penguinburner-src): source
 // files served as fenced text via TxtNormaliser. .txt first (ietf-rfc
@@ -191,16 +191,16 @@ export class GitIngestor implements DocIngestor {
         ? source.paths.map((p) => path.join(cloneDir, p))
         : [cloneDir];
 
-    // Build a path transformer that strips the rootPath prefix
+    // Build a path transformer that strips the rootPath prefix and
+    // normalizes .markdown / .html.markdown extensions → .md
     const rootPath = source.rootPath;
-    const pathTransform = rootPath
-      ? (relativePath: string) => {
-          const prefix = rootPath.endsWith("/") ? rootPath : rootPath + "/";
-          return relativePath.startsWith(prefix)
-            ? relativePath.slice(prefix.length)
-            : relativePath;
-        }
-      : undefined;
+    const pathTransform = (relativePath: string) => {
+      if (rootPath) {
+        const prefix = rootPath.endsWith("/") ? rootPath : rootPath + "/";
+        if (relativePath.startsWith(prefix)) relativePath = relativePath.slice(prefix.length);
+      }
+      return relativePath.replace(/(?:\.html)?\.markdown$/, ".md");
+    };
 
     const files = new Map<string, DocFile>();
 
