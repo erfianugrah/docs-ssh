@@ -193,6 +193,10 @@ export const SOURCES: readonly DocSource[] = [
     discovery: "rss",
     discoveryUrl: "https://developers.cloudflare.com/changelog/rss/index.xml",
     urlPattern: "developers\\.cloudflare\\.com/changelog/post/",
+    // ~1.2k pages: default 15-wide burst trips Cloudflare rate limiting.
+    // Throttle to 4 concurrent + 15-min deadline (same pattern as cloudflare-blog).
+    pageConcurrency: 4,
+    deadlineMs: 1_200_000,
   }),
 
   // ─── BunnyCDN ──────────────────────────────────────────────────────
@@ -289,6 +293,9 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://docs.postgrest.org/en/stable/",
     urlPattern: "docs\\.postgrest\\.org/en/stable/",
     urlExclude: "(genindex|search|_sources)\\.html",
+    // docs.postgrest.org returns 429 to the docs-ssh User-Agent from
+    // GitHub Actions IPs; a browser UA passes (verified 2026-09-09).
+    userAgent: BROWSER_UA,
   }),
 
   // ─── pgloader ──────────────────────────────────────────────────
@@ -976,6 +983,9 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://docs.ansible.com/projects/ansible/latest/index.html",
     urlPattern: "docs\\.ansible\\.com/projects/ansible/latest/(getting_started|installation_guide|inventory_guide|command_guide|playbook_guide|vault_guide|module_plugin_guide|collections_guide|os_guide|tips_tricks|dev_guide|network|galaxy|reference_appendices)",
     urlExclude: "(porting_guides|roadmap|community|scenario_guides|collections/index|all_plugins)",
+    // docs.ansible.com returns 429 to the docs-ssh User-Agent from
+    // GitHub Actions IPs; a browser UA passes (verified 2026-09-09).
+    userAgent: BROWSER_UA,
   }),
 
   // ─── OpenAPI Specs ──────────────────────────────────────────────
@@ -4007,8 +4017,8 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://www.home-assistant.io/sitemap.xml",
     urlPattern:
       "home-assistant\\.io/(integrations|actions|template-functions|triggers|conditions|docs|dashboards|more-info|faq|voice_control|installation|getting-started|common-tasks|help|cloud)/",
-    pageConcurrency: 8, // 15-wide burst trips fetch timeouts on Netlify
-    deadlineMs: 1_800_000, // ~3.3k pages blow the 10-min default
+    pageConcurrency: 4, // Netlify timeouts at 8-wide; 4-wide keeps throughput
+    deadlineMs: 2_400_000, // ~3.3k pages with Netlify timeouts need 30-35 min
   }),
 
   // Zigbee2MQTT - VuePress site sourced from the repo's docs/ tree:
