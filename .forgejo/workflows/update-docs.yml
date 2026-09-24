@@ -13,9 +13,6 @@ jobs:
   build-and-push:
     name: Fetch docs, build, push
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - uses: actions/checkout@v6
@@ -29,17 +26,15 @@ jobs:
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: pnpm/action-setup@v5
-        with:
-          version: 10
+          username: erfianugrah
+          password: ${{ secrets.GHCR_TOKEN }}
 
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -65,13 +60,13 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.date }}
+            ghcr.io/erfianugrah/docs-ssh:latest
+            ghcr.io/erfianugrah/docs-ssh:${{ steps.tag.outputs.date }}
           build-args: |
             DOCS_PREBUILT=true
             VERSION=${{ steps.tag.outputs.version }}
             SSH_HOST=${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }}
             SSH_PORT=${{ vars.DOCS_SSH_PORT || '2222' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,ignore-error=true
+          # no gha cache: the runner cache proxy is unreachable from job
+          # containers (same as composer); BuildKit daemon cache persists.
 

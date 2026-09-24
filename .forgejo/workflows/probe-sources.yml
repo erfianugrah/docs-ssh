@@ -1,0 +1,78 @@
+name: Probe sources
+
+# Weekly diagnostic - runs scripts/probe-sources.ts to detect
+# upstream-format shifts (e.g. an upstream gaining llms-full.txt, or
+# losing a /docs path). Prints the report to the run log and opens an
+# issue if the report differs from the previous week's.
+#
+# This catches the "AWS quietly switched .html to .md in llms.txt"
+# scenario before the daily fetch hits it.
+
+on:
+  schedule:
+    # Sundays 04:00 UTC - well after the daily docs cron and the
+    # weekly window for upstreams to ship Friday-evening changes.
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    name: Probe upstream availability
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run probe
+        run: pnpm tsx scripts/probe-sources.ts > probe-report.tsv 2> probe-progress.log
+
+      - name: Print probe report
+        # Forgejo Actions has no artifact upload, so the report goes to
+        # the run log instead of a downloadable artifact.
+        run: cat probe-report.tsv probe-progress.log
+
+      - name: Diff against last week
+        id: diff
+        # The previous run's report is not retrievable on Forgejo Actions
+        # (no artifact download API, and the runner's git remote is Forgejo,
+        # so `gh run list`/`gh run download` cannot reach the previous
+        # GitHub/Forgejo run's files). The week-over-week diff is therefore
+        # disabled and `changed` stays false; the report above is the
+        # durable record. Restore the diff - and the issue step below will
+        # fire again - once a state backend for the previous report exists.
+        run: |
+          set -e
+          echo "previous report unavailable - nothing to diff" >&2
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+
+      - name: Open issue on changes
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          gh issue create \
+            -R erfianugrah/docs-ssh \
+            --title "weekly probe: source-availability changes detected ($(date -u +%Y-%m-%d))" \
+            --body "$(cat <<'EOF'
+          The weekly source-availability probe detected changes since last run. This usually means one of:
+
+          - An upstream gained or lost an \`llms.txt\`/\`llms-full.txt\` (consider migrating).
+          - An upstream's HTTP availability changed (404, redirects, etc).
+          - A new source was added or removed since the last run.
+
+          See the full diff in the run logs of the probe workflow.
+
+          Inspect: review \`probe-report.tsv\`, decide whether any source should be migrated to a better ingestion mechanism, and update \`src/application/sources.ts\`.
+          EOF
+          )" \
+            --label "automated,sources" || true
+        env:
+          GH_TOKEN: ${{ secrets.GH_ISSUE_TOKEN }}

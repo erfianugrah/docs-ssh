@@ -17,14 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: pnpm
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -45,9 +43,6 @@ jobs:
     name: Build & push Docker image (tagged release)
     needs: verify
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - uses: actions/checkout@v7
@@ -59,27 +54,25 @@ jobs:
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: erfianugrah
+          password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Derive image metadata
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/erfianugrah/docs-ssh
           tags: |
             type=raw,value=latest
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: pnpm
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -115,11 +108,8 @@ jobs:
             VERSION=${{ github.ref_name }}
             SSH_HOST=${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }}
             SSH_PORT=${{ vars.DOCS_SSH_PORT || '2222' }}
-          cache-from: type=gha
-          # ignore-error: a stale/evicted gha cache manifest (not_found on
-          # import or export) must never fail a release - the cache is an
-          # optimization, the image push already succeeded by this point.
-          cache-to: type=gha,mode=max,ignore-error=true
+          # no gha cache: the runner cache proxy is unreachable from job
+          # containers (same as composer); BuildKit daemon cache persists.
 
       - name: Deploy to Composer (async)
         id: deploy
@@ -143,12 +133,12 @@ jobs:
           response=$(cat "$resp_file"); rm -f "$resp_file"
           echo "composer response (HTTP $http_code): $(printf '%s' "$response" | head -c 500)"
 
-          # A non-JSON body means we reached something other than the API —
+          # A non-JSON body means we reached something other than the API -
           # almost always the Caddy proof-of-work / WAF challenge page that
           # gets served to GitHub runner IPs. Surface that plainly instead of
           # a cryptic `jq: parse error: Invalid numeric literal`.
           if ! printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
-            echo "::error::composer deploy returned non-JSON (HTTP $http_code) — likely a WAF/proof-of-work challenge, not the API. Body (first 300 chars): $(printf '%s' "$response" | head -c 300 | tr '\n' ' ')"
+            echo "::error::composer deploy returned non-JSON (HTTP $http_code) - likely a WAF/proof-of-work challenge, not the API. Body (first 300 chars): $(printf '%s' "$response" | head -c 300 | tr '\n' ' ')"
             exit 1
           fi
           if [ "$http_code" != "200" ] && [ "$http_code" != "202" ]; then
@@ -209,14 +199,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: pnpm
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -275,7 +263,7 @@ jobs:
                    -o LogLevel=ERROR -o ConnectTimeout=2 \
                    -p 2222 docs@${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }} \
                    'echo ok' > /dev/null 2>&1; then
-              echo "live server reachable after ${i}×2s"
+              echo "live server reachable after ${i}x2s"
               exit 0
             fi
             sleep 2
