@@ -63,6 +63,8 @@ https://docs.erfi.io/mcp
 
 It exposes the same six tools (`docs_search`, `docs_read`, `docs_grep`, `docs_find`, `docs_summary`, `docs_sources`) as the SSH path, running against the in-container docs tree - so it keeps the same search -> summary -> targeted-read token efficiency, **not** the full-page dumps typical of documentation MCP servers. Stateless (no session state, sits behind a CDN cleanly), read-only, and open (public documentation). Origin/Host allowlists guard against DNS-rebinding.
 
+Every `docs_read` / `docs_summary` result starts with a `[source] /docs/<source>/<path>.md` line and, when the mirror knows it, a `[url] https://...` line with the file's original public URL (the fetched page for web sources, the forge file view or the published site for git sources). `docs_search` rows carry the same URL as a 4th tab-separated column. Cite the `[url]`; the `[source]` path is the fallback.
+
 ### Not sure? Let the agent decide
 
 ```bash
