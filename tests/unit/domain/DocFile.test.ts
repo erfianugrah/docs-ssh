@@ -120,13 +120,32 @@ describe("DocFile", () => {
     expect(updated.preNormalised).toBe(false);
   });
 
-  it("equals ignores preNormalised flag (content+path semantics)", () => {
-    // The flag is a pipeline-routing hint, not part of file identity.
+  it("equals ignores preNormalised flag (content+path semantics)", () => {    // The flag is a pipeline-routing hint, not part of file identity.
     // Two files with identical content but different preNormalised
     // settings should equal — the diff system cares about content
     // changes, not how we got there.
     const a = new DocFile("guide.md", "# Hello", { preNormalised: true });
     const b = new DocFile("guide.md", "# Hello", { preNormalised: false });
     expect(a.equals(b)).toBe(true);
+  });
+
+  // ─── originUrl ────────────────────────────────────────────────
+
+  it("defaults originUrl to undefined", () => {
+    expect(new DocFile("x.md", "c").originUrl).toBeUndefined();
+  });
+
+  it("carries originUrl through withContent", () => {
+    const f = new DocFile("x.md", "old", { originUrl: "https://example.com/x" });
+    expect(f.withContent("new").originUrl).toBe("https://example.com/x");
+  });
+
+  it("carries originUrl through withPath (extension rewrite)", () => {
+    const f = new DocFile("guides/x.mdx", "c", {
+      originUrl: "https://erfi.dev/guides/x/",
+    });
+    const rewritten = f.withPath("guides/x.md");
+    expect(rewritten.path).toBe("guides/x.md");
+    expect(rewritten.originUrl).toBe("https://erfi.dev/guides/x/");
   });
 });

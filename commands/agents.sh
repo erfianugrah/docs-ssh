@@ -150,6 +150,7 @@ ${API_SOURCES}
 
 Tool output uses stable markers the agent should recognise:
 
+- \`[url] <public URL>\` - the original public URL for the file, when known. Cite this in your response; fall back to the \`[source]\` path when no \`[url]\` line is present. \`docs_search\` rows may carry it as a 4th tab-separated column.
 - \`[file] N lines, M bytes\` — prefix on full \`docs_read\` results. Use this to decide whether to re-read with \`offset\`/\`lines\` next time.
 - \`**matched text**\` — \`docs_grep\` wraps matched substrings in bold so match positions are visible without re-scanning.
 - \`(showing X of Y)\` — truncation notice in \`docs_search\` / \`docs_grep\`. Narrow the query or raise \`maxResults\`.

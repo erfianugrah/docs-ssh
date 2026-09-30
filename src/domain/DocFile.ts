@@ -13,12 +13,20 @@
 export interface DocFileOptions {
   /** Content is already in the target format — skip format conversion. */
   preNormalised?: boolean;
+  /** Public URL this file was fetched from / can be read at. */
+  originUrl?: string;
 }
 
 export class DocFile {
   readonly path: string;
   readonly content: string;
   readonly preNormalised: boolean;
+  /**
+   * Public URL the content came from (upstream page or repo browse URL).
+   * Carried through every path/content rewrite so the published file can
+   * still be cited after normalisation changed its extension.
+   */
+  readonly originUrl: string | undefined;
 
   constructor(path: string, content: string, opts: DocFileOptions = {}) {
     if (!path || path.trim() === "") {
@@ -30,6 +38,7 @@ export class DocFile {
     this.path = path;
     this.content = content;
     this.preNormalised = opts.preNormalised ?? false;
+    this.originUrl = opts.originUrl;
   }
 
   get isEmpty(): boolean {
@@ -41,11 +50,17 @@ export class DocFile {
   }
 
   withContent(content: string): DocFile {
-    return new DocFile(this.path, content, { preNormalised: this.preNormalised });
+    return new DocFile(this.path, content, {
+      preNormalised: this.preNormalised,
+      originUrl: this.originUrl,
+    });
   }
 
   withPath(path: string): DocFile {
-    return new DocFile(path, this.content, { preNormalised: this.preNormalised });
+    return new DocFile(path, this.content, {
+      preNormalised: this.preNormalised,
+      originUrl: this.originUrl,
+    });
   }
 
   equals(other: DocFile): boolean {

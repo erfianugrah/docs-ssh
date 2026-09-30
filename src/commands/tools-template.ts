@@ -131,6 +131,32 @@ function capOutput(text: string, path?: string): string {
   return truncated + hint
 }
 
+// Public origin URL lookup for a docs file. Emits a leading \`[url] <url>\`
+// line when /docs/_origins.tsv has an entry for the path (keyed
+// \`<source>/<relpath>\`); prints nothing when the index or entry is missing.
+// Prepended to an existing command, so no extra SSH round trip.
+function originLookup(p: string): string {
+  const rel = p.replace(/^\\/docs\\//, "")
+  return (
+    \`o=$(awk -F'\\\\t' -v k='\${sq(rel)}' '$1==k{print $2; exit}' /docs/_origins.tsv 2>/dev/null); \` +
+    \`if [ -n "$o" ]; then printf '[url] %s\\\\n' "$o"; fi\`
+  )
+}
+
+// Split a leading \`[url] ...\` line off command output so the caller can
+// place it under the \`[source]\` header with stable blank-line spacing.
+function splitOrigin(out: string): { origin: string; rest: string } {
+  if (!out.startsWith("[url] ")) return { origin: "", rest: out }
+  const nl = out.indexOf("\\n")
+  if (nl === -1) return { origin: out, rest: "" }
+  return { origin: out.slice(0, nl), rest: out.slice(nl + 1) }
+}
+
+// awk join appending the public origin URL as an extra tab-separated
+// column to each _index.tsv row. Guarded by \`[ -s ... ]\` at the call site.
+const ORIGIN_JOIN =
+  \`| awk -F'\\\\t' -v OFS='\\\\t' 'NR==FNR{o[$1]=$2;next} {if ($1 in o) print $0, o[$1]; else print}' /docs/_origins.tsv -\`
+
 async function ssh(command: string): Promise<string> {
   const proc = Bun.spawn(
     ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "LogLevel=ERROR", "-p", SSH_PORT, SSH_HOST, command],
@@ -229,7 +255,7 @@ function formatRgMatches(matches: RgMatch[]): string {
 export const SEARCH_DESCRIPTION = `\
 export const search = {
   description:
-    "Search documentation by title and summary. Searches a pre-built index instead of scanning all files. Use this FIRST to find relevant docs, then docs_read or docs_grep to get content.",
+    "Search documentation by title and summary. Searches a pre-built index instead of scanning all files. Use this FIRST to find relevant docs, then docs_read or docs_grep to get content. Result rows may carry a 4th tab-separated column: the public origin URL to cite.",
 `;
 
 export const SEARCH_BODY_STATIC = `\
@@ -250,7 +276,10 @@ export const SEARCH_BODY_STATIC = `\
     // actual auto-OR semantics. An AND-chain here used to require every
     // word verbatim on the same title+summary line, which zero-results on
     // any natural-language multi-word query.
-    const raw = await ssh(\`\${rgOrChain(tokens, "/docs/_index.tsv")} \${filter}\`)
+    const base = \`\${rgOrChain(tokens, "/docs/_index.tsv")} \${filter}\`
+    const raw = await ssh(
+      \`if [ -s /docs/_origins.tsv ]; then \${base} \${ORIGIN_JOIN}; else \${base}; fi\`,
+    )
     const lines = raw.split("\\n").filter(Boolean)
 
     // Fallback: if index search found nothing, try filename + content search
@@ -317,8 +346,9 @@ export const read = {
       cmd = \`printf '[file] %s lines, %s bytes\\\\n\\\\n' "$(wc -l < '\${sq(p)}')" "$(wc -c < '\${sq(p)}')"; bat --decorations=always --paging=never --color=never --style=numbers '\${sq(p)}' 2>/dev/null || cat '\${sq(p)}'\`
     }
 
-    const result = await ssh(cmd)
-    return capOutput(result, argPath)
+    const result = await ssh(originLookup(p) + "; " + cmd)
+    const { origin, rest } = splitOrigin(result)
+    return capOutput(\`[source] \${argPath}\\n\${origin ? origin + "\\n" : ""}\\n\` + rest, argPath)
   },
 }
 
@@ -390,15 +420,17 @@ export const summary = {
     filePath: z.string().optional().describe("Alias for 'path'."),
   },
   async execute(args: { path?: string; filePath?: string }) {
-    const p = safePath(resolvePath(args))
+    const argPath = resolvePath(args)
+    const p = safePath(argPath)
     // Dispatch all three SSH calls concurrently — each is one
     // round-trip and they're independent. Saves two RTTs vs serial.
     const [headings, lineCount, byteCount] = await Promise.all([
-      ssh(\`rg -n '^#' '\${sq(p)}'\`),
+      ssh(originLookup(p) + "; " + \`rg -n '^#' '\${sq(p)}'\`),
       ssh(\`wc -l < '\${sq(p)}'\`),
       ssh(\`wc -c < '\${sq(p)}'\`),
     ])
-    return \`\${lineCount.trim()} lines, \${byteCount.trim()} bytes\\n\\n\${headings}\`
+    const { origin, rest } = splitOrigin(headings)
+    return \`[source] \${argPath}\\n\${origin ? origin + "\\n" : ""}\\n\${lineCount.trim()} lines, \${byteCount.trim()} bytes\\n\\n\${rest}\`
   },
 }
 

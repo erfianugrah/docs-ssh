@@ -11,6 +11,7 @@ import { retryWithBackoff } from "../shared/retry.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
 import { resolvePartials } from "../normaliser/resolvePartials.js";
+import { collectOrigins } from "./origins.js";
 import type { DocSource, DocFormat } from "../domain/DocSource.js";
 
 const FORMAT_VALUES: readonly DocFormat[] = ["html", "mdx", "markdown", "godoc", "txt"];
@@ -128,6 +129,12 @@ interface StampData {
     fallbackLyingCt: number;
     totalTokens: number;
   };
+  /**
+   * Path (relative to the source dir) -> public origin URL, captured on
+   * the last successful fetch. Read back from the stamp to rebuild
+   * `<outDir>/_origins.tsv` without re-fetching cached sources.
+   */
+  origins?: Record<string, string>;
 }
 
 /**
@@ -451,6 +458,9 @@ export class UpdateDocSets {
       if (normalised.negotiation) {
         stampData.negotiation = { ...normalised.negotiation };
       }
+      // Persisted per source so a later cached run can still rebuild the
+      // merged _origins.tsv without re-fetching.
+      stampData.origins = collectOrigins(normalised.files.values());
       await this.writeStamp(source.name, stampData);
 
       const summary = `+${diff.added} ~${diff.modified} -${diff.removed} =${diff.unchanged}`;

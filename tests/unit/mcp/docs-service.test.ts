@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   DocsService,
   createLimiter,
+  splitOrigin,
   type Runner,
 } from "../../../src/mcp/docs-service.js";
 
@@ -75,6 +76,92 @@ describe("DocsService command construction", () => {
     const out = await svc.grep({ query: "POLICY", path: "/docs/postgres/" });
     expect(out).toContain("1 matches");
     expect(out).toContain("CREATE **POLICY** controls");
+  });
+});
+
+describe("splitOrigin", () => {
+  it("returns no origin when the output has no [url] line", () => {
+    expect(splitOrigin("body\nmore")).toEqual({ origin: "", rest: "body\nmore" });
+  });
+
+  it("splits a leading [url] line off the body using a real newline", () => {
+    expect(splitOrigin("[url] https://e/x\nbody")).toEqual({
+      origin: "[url] https://e/x",
+      rest: "body",
+    });
+  });
+
+  it("handles an origin-only output", () => {
+    expect(splitOrigin("[url] https://e/x")).toEqual({
+      origin: "[url] https://e/x",
+      rest: "",
+    });
+  });
+
+  it("does not mistake a body line for an origin", () => {
+    const out = "[file] 10 lines, 200 bytes\n\n# H1";
+    expect(splitOrigin(out).origin).toBe("");
+  });
+});
+
+describe("DocsService origin URL headers", () => {
+  it("read emits a [url] line when the origins lookup returns one", async () => {
+    const runner: Runner = async (command) => {
+      if (command.includes("_origins.tsv")) {
+        return {
+          stdout: "[url] https://erfi.dev/guides/x/\nbody",
+          stderr: "",
+          exitCode: 0,
+        };
+      }
+      return { stdout: "body", stderr: "", exitCode: 0 };
+    };
+    const svc = new DocsService("/docs", runner);
+    const out = await svc.read({ path: "/docs/erfi-technical-blog/guides/x.md" });
+    expect(out).toBe(
+      "[source] /docs/erfi-technical-blog/guides/x.md\n[url] https://erfi.dev/guides/x/\n\nbody",
+    );
+  });
+
+  it("read keys the lookup on the path relative to the docs root", async () => {
+    const { runner, cmds } = stubRunner("body");
+    const svc = new DocsService("/docs", runner);
+    await svc.read({ path: "/docs/erfi-technical-blog/guides/x.md" });
+    expect(cmds[0]).toContain("-v k='erfi-technical-blog/guides/x.md'");
+    expect(cmds[0]).toContain("_origins.tsv");
+  });
+
+  it("read omits [url] when the entry is missing (no leading line printed)", async () => {
+    const { runner } = stubRunner("body");
+    const svc = new DocsService("/docs", runner);
+    const out = await svc.read({ path: "/docs/postgres/rls.md" });
+    expect(out).toBe("[source] /docs/postgres/rls.md\n\nbody");
+    expect(out).not.toContain("[url]");
+  });
+
+  it("summary places [url] under the source header", async () => {
+    const runner: Runner = async (command) => {
+      if (command.includes("_origins.tsv")) {
+        return { stdout: "[url] https://example.com/x\n# H1", stderr: "", exitCode: 0 };
+      }
+      if (command.includes("wc -l")) return { stdout: "10", stderr: "", exitCode: 0 };
+      if (command.includes("wc -c")) return { stdout: "200", stderr: "", exitCode: 0 };
+      return { stdout: "# H1", stderr: "", exitCode: 0 };
+    };
+    const svc = new DocsService("/docs", runner);
+    const out = await svc.summary({ path: "/docs/foo/bar.md" });
+    expect(out).toBe(
+      "[source] /docs/foo/bar.md\n[url] https://example.com/x\n\n10 lines, 200 bytes\n\n# H1",
+    );
+  });
+
+  it("search joins the origin URL column when the index exists", async () => {
+    const { runner, cmds } = stubRunner("supabase/x.md\tTitle\tsummary\thttps://e/x");
+    const svc = new DocsService("/docs", runner);
+    const out = await svc.search({ query: "auth" });
+    expect(cmds[0]).toContain("[ -s '/docs/_origins.tsv' ]");
+    expect(cmds[0]).toContain("_origins.tsv' -");
+    expect(out).toContain("https://e/x");
   });
 });
 

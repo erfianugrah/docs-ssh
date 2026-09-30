@@ -37,6 +37,15 @@ describe("tools-pi-template", () => {
     }
   });
 
+  it("origin helpers search for a real newline in the rendered body", () => {
+    // PI_STATIC_BODY is the text of the generated extension: an escaped
+    // "\\n" here would compile to backslash+n and never match the
+    // command output's actual newline, silently dropping the file body.
+    expect(PI_STATIC_BODY).toContain('out.indexOf("\\n")');
+    expect(PI_STATIC_BODY).toContain("_origins.tsv");
+    expect(PI_STATIC_BODY).toContain("[url] ");
+  });
+
   it("static body uses defineTool", () => {
     expect(PI_STATIC_BODY).toContain('defineTool(');
   });

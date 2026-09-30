@@ -21,6 +21,12 @@ export interface WalkDirOptions {
   skipFile?: (basename: string) => boolean;
   /** Transform the relative path before storing. Receives the path relative to `root`. */
   pathTransform?: (relativePath: string) => string;
+  /**
+   * Derive a public origin URL for a file. Receives the path relative to
+   * `root` BEFORE `pathTransform` runs (so a git source can map the
+   * on-disk repo path, not the normalised docs path).
+   */
+  originUrl?: (relativePath: string) => string | undefined;
 }
 
 /**
@@ -59,12 +65,16 @@ export async function walkDir(
 
       const content = await fs.readFile(fullPath, "utf-8");
       let relativePath = path.relative(root, fullPath);
+      const rawPath = relativePath;
 
       if (options?.pathTransform) {
         relativePath = options.pathTransform(relativePath);
       }
 
-      files.set(relativePath, new DocFile(relativePath, content));
+      files.set(
+        relativePath,
+        new DocFile(relativePath, content, { originUrl: options?.originUrl?.(rawPath) }),
+      );
     }
   }
 }

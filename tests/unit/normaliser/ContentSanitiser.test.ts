@@ -11,6 +11,14 @@ describe("ContentSanitiser", () => {
     expect(sanitiser.supports(new DocFile("any.txt", ""))).toBe(true);
   });
 
+  it("carries originUrl through content+path sanitation", async () => {
+    const file = new DocFile("weird\\path.md", "clean", {
+      originUrl: "https://example.com/x",
+    });
+    const result = await sanitiser.normalise(file);
+    expect(result.originUrl).toBe("https://example.com/x");
+  });
+
   it("strips ANSI escape sequences", async () => {
     const file = new DocFile("test.md", "normal \x1b[31mred text\x1b[0m here");
     const result = await sanitiser.normalise(file);

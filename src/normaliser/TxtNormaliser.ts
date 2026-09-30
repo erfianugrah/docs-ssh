@@ -87,7 +87,9 @@ export class TxtNormaliser implements DocNormaliser {
     // code sources) - the served file is always .md.
     const mdPath = file.path.replace(/\.[a-z0-9]+$/i, ".md");
     parts.push(`${fence}text\n${body}\n${fence}`);
-    return new DocFile(mdPath, parts.join("\n\n") + "\n");
+    return new DocFile(mdPath, parts.join("\n\n") + "\n", {
+      originUrl: file.originUrl,
+    });
   }
 }
 

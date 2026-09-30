@@ -13,6 +13,7 @@ import { ContentSanitiser } from "./normaliser/ContentSanitiser.js";
 import { UpdateDocSets } from "./application/UpdateDocSets.js";
 import { SOURCES } from "./application/sources.js";
 import { SOURCE_TAGS, buildSourceGroupsPayload } from "./application/source-tags.js";
+import { writeOriginsTsv } from "./application/origins.js";
 
 const OUT_DIR = process.env.DOCS_OUT_DIR ?? path.join(process.cwd(), "docs");
 const WORK_DIR = process.env.DOCS_WORK_DIR ?? path.join(os.tmpdir(), "docs-ssh-work");
@@ -83,6 +84,15 @@ const groupsPayload = buildSourceGroupsPayload(sourceNames);
 const groupsPath = path.join(OUT_DIR, "_source_groups.json");
 await fs.writeFile(groupsPath, JSON.stringify(groupsPayload, null, 2) + "\n");
 console.log(`Generated ${groupsPath} (${Object.keys(groupsPayload).length} groups)`);
+
+// Merge every source's persisted path -> origin URL map into a root-level
+// index that the read/summary tools join against for their [url] header.
+// Built from <source>/.stamp.json, so cached (skipped) sources are included.
+const originCount = await writeOriginsTsv(
+  OUT_DIR,
+  sources.map((s) => s.name),
+);
+console.log(`Generated ${path.join(OUT_DIR, "_origins.tsv")} (${originCount} origin URLs)`);
 
 // Validate: warn about untagged sources (parity with the standalone CLI).
 const untagged = SOURCES.filter((s) => !SOURCE_TAGS[s.name]).map((s) => s.name);

@@ -13,6 +13,15 @@ describe("MdxNormaliser", () => {
     expect(normaliser.supports(new DocFile("foo.md", ""))).toBe(false);
   });
 
+  it("carries originUrl through the .mdx -> .md rewrite", async () => {
+    const file = new DocFile("guides/x.mdx", "# Title\n\nBody.", {
+      originUrl: "https://erfi.dev/guides/x/",
+    });
+    const result = await normaliser.normalise(file);
+    expect(result.path).toBe("guides/x.md");
+    expect(result.originUrl).toBe("https://erfi.dev/guides/x/");
+  });
+
   it("strips import statements", async () => {
     const file = new DocFile(
       "x.mdx",

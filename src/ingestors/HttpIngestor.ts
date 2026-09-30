@@ -124,6 +124,8 @@ interface FetchPageResult {
   body: string;
   preNormalised: boolean;
   outcome: FetchOutcome;
+  /** Final URL after redirects - the page a reader can actually open. */
+  url: string;
   /** From Cloudflare's `x-markdown-tokens` header, if present. */
   tokens?: number;
 }
@@ -210,6 +212,7 @@ async function fetchPage(
             body: fallbackBody,
             preNormalised: false,
             outcome: "fallbackThin",
+            url: fallback.url || url,
           };
         }
       }
@@ -228,6 +231,7 @@ async function fetchPage(
     body,
     preNormalised: isMarkdown,
     outcome,
+    url: res.url || url,
     tokens: Number.isFinite(tokens) ? tokens : undefined,
   };
 }
@@ -334,7 +338,7 @@ export class HttpIngestor implements DocIngestor {
       const batch = urls.slice(i, i + concurrency);
       const results = await Promise.allSettled(
         batch.map(async (url) => {
-          const { body, preNormalised, outcome, tokens } = await fetchPage(
+          const { body, preNormalised, outcome, url: finalUrl, tokens } = await fetchPage(
             url,
             signal,
             source.requestTimeoutMs,
@@ -353,7 +357,7 @@ export class HttpIngestor implements DocIngestor {
             filePath = filePath.replace(/\.html$/, ".md");
           }
           return {
-            file: new DocFile(filePath, body, { preNormalised }),
+            file: new DocFile(filePath, body, { preNormalised, originUrl: finalUrl }),
             outcome,
             tokens,
           };
@@ -411,7 +415,13 @@ export class HttpIngestor implements DocIngestor {
     await fs.rm(tarballPath, { force: true });
 
     const files = new Map<string, DocFile>();
-    await walkDir(extractDir, extractDir, files, { extensions: MARKDOWN_EXTENSIONS });
+    // Bulk sources ship every page in one artifact, so the best URL we
+    // know per file is the source's own site. Sub-path joining is not
+    // attempted: the archive layout does not match the site's URL scheme.
+    await walkDir(extractDir, extractDir, files, {
+      extensions: MARKDOWN_EXTENSIONS,
+      originUrl: () => bulkOrigin(source),
+    });
 
     console.log(`  [${source.name}] extracted ${files.size} files from tarball`);
     return new DocSet(source, files, new Date());
@@ -461,7 +471,7 @@ export class HttpIngestor implements DocIngestor {
     for (const [filePath, pageContent] of pages) {
       if (source.urlPattern && !new RegExp(source.urlPattern).test(filePath)) continue;
       if (source.urlExclude && new RegExp(source.urlExclude).test(filePath)) continue;
-      files.set(filePath, new DocFile(filePath, pageContent));
+      files.set(filePath, new DocFile(filePath, pageContent, { originUrl: bulkOrigin(source) }));
     }
 
     console.log(`  [${source.name}] split into ${files.size} pages`);
@@ -484,7 +494,7 @@ export class HttpIngestor implements DocIngestor {
       // Apply include/exclude filters
       if (source.urlPattern && !new RegExp(source.urlPattern).test(filePath)) continue;
       if (source.urlExclude && new RegExp(source.urlExclude).test(filePath)) continue;
-      files.set(filePath, new DocFile(filePath, pageContent));
+      files.set(filePath, new DocFile(filePath, pageContent, { originUrl: bulkOrigin(source) }));
     }
 
     console.log(`  [${source.name}] split into ${files.size} pages`);
@@ -501,7 +511,7 @@ export class HttpIngestor implements DocIngestor {
     const specFiles = convertOpenApiToMarkdown(raw, source.name);
     const files = new Map<string, DocFile>();
     for (const sf of specFiles) {
-      files.set(sf.path, new DocFile(sf.path, sf.content));
+      files.set(sf.path, new DocFile(sf.path, sf.content, { originUrl: bulkOrigin(source) }));
     }
 
     console.log(`  [${source.name}] converted to ${files.size} markdown files`);
@@ -543,7 +553,13 @@ export class HttpIngestor implements DocIngestor {
       );
       for (const r of results) {
         if (r.status === "fulfilled") {
-          files.set(r.value.path, new DocFile(r.value.path, r.value.content));
+          const path = r.value.path;
+          // One file per incident; the public page is /incidents/<code>.
+          const code = path.replace(/^incidents\//, "").replace(/\.md$/, "");
+          files.set(
+            path,
+            new DocFile(path, r.value.content, { originUrl: `${base}/incidents/${code}` }),
+          );
         } else {
           errors.push(r.reason?.message ?? String(r.reason));
         }
@@ -561,6 +577,18 @@ export class HttpIngestor implements DocIngestor {
   }
 }
 
+
+/**
+ * Best-available origin URL for a bulk source (tarball / llms-full /
+ * texinfo / openapi): all pages arrive in one artifact, so every file
+ * maps to the source's own site URL. `source.url` is the docs site base
+ * for these sources (discoveryUrl is the archive/spec endpoint, less
+ * useful to a reader).
+ */
+function bulkOrigin(source: DocSource): string | undefined {
+  const url = (source.url || source.discoveryUrl || "").trim();
+  return url === "" ? undefined : url;
+}
 
 function urlToPath(url: string, baseUrl: string): string {
   let relative = url;

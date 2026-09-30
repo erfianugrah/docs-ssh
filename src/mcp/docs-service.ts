@@ -147,6 +147,17 @@ export function rankByTokenHits(lines: string[], tokens: string[]): string[] {
     .map((s) => s.line);
 }
 
+/**
+ * Split a leading `[url] ...` line off command output, so the caller can
+ * place it under the `[source]` header with stable blank-line spacing.
+ */
+export function splitOrigin(out: string): { origin: string; rest: string } {
+  if (!out.startsWith("[url] ")) return { origin: "", rest: out };
+  const nl = out.indexOf("\n");
+  if (nl === -1) return { origin: out, rest: "" };
+  return { origin: out.slice(0, nl), rest: out.slice(nl + 1) };
+}
+
 interface RgMatch {
   path: string;
   line: number;
@@ -302,6 +313,26 @@ export class DocsService {
     return this.cached("sources", p, () => this.sourcesImpl(p));
   }
 
+  /**
+   * Shell fragment emitting a leading `[url] <url>` line when
+   * `_origins.tsv` has an entry for this file (keyed `<source>/<relpath>`,
+   * i.e. the file path relative to the docs root). Prints nothing when
+   * the index or the entry is missing. Prepended to an existing command,
+   * so no extra subprocess.
+   */
+  private originLookup(p: string): string {
+    const rel = p.slice(this.root.length + 1);
+    return (
+      `o=$(awk -F'\\t' -v k='${sq(rel)}' '$1==k{print $2; exit}' '${sq(this.root)}/_origins.tsv' 2>/dev/null); ` +
+      `if [ -n "$o" ]; then printf '[url] %s\\n' "$o"; fi`
+    );
+  }
+
+  /** awk join appending the origin URL to each _index.tsv row. */
+  private originJoin(): string {
+    return `| awk -F'\\t' -v OFS='\\t' 'NR==FNR{o[$1]=$2;next} {if ($1 in o) print $0, o[$1]; else print}' '${sq(this.root)}/_origins.tsv' -`;
+  }
+
   private capOutput(text: string, path?: string): string {
     if (text.length <= MAX_RESULT_CHARS) return text;
     let end = MAX_RESULT_CHARS;
@@ -365,8 +396,9 @@ export class DocsService {
     const limit = params.maxResults ?? 15;
     const tokens = tokenizeQuery(params.query);
     const filter = params.source ? `| rg '^${sq(params.source)}/'` : "";
+    const base = `${rgOrChain(tokens, `${this.root}/_index.tsv`)} ${filter}`;
     const raw = await this.exec(
-      `${rgOrChain(tokens, `${this.root}/_index.tsv`)} ${filter}`,
+      `if [ -s '${this.root}/_origins.tsv' ]; then ${base} ${this.originJoin()}; else ${base}; fi`,
     );
     const lines = raw.split("\n").filter(Boolean);
     if (lines.length === 0) {
@@ -416,8 +448,12 @@ export class DocsService {
       cmd = `printf '[file] %s lines, %s bytes\\n\\n' "$(wc -l < '${sq(p)}')" "$(wc -c < '${sq(p)}')"; bat --decorations=always --paging=never --color=never --style=numbers '${sq(p)}' 2>/dev/null || cat '${sq(p)}'`;
     }
 
-    const result = await this.exec(cmd);
-    return this.capOutput(`[source] ${argPath}\n\n` + result, argPath);
+    const result = await this.exec(`${this.originLookup(p)}; ${cmd}`);
+    const { origin, rest } = splitOrigin(result);
+    return this.capOutput(
+      `[source] ${argPath}\n${origin ? origin + "\n" : ""}\n` + rest,
+      argPath,
+    );
   }
 
   private async findImpl(params: FindParams): Promise<string> {
@@ -469,11 +505,12 @@ export class DocsService {
     const argPath = this.resolvePath(params);
     const p = this.safePath(argPath);
     const [headings, lineCount, byteCount] = await Promise.all([
-      this.exec(`rg -n '^#' '${sq(p)}'`),
+      this.exec(`${this.originLookup(p)}; rg -n '^#' '${sq(p)}'`),
       this.exec(`wc -l < '${sq(p)}'`),
       this.exec(`wc -c < '${sq(p)}'`),
     ]);
-    return `[source] ${argPath}\n\n${lineCount.trim()} lines, ${byteCount.trim()} bytes\n\n${headings}`;
+    const { origin, rest } = splitOrigin(headings);
+    return `[source] ${argPath}\n${origin ? origin + "\n" : ""}\n${lineCount.trim()} lines, ${byteCount.trim()} bytes\n\n${rest}`;
   }
 
   private async sourcesImpl(params: SourcesParams): Promise<string> {

@@ -13,6 +13,7 @@ import { retryWithBackoff, type RetryOptions } from "../shared/retry.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { convertAsciiDocTree } from "./asciidoc-converter.js";
 import { convertTrashGuides } from "./trash-guides-converter.js";
+import { repoBrowseUrl } from "../shared/origin-url.js";
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx", "markdown"]);
 const GO_EXTENSIONS = new Set(["go"]);
@@ -170,6 +171,20 @@ export class GitIngestor implements DocIngestor {
       // non-fatal
     }
 
+    // Current branch name, for forge browse URLs that need a real ref
+    // (Gitea/Forgejo/Codeberg) rather than "HEAD". Non-fatal: falls back
+    // to HEAD in the URL builder.
+    let branch: string | undefined;
+    try {
+      const head = (await execFileAsync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+        cwd: cloneDir,
+        timeout: GIT_FAST_TIMEOUT,
+      })).stdout.trim();
+      if (head && head !== "HEAD") branch = head;
+    } catch {
+      // non-fatal
+    }
+
     // ─── openapi-dir: multi-spec conversion from a git repo ──────────
     if (source.discovery === "openapi-dir" && source.format === "openapi") {
       return this.ingestOpenApiDir(source, cloneDir, version);
@@ -204,6 +219,12 @@ export class GitIngestor implements DocIngestor {
 
     const files = new Map<string, DocFile>();
 
+    // Public origin URL per file, from the original repo path (before the
+    // rootPath strip / extension rewrite below). The source's own
+    // `publicUrl` override wins; otherwise the forge browse URL.
+    const originUrl = (repoRelPath: string): string | undefined =>
+      source.publicUrl?.(repoRelPath) ?? repoBrowseUrl(source.url, repoRelPath, branch);
+
     // godoc sources walk .go files (excluding tests and generated
     // code); txt sources walk code/text files for fenced serving;
     // everything else walks markdown.
@@ -223,6 +244,7 @@ export class GitIngestor implements DocIngestor {
         extensions: walkExtensions,
         skipFile: walkSkipFile,
         pathTransform,
+        originUrl,
       });
     }
 

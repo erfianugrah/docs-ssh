@@ -71,7 +71,15 @@ export class RsyncIngestor implements DocIngestor {
     );
 
     const collected = new Map<string, DocFile>();
-    await walkDir(targetDir, targetDir, collected, { extensions: TEXT_EXTENSIONS });
+    await walkDir(targetDir, targetDir, collected, {
+      extensions: TEXT_EXTENSIONS,
+      // Every RFC has a stable canonical page - derive it from the flat
+      // `rfc<NNNN>.txt` filename the module ships.
+      originUrl: (p) => {
+        const m = /^rfc(\d+)\.txt$/i.exec(p);
+        return m ? `https://www.rfc-editor.org/rfc/rfc${m[1]}.html` : undefined;
+      },
+    });
 
     // Same path filtering convention as the texinfo ingestor.
     const files = new Map<string, DocFile>();

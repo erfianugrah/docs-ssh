@@ -1,4 +1,5 @@
 import { DocSource } from "../domain/DocSource.js";
+import { lexicanumPublicUrl } from "./public-urls.js";
 
 // Browser User-Agent for the few government legislation sites that
 // block non-browser UAs at the WAF/TLS layer (verified: planalto.gov.br
@@ -525,6 +526,9 @@ export const SOURCES: readonly DocSource[] = [
     format: "mdx",
     paths: ["src/content/docs"],
     rootPath: "src/content/docs",
+    // Published by Astro Starlight at https://erfi.dev, whose URL scheme
+    // does not mirror src/content/docs (see public-urls.ts).
+    publicUrl: lexicanumPublicUrl,
   }),
 
   // Personal blog — Astro photography & writing site with MDX content

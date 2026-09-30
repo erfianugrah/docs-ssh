@@ -47,6 +47,12 @@ describe("tools-template", () => {
 
   // ─── Helpers present ───────────────────────────────────────────
 
+  it("origin helpers search for a real newline in the rendered body", () => {
+    expect(rendered).toContain('out.indexOf("\\n")');
+    expect(rendered).toContain("_origins.tsv");
+    expect(rendered).toContain("[url] ");
+  });
+
   it("contains sq() helper", () => {
     expect(rendered).toContain("function sq(s: string)");
   });

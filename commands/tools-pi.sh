@@ -168,6 +168,34 @@ function errorResult(message: string) {
   }
 }
 
+// Public origin URL lookup for a docs file. Emits a leading `[url] <url>`
+// line when /docs/_origins.tsv has an entry for the path (keyed
+// `<source>/<relpath>`, i.e. the real path minus the /docs/ prefix);
+// prints nothing when the index or the entry is missing. Prepended to an
+// existing command so no extra SSH round trip is needed.
+function originLookup(p: string): string {
+  const rel = p.replace(/^\/docs\//, "")
+  return (
+    `o=$(awk -F'\\t' -v k='${sq(rel)}' '$1==k{print $2; exit}' /docs/_origins.tsv 2>/dev/null); ` +
+    `if [ -n "$o" ]; then printf '[url] %s\\n' "$o"; fi`
+  )
+}
+
+// Split a leading `[url] ...` line off command output so the caller can
+// place it under the `[source]` header with stable blank-line spacing.
+function splitOrigin(out: string): { origin: string; rest: string } {
+  if (!out.startsWith("[url] ")) return { origin: "", rest: out }
+  const nl = out.indexOf("\n")
+  if (nl === -1) return { origin: out, rest: "" }
+  return { origin: out.slice(0, nl), rest: out.slice(nl + 1) }
+}
+
+// awk join that appends the public origin URL as an extra tab-separated
+// column to each _index.tsv row (keyed on the path column). Callers guard
+// on `[ -s /docs/_origins.tsv ]` so a missing index leaves rows untouched.
+const ORIGIN_JOIN =
+  `| awk -F'\\t' -v OFS='\\t' 'NR==FNR{o[$1]=$2;next} {if ($1 in o) print $0, o[$1]; else print}' /docs/_origins.tsv -`
+
 function capOutput(text: string, path?: string): string {
   if (text.length <= MAX_RESULT_CHARS) return text
   let end = MAX_RESULT_CHARS
@@ -294,7 +322,8 @@ const searchTool = defineTool({
     "Pass source= when known (e.g. 'supabase', 'cloudflare'). Index is ~15x smaller than raw docs.",
     "Multi-word queries auto-OR across tokens, ranked by distinct-token-hit count. Quote a phrase for a literal match.",
     "After 2 calls with no drill-in, stop and docs_read the top hit (or docs_grep path=/docs/<source>/ to escalate after a zero-results search).",
-    "Always cite the source path(s) in your response (e.g. Source: /docs/supabase/guides/auth.md).",
+    "Always cite the [url] (public URL) when present, else the [source] path, in your response.",
+    "Result rows may carry a 4th tab-separated column: the public origin URL.",
   ],
   description:
     "Search docs.erfi.io title+summary index. Searches a pre-built index instead of scanning all files. Use this FIRST to find relevant docs.",
@@ -311,7 +340,10 @@ const searchTool = defineTool({
     const limit = params.maxResults ?? 15
     const tokens = tokenizeQuery(params.query)
     const filter = params.source ? `| rg '^${sq(params.source)}/'` : ""
-    const raw = await ssh(`${rgOrChain(tokens, "/docs/_index.tsv")} ${filter}`)
+    const base = `${rgOrChain(tokens, "/docs/_index.tsv")} ${filter}`
+    const raw = await ssh(
+      `if [ -s /docs/_origins.tsv ]; then ${base} ${ORIGIN_JOIN}; else ${base}; fi`,
+    )
     const lines = raw.split("\n").filter(Boolean)
     if (lines.length === 0) {
       let dir: string
@@ -357,7 +389,7 @@ const readTool = defineTool({
     "Use docs_summary first on files >300 lines to find the right offset.",
     "offset+lines reads a targeted range (~140 tokens for 35 lines vs ~2K for full file).",
     "Pass filePath as alias for path (compatibility with built-in Read tool).",
-    "Always cite the [source] path from the output header in your response.",
+    "Cite the [url] (public URL) when present, else the [source] path from the header.",
   ],
   description:
     "Read a /docs/<source>/... file. Use offset+lines for large files.",
@@ -389,8 +421,12 @@ const readTool = defineTool({
       cmd = `printf '[file] %s lines, %s bytes\\n\\n' "$(wc -l < '${sq(p)}')" "$(wc -c < '${sq(p)}')"; bat --decorations=always --paging=never --color=never --style=numbers '${sq(p)}' 2>/dev/null || cat '${sq(p)}'`
     }
 
-    const result = await ssh(cmd)
-    const text = capOutput(`[source] ${argPath}\n\n` + result, argPath)
+    const result = await ssh(originLookup(p) + "; " + cmd)
+    const { origin, rest } = splitOrigin(result)
+    const text = capOutput(
+      `[source] ${argPath}\n${origin ? origin + "\n" : ""}\n` + rest,
+      argPath,
+    )
     return {
       content: [{ type: "text", text }],
       details: { path: argPath, offset: params.offset, lines: params.lines },
@@ -495,7 +531,7 @@ const summaryTool = defineTool({
   promptGuidelines: [
     "Run before docs_read on files >300 lines to find the right line range.",
     "Returns heading list + file size so you know whether to narrow with offset/lines.",
-    "Always include the source path in your response.",
+    "Cite the [url] (public URL) when present, else the [source] path from the header.",
   ],
   description: "Outline (headings only) of a docs file.",
 
@@ -509,12 +545,13 @@ const summaryTool = defineTool({
     if ("error" in v) return errorResult(v.error)
     const { argPath, p } = v
     const [headings, lineCount, byteCount] = await Promise.all([
-      ssh(`rg -n '^#' '${sq(p)}'`),
+      ssh(originLookup(p) + "; " + `rg -n '^#' '${sq(p)}'`),
       ssh(`wc -l < '${sq(p)}'`),
       ssh(`wc -c < '${sq(p)}'`),
     ])
+    const { origin, rest } = splitOrigin(headings)
     return {
-      content: [{ type: "text", text: `[source] ${argPath}\n\n${lineCount.trim()} lines, ${byteCount.trim()} bytes\n\n${headings}` }],
+      content: [{ type: "text", text: `[source] ${argPath}\n${origin ? origin + "\n" : ""}\n${lineCount.trim()} lines, ${byteCount.trim()} bytes\n\n${rest}` }],
       details: { path: argPath, lines: parseInt(lineCount) || 0, bytes: parseInt(byteCount) || 0 },
     }
   },

@@ -114,7 +114,8 @@ export function buildServer(service: DocsService = docs): McpServer {
     {
       title: "Docs Search",
       description:
-        "Search the docs.erfi.io title+summary index. Use this FIRST to find relevant docs.",
+        "Search the docs.erfi.io title+summary index. Use this FIRST to find relevant docs. " +
+        "Result rows may carry a 4th tab-separated column: the public origin URL to cite.",
       inputSchema: {
         query: z.string().describe("Search text"),
         source: z
@@ -132,7 +133,8 @@ export function buildServer(service: DocsService = docs): McpServer {
     {
       title: "Docs Read",
       description:
-        "Read a /docs/<source>/... file. Use offset+lines for large files.",
+        "Read a /docs/<source>/... file. Use offset+lines for large files. " +
+        "Cite the [url] (public URL) from the header when present, else the [source] path.",
       inputSchema: {
         path: z
           .string()
@@ -182,7 +184,9 @@ export function buildServer(service: DocsService = docs): McpServer {
     "docs_summary",
     {
       title: "Docs Summary",
-      description: "Outline (headings only) of a docs file.",
+      description:
+        "Outline (headings only) of a docs file. " +
+        "Cite the [url] (public URL) from the header when present, else the [source] path.",
       inputSchema: {
         path: z
           .string()

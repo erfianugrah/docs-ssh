@@ -124,6 +124,14 @@ export interface DocSourceConfig {
    */
   readonly resolveTrashGuides?: boolean;
   /**
+   * Git sources only. Map an ORIGINAL repo-relative path (as checked out,
+   * before `.mdx` -> `.md` rewriting or rootPath stripping) to the file's
+   * real public URL. Returning `undefined` falls back to the generic
+   * forge browse URL derived from `url` (see shared/origin-url.ts). Use
+   * when the published site does not mirror the repo layout.
+   */
+  readonly publicUrl?: (repoRelPath: string) => string | undefined;
+  /**
    * BFS depth for `toc` discovery (http sources only). Default 1 = scrape
    * links off the single toc page. Raise to 2 when the toc page only links
    * section index pages that in turn link the actual doc pages (verified:
@@ -162,6 +170,7 @@ export class DocSource {
   readonly userAgent: string | undefined;
   readonly tocDepth: number | undefined;
   readonly resolveTrashGuides: boolean;
+  readonly publicUrl: ((repoRelPath: string) => string | undefined) | undefined;
 
   constructor(config: DocSourceConfig) {
     if (!config.name || config.name.trim() === "") {
@@ -193,6 +202,7 @@ export class DocSource {
     this.userAgent = config.userAgent;
     this.tocDepth = config.tocDepth;
     this.resolveTrashGuides = config.resolveTrashGuides ?? false;
+    this.publicUrl = config.publicUrl;
   }
 
   equals(other: DocSource): boolean {

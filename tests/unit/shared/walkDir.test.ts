@@ -64,6 +64,29 @@ describe("walkDir", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("derives originUrl from the pre-transform path", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "walkdir-test-"));
+    await fs.mkdir(path.join(tmpDir, "src", "docs"), { recursive: true });
+    await fs.writeFile(path.join(tmpDir, "src", "docs", "guide.mdx"), "# Guide");
+
+    const seen: string[] = [];
+    const files = new Map();
+    await walkDir(tmpDir, tmpDir, files, {
+      pathTransform: (rel) => rel.replace(/^src\/docs\//, "").replace(/\.mdx$/, ".md"),
+      originUrl: (rawRel) => {
+        seen.push(rawRel);
+        return `https://erfi.dev/${rawRel}`;
+      },
+    });
+
+    expect(files.has("guide.md")).toBe(true);
+    // Callback sees the on-disk repo path, not the normalised one.
+    expect(seen).toEqual([path.join("src", "docs", "guide.mdx")]);
+    expect(files.get("guide.md")?.originUrl).toBe(`https://erfi.dev/${path.join("src", "docs", "guide.mdx")}`);
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   it("reads file content correctly", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "walkdir-test-"));
     await fs.writeFile(path.join(tmpDir, "test.md"), "# Hello World\n\nSome content.");
