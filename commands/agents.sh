@@ -291,12 +291,17 @@ $SSH "rg -i 'auth' /docs/_index.tsv | rg '^supabase/'"
 # Get all headings in a file (document outline)
 $SSH "rg -n '^#' ${EG_DOC}"
 
+# Public URL of a file, to cite instead of the /docs path (tab-separated
+# <source>/<path> -> URL; fixed-string match on the path relative to /docs)
+$SSH "rg -F -m1 '${EG_DOC#/docs/}	' /docs/_origins.tsv | cut -f2"
+
 # Pipe and combine commands
 $SSH "rg -il 'cron' /docs/ | head -5 | while read f; do echo \"--- \\\$f ---\"; head -3 \"\\\$f\"; done"
 \`\`\`
 
 ### Performance tips
 
+- **Cite public URLs**: \`/docs/_origins.tsv\` maps each file (\`<source>/<path>\`) to its original public URL. Cite that URL; fall back to the \`/docs/...\` path when a file has no entry.
 - **Search the index first**: \`rg -i 'query' /docs/_index.tsv\` searches titles+summaries (index is ~15x smaller than raw docs).
 - **Use \`rg\` over \`grep\`**: ripgrep is 10-50x faster for large directory searches.
 - **Limit output**: Pipe through \`head -N\` when searching broadly to avoid overwhelming context.
