@@ -205,8 +205,8 @@ fly deploy
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
 | `ci.yml` | push / PR | typecheck + unit tests with coverage + Docker E2E |
-| `update-docs.yml` | daily 02:00 UTC + manual | fetch docs, build & push Docker image |
-| `release.yml` | tags `v*` | build & push with semver + latest tags, deploy to Composer |
+| `build.yml` | tags `v*`, daily 02:00 UTC, manual | plan from the cached docs' age + fetcher-code diff; fetch only if needed (warm cache on the runner host); build & push `latest` + date (+ semver on tags); deploy to Composer; smoke. A daily run right after a release that fetched is skipped. |
+| `probe-sources.yml` | weekly | probe sources for better ingestion methods |
 
 ## Development
 

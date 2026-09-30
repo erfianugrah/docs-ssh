@@ -1,16 +1,49 @@
-name: Release
+name: Build
+
+# One workflow for every image build: tag releases, the daily refresh and
+# manual runs. They all produce "code at a ref + a docs tree"; the plan step
+# (src/ci/plan-cli.ts, unit-tested in tests/unit/ci/) decides whether the
+# docs need fetching, from the record the last fetch left in the persistent
+# cache (docs/_build.json: fetchedAt + commit):
+#   - tag       : always builds; fetches only if docs are >= 20h old or
+#                 fetcher code changed since the last fetch
+#   - schedule  : skips entirely when docs are < 20h old (a release fetched
+#                 them) and fetcher code is unchanged; otherwise fetches
+#   - dispatch  : like tag; input refresh=true forces a full refetch
+# Warm fetches reuse the cache (DOCS_MAX_AGE=36h per source, git clones
+# kept), so only changed sources are refetched; a fetcher-code change forces
+# DOCS_MAX_AGE=0 so every source is regenerated with the new code.
+#
+# Cache: docker volume `docs-ssh-cache` on the router daemon (the job talks to
+# the host daemon via the automounted socket), holding docs/ and work/. It is
+# moved in and out with `docker cp` through a throwaway container, so no
+# runner volume allowlist is needed. Deleting the volume just means the next
+# run does a cold fetch (~2h20m).
 
 on:
   push:
     tags:
       - "v*"
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      refresh:
+        description: "Refetch every source (ignore the cache freshness)"
+        type: boolean
+        default: false
 
 concurrency:
   group: docker-push
   cancel-in-progress: false
 
+env:
+  CACHE_VOLUME: docs-ssh-cache
+  HELPER_IMAGE: alpine:3.24
+
 jobs:
   verify:
+    if: github.event_name == 'push'
     name: Verify (typecheck, unit, e2e, tools.sh sync)
     runs-on: ubuntu-latest
 
@@ -49,33 +82,22 @@ jobs:
       - name: Run E2E tests
         run: pnpm test:e2e
 
+
   build-and-push:
-    name: Build & push Docker image (tagged release)
+    name: Plan, fetch (if needed), build, push, deploy
     needs: verify
+    # verify runs for tags only; schedule/dispatch build main without it
+    # (CI already gated every push to main).
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 175
+    outputs:
+      built: ${{ steps.plan.outputs.build }}
 
     steps:
       - uses: actions/checkout@v7
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
         with:
-          registry: ghcr.io
-          username: erfianugrah
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Derive image metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/erfianugrah/docs-ssh
-          tags: |
-            type=raw,value=latest
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -87,41 +109,127 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Restore docs cache from volume
+        run: |
+          docker volume create "$CACHE_VOLUME" >/dev/null
+          c=$(docker create -v "$CACHE_VOLUME":/cache "$HELPER_IMAGE" true)
+          echo "CACHE_HELPER=$c" >> "$GITHUB_ENV"
+          mkdir -p docs /tmp/docs-work
+          # docker cp of a missing path fails; an empty volume is a cold start.
+          docker cp "$c":/cache/docs/. docs/ 2>/dev/null || echo "cache: no docs yet (cold start)"
+          docker cp "$c":/cache/work/. /tmp/docs-work/ 2>/dev/null || echo "cache: no work dir yet"
+          echo "restored: $(find docs -name '*.md' | wc -l) md files, $(du -sh docs | cut -f1)"
+          if [ -f docs/_build.json ]; then echo "last fetch: $(cat docs/_build.json)"; fi
+
+      - name: Plan
+        id: plan
+        run: |
+          case "${{ github.event_name }}" in
+            push) event=tag ;;
+            schedule) event=schedule ;;
+            *) event=dispatch ;;
+          esac
+          changed=unknown
+          last_commit=$(jq -r '.commit // empty' docs/_build.json 2>/dev/null || true)
+          if [ -n "$last_commit" ] && git cat-file -e "$last_commit^{commit}" 2>/dev/null; then
+            if git diff --quiet "$last_commit" HEAD -- src/ingestors src/normaliser src/application src/domain src/shared src/index.ts package.json pnpm-lock.yaml; then
+              changed=false
+            else
+              changed=true
+            fi
+          fi
+          echo "fetcher changed since last fetch: $changed"
+          EVENT=$event FORCE_REFRESH="${{ inputs.refresh || false }}" \
+            LAST_FETCH_FILE=docs/_build.json FETCHER_CHANGED=$changed \
+            node --import tsx/esm src/ci/plan-cli.ts >> "$GITHUB_OUTPUT"
+
       - name: Install Jinja2 (TRaSH-Guides converter)
-        # pnpm fetch-docs renders TRaSH-Guides' full-Jinja templates via
-        # src/ingestors/jinja-render.py; jinja2 is not pre-installed on
-        # ubuntu-latest so it must be added here.
+        if: steps.plan.outputs.fetch == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install Jinja2 package
+        if: steps.plan.outputs.fetch == 'true'
         run: pip install jinja2
 
       - name: Fetch docs
-        run: pnpm fetch-docs
+        if: steps.plan.outputs.fetch == 'true'
+        timeout-minutes: 160
+        run: |
+          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          pnpm fetch-docs
+          jq -n --arg t "$started" --arg c "$(git rev-parse HEAD)" \
+            --arg r "${{ steps.plan.outputs.reason }}" --arg m "$DOCS_MAX_AGE" \
+            '{fetchedAt: $t, commit: $c, reason: $r, docsMaxAge: ($m | tonumber)}' > docs/_build.json
         env:
           DOCS_OUT_DIR: ${{ github.workspace }}/docs
           DOCS_WORK_DIR: /tmp/docs-work
-          DOCS_MAX_AGE: "0"
+          DOCS_MAX_AGE: ${{ steps.plan.outputs.docs_max_age }}
+
+      - name: Save docs cache to volume
+        # Save right after the fetch, before the image build, so a failed
+        # build/push/deploy never throws away a 2h fetch.
+        if: steps.plan.outputs.fetch == 'true'
+        run: |
+          c="$CACHE_HELPER"
+          docker run --rm -v "$CACHE_VOLUME":/cache "$HELPER_IMAGE" sh -c 'rm -rf /cache/docs.new /cache/work.new && mkdir -p /cache/docs.new /cache/work.new'
+          docker cp docs/. "$c":/cache/docs.new/
+          docker cp /tmp/docs-work/. "$c":/cache/work.new/
+          docker run --rm -v "$CACHE_VOLUME":/cache "$HELPER_IMAGE" sh -c 'rm -rf /cache/docs /cache/work && mv /cache/docs.new /cache/docs && mv /cache/work.new /cache/work && du -sh /cache/docs /cache/work'
+
+      - name: Remove cache helper container
+        if: always() && env.CACHE_HELPER != ''
+        run: docker rm -f "$CACHE_HELPER" >/dev/null || true
+
+      - name: Image tags
+        id: tags
+        if: steps.plan.outputs.build == 'true'
+        run: |
+          img=ghcr.io/erfianugrah/docs-ssh
+          date=$(date -u +%Y%m%d)
+          if [ "${{ github.event_name }}" = push ]; then
+            v="${GITHUB_REF_NAME#v}"
+            version="$GITHUB_REF_NAME"
+            tags="$img:latest,$img:$v,$img:${v%.*},$img:$date"
+          else
+            version="$(git describe --tags --abbrev=0)-daily.$date"
+            tags="$img:latest,$img:$date"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          echo "version=$version tags=$tags"
+
+      - name: Set up Docker Buildx
+        if: steps.plan.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        if: steps.plan.outputs.build == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: erfianugrah
+          password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Build and push Docker image
+        if: steps.plan.outputs.build == 'true'
         uses: docker/build-push-action@v7
         timeout-minutes: 30
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.tags.outputs.tags }}
           build-args: |
             DOCS_PREBUILT=true
-            VERSION=${{ github.ref_name }}
+            VERSION=${{ steps.tags.outputs.version }}
             SSH_HOST=${{ vars.DOCS_SSH_HOST || 'docs.erfi.io' }}
             SSH_PORT=${{ vars.DOCS_SSH_PORT || '2222' }}
           # no gha cache: the runner cache proxy is unreachable from job
           # containers (same as composer); BuildKit daemon cache persists.
 
       - name: Deploy to Composer (async)
+        if: steps.plan.outputs.build == 'true'
         id: deploy
         # ?async=true returns {job_id} immediately; we poll the job in the
         # next step so failures surface composer's actual error rather than
@@ -165,6 +273,7 @@ jobs:
           echo "job_id=$job_id" >> "$GITHUB_OUTPUT"
 
       - name: Wait for Composer job to finish
+        if: steps.plan.outputs.build == 'true'
         # Polls /api/v1/jobs/{id} every 5s for up to 10 minutes. On 'failed'
         # surfaces composer's error+output to the CI log so we don't have to
         # SSH to the host to find out what went wrong.
@@ -204,6 +313,7 @@ jobs:
   smoke:
     name: Post-deploy smoke against live
     needs: build-and-push
+    if: needs.build-and-push.outputs.built == 'true'
     runs-on: ubuntu-latest
 
     steps:

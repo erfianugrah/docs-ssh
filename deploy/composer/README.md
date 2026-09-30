@@ -1,3 +1,8 @@
+> **HISTORY - not in use.** The `docs-ssh-daily-update` pipeline described here was
+> deleted on 2026-08-31 (it needed a persistent builder container set up by hand
+> on the host). Its persistent-cache idea now lives in `.forgejo/workflows/build.yml`
+> (docker volume `docs-ssh-cache`). Kept for reference only; do not recreate.
+
 # Composer-based daily update pipeline
 
 The daily docs refresh runs on the router (MS-01) as a Composer pipeline,

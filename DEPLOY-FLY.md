@@ -60,7 +60,7 @@ Update `DOCS_SSH_HOST` in `fly.toml` to match, so the built-in `help` and `tools
 
 ## Daily doc updates
 
-The existing CI workflow (`update-docs.yml`) builds a new Docker image daily and pushes to GHCR. To deploy it to Fly.io, add a step after the image push:
+The existing CI workflow (`build.yml`) builds a new Docker image daily and pushes to GHCR. To deploy it to Fly.io, add a step after the image push:
 
 ```yaml
 - name: Deploy to Fly.io
@@ -71,7 +71,7 @@ The existing CI workflow (`update-docs.yml`) builds a new Docker image daily and
 
 This deploys the pre-built image directly — no remote build needed. Generate the token with `fly tokens create deploy -x 999999h`.
 
-Alternatively, run `fly deploy` manually after each `update-docs.yml` run, or set up a Fly.io [deploy hook](https://fly.io/docs/reference/deploy-hooks/).
+Alternatively, run `fly deploy` manually after each `build.yml` run, or set up a Fly.io [deploy hook](https://fly.io/docs/reference/deploy-hooks/).
 
 ## Cost estimate
 
