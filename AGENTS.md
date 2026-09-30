@@ -69,6 +69,7 @@ A second transport (alongside SSH) so remote chat LLMs that can't SSH (Claude.ai
 ## Docker / SSH runtime
 
 - Two-stage `Dockerfile`: Node fetcher stage + Alpine runtime. `DOCS_PREBUILT=true` build arg skips the fetch by copying pre-fetched `docs/` from the build context — what `pnpm docker:build` and CI release use.
+- **SSH host keys are ephemeral**: `entrypoint.sh` generates them into the `/run/sshd` tmpfs on every container start, so every deploy changes the host key and a strict `ssh docs.erfi.io` fails with "host key has changed". The generated tools and dotfiles docs-core.ts connect with `StrictHostKeyChecking=no` for this reason. To re-pin interactively, verify out of band first: `ssh servarr 'docker exec docs-ssh ssh-keygen -lf /run/sshd/ssh_host_ed25519_key.pub'` must match the fingerprint offered, then `ssh-keygen -R '[docs.erfi.io]:2222'` and reconnect.
 - `entrypoint.sh` persists env to `/run/sshd/docs-ssh.env` because sshd drops container env. `log-cmd.sh` sources it back.
 - `log-cmd.sh` is the `ForceCommand` — routes SSH sessions to interactive/builtin/exec handlers. Builtins are routed via `case` on first word of `SSH_ORIGINAL_COMMAND`.
 - Three image-build-time scripts run in sequence: `build-index.sh` → `/docs/_index.tsv` (path + title + summary per file, what `docs_search` queries); `build-sources-json.sh` → `/docs/_sources.json` (powers landing page + banner); `build-health-check.sh` (warnings only, never fails the build).
