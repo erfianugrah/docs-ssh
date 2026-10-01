@@ -34,15 +34,15 @@ ssh nixos 'docker build -t docs-builder:local /var/lib/composer/stacks/docs-buil
 
 # 2. register the stack (localhost API avoids the WAF on mutations)
 jq -nc --arg c "$(cat deploy/composer/builder-compose.yaml)" '{name:"docs-builder", compose:$c}' \
-  | ssh nixos "curl -sf -X POST -H 'X-API-Key: '$COMPOSER_API_KEY -H 'Content-Type: application/json' --data-binary @- localhost:8080/api/v1/stacks"
-ssh nixos "curl -sf -X POST -H 'X-API-Key: '$COMPOSER_API_KEY 'localhost:8080/api/v1/stacks/docs-builder/up?async=true'"
+  | sx COMPOSER_API_KEY -- sh -c 'ssh nixos "curl -sf -X POST -H \"X-API-Key: $COMPOSER_API_KEY\" -H \"Content-Type: application/json\" --data-binary @- localhost:8080/api/v1/stacks"'
+sx COMPOSER_API_KEY -- sh -c 'ssh nixos "curl -sf -X POST -H \"X-API-Key: $COMPOSER_API_KEY\" \"localhost:8080/api/v1/stacks/docs-builder/up?async=true\""'
 
 # 3. GHCR auth inside the builder (classic PAT with write:packages;
 #    fine-grained PATs do not work for Packages). Token never printed:
 read -s CR_PAT; printf '%s' "$CR_PAT" | ssh nixos 'docker exec -i docs-builder docker login ghcr.io -u erfianugrah --password-stdin'
 
 # 4. create/update the pipeline, then run it
-ssh nixos "curl -sf -X PUT -H 'X-API-Key: '$COMPOSER_API_KEY -H 'Content-Type: application/json' --data-binary @- localhost:8080/api/v1/pipelines/<id>" < deploy/composer/pipeline.json
+sx COMPOSER_API_KEY -- sh -c 'ssh nixos "curl -sf -X PUT -H \"X-API-Key: $COMPOSER_API_KEY\" -H \"Content-Type: application/json\" --data-binary @- localhost:8080/api/v1/pipelines/<id>"' < deploy/composer/pipeline.json
 # (or POST /api/v1/pipelines with triggers: [{"type":"manual"},{"type":"schedule","config":{"cron":"0 2 * * *"}}])
 ```
 
