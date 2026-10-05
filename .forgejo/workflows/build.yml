@@ -42,53 +42,66 @@ env:
   HELPER_IMAGE: alpine:3.24
 
 jobs:
+  # verify gates tag releases only. It is NOT skipped at job level on
+  # schedule/dispatch: Forgejo skips a job whose `needs` was skipped even under
+  # `if: !failure() && !cancelled()`, which silently turned every daily refresh
+  # into a no-op (2026-10-01..05). Instead the job always runs and each step is
+  # gated, so on schedule/dispatch it succeeds as a no-op and build-and-push's
+  # `needs` is satisfied however the runner treats skips.
   verify:
-    if: github.event_name == 'push'
     name: Verify (typecheck, unit, e2e, tools.sh sync)
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v7
+        if: github.event_name == 'push'
 
       # Private Docker daemon for this job. The runner's shared host socket
       # resolves bind mounts and published ports on the router, not in this
       # container, so tests that mount the workspace or dial localhost need
       # their own daemon (runs as root under a privileged runner; vfs avoids nested overlay).
       - name: Start job-private dockerd
+        if: github.event_name == 'push'
         run: |
           sh -c 'dockerd --host=unix:///tmp/dind.sock --data-root=/tmp/dind-data --storage-driver=vfs >/tmp/dockerd.log 2>&1 &'
           for i in $(seq 1 30); do docker -H unix:///tmp/dind.sock info >/dev/null 2>&1 && break; sleep 1; done
           echo "DOCKER_HOST=unix:///tmp/dind.sock" >> "$GITHUB_ENV"
           docker -H unix:///tmp/dind.sock info --format 'private dockerd: {{.ServerVersion}} {{.Driver}}'
       - uses: actions/setup-node@v7
+        if: github.event_name == 'push'
         with:
           node-version: 22
 
       - name: Install pnpm
+        if: github.event_name == 'push'
         run: npm install -g pnpm@10
 
       - name: Install dependencies
+        if: github.event_name == 'push'
         run: pnpm install --frozen-lockfile
 
       - name: Verify tools.sh is in sync
+        if: github.event_name == 'push'
         run: pnpm generate:tools && git diff --exit-code commands/tools.sh
 
       - name: Typecheck
+        if: github.event_name == 'push'
         run: pnpm lint
 
       - name: Run unit tests
+        if: github.event_name == 'push'
         run: pnpm test:coverage
 
       - name: Run E2E tests
+        if: github.event_name == 'push'
         run: pnpm test:e2e
 
 
   build-and-push:
     name: Plan, fetch (if needed), build, push, deploy
     needs: verify
-    # verify runs for tags only; schedule/dispatch build main without it
-    # (CI already gated every push to main).
-    if: ${{ !failure() && !cancelled() }}
+    # verify's steps run for tags only; on schedule/dispatch it succeeds as a
+    # no-op and main is built without it (CI already gated every push to main).
     runs-on: ubuntu-latest
     timeout-minutes: 175
     outputs:
