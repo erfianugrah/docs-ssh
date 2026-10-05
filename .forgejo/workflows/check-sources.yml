@@ -1,0 +1,83 @@
+name: Check sources
+
+# Cheap per-source health probe (src/ci/source-check.ts): does every
+# source's discovery path still yield in-scope content? Catches an upstream
+# moving hosts, a spec URL 404ing or a repo going private BEFORE the 02:00
+# build ships an image without that source (run 28, 2026-10-05, lost six).
+#   - push / PR touching the fetcher: only sources whose sources.ts block
+#     changed (fast, gates the change itself)
+#   - daily 00:30 UTC: every source (~5 min), ahead of the 02:00 build
+#   - dispatch: every source, or the comma-separated `only` list
+# A failing source makes the run red; the TSV report is in the log.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/application/sources.ts"
+      - "src/ingestors/**"
+      - "src/ci/source-check.ts"
+      - "src/ci/check-sources-cli.ts"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/application/sources.ts"
+      - "src/ingestors/**"
+  schedule:
+    - cron: "30 0 * * *"
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Comma-separated source names (empty = all)"
+        type: string
+        default: ""
+
+jobs:
+  check:
+    name: Probe sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install rsync (ietf-rfc probe)
+        run: command -v rsync || { apt-get update -qq && apt-get install -y -qq rsync; }
+
+      - name: Select sources
+        id: scope
+        run: |
+          case "${{ github.event_name }}" in
+            push)
+              before="${{ github.event.before }}"
+              if [ -n "$before" ] && git cat-file -e "$before^{commit}" 2>/dev/null; then
+                echo "changed_since=$before" >> "$GITHUB_OUTPUT"
+              else
+                echo "changed_since=HEAD~1" >> "$GITHUB_OUTPUT"
+              fi ;;
+            pull_request)
+              echo "changed_since=origin/${{ github.base_ref }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Probe
+        env:
+          CHECK_ONLY: ${{ inputs.only || '' }}
+          CHECK_CHANGED_SINCE: ${{ steps.scope.outputs.changed_since }}
+          CHECK_CONCURRENCY: "10"
+        run: node --import tsx/esm src/ci/check-sources-cli.ts > check-report.tsv
+
+      - name: Print report
+        if: always()
+        run: column -t -s "$(printf '\t')" check-report.tsv 2>/dev/null || cat check-report.tsv

@@ -32,6 +32,10 @@ on:
         description: "Refetch every source (ignore the cache freshness)"
         type: boolean
         default: false
+      regression_exempt:
+        description: "Comma-separated sources the file-count regression guard skips (accept a deliberate change or recover a degraded baseline)"
+        type: string
+        default: ""
 
 concurrency:
   group: docker-push
@@ -166,6 +170,12 @@ jobs:
         if: steps.plan.outputs.fetch == 'true'
         run: pip install jinja2
 
+      # ietf-rfc syncs over rsync (RsyncIngestor); without the binary the
+      # source fails with `spawn rsync ENOENT` and drops out of the image.
+      - name: Install rsync
+        if: steps.plan.outputs.fetch == 'true'
+        run: command -v rsync || { apt-get update -qq && apt-get install -y -qq rsync; }
+
       - name: Fetch docs
         if: steps.plan.outputs.fetch == 'true'
         timeout-minutes: 160
@@ -179,6 +189,7 @@ jobs:
           DOCS_OUT_DIR: ${{ github.workspace }}/docs
           DOCS_WORK_DIR: /tmp/docs-work
           DOCS_MAX_AGE: ${{ steps.plan.outputs.docs_max_age }}
+          DOCS_REGRESSION_EXEMPT: ${{ inputs.regression_exempt || '' }}
 
       - name: Save docs cache to volume
         # Save right after the fetch, before the image build, so a failed
@@ -194,6 +205,15 @@ jobs:
       - name: Remove cache helper container
         if: always() && env.CACHE_HELPER != ''
         run: docker rm -f "$CACHE_HELPER" >/dev/null || true
+
+      # After the cache save (a failed gate keeps the fetch) and before the
+      # build: never replace the live image with one missing a source, holding
+      # an empty one, or below a floor in src/ci/source-floors.ts.
+      - name: Docs gate (every source present, non-empty, above floor)
+        if: steps.plan.outputs.build == 'true'
+        run: node --import tsx/esm src/ci/gate-cli.ts
+        env:
+          DOCS_OUT_DIR: ${{ github.workspace }}/docs
 
       - name: Image tags
         id: tags

@@ -10,6 +10,8 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { execSync } from "node:child_process";
+import { SOURCES } from "../../src/application/sources.js";
+import { API_OVERVIEW_SOURCES, SOURCE_FLOORS, TOLERATED_MISSING } from "../../src/ci/source-floors.js";
 
 const HOST = process.env.DOCS_SSH_HOST ?? "localhost";
 const PORT = process.env.DOCS_SSH_PORT ?? "2222";
@@ -91,33 +93,17 @@ describe("source file counts", () => {
     expect(empty, `Empty sources: ${empty.map((s) => s.name).join(", ")}`).toHaveLength(0);
   });
 
-  // Per-source minimum file counts (catches regressions). Set to ~50%
-  // of typical observed counts so transient page-fetch failures don't
-  // flake the test, but a wholesale upstream-format break (like AWS's
-  // 2026-04 .html→.md llms.txt switch that took the source from 10k+
-  // to 4 files) trips loud and clear.
-  const expectedMinimums: Record<string, number> = {
-    supabase: 400,
-    cloudflare: 4000,
-    "cloudflare-blog": 3000,
-    vercel: 1000,
-    postgres: 700,
-    // AWS is sharded per-service (see sources.ts). Floor for the
-    // largest individual shard plus a couple of mid-sized ones.
-    "aws-lambda": 200,
-    "aws-s3": 300,
-    "aws-iam": 200,
-    nextjs: 200,
-    docker: 1000,
-    kubernetes: 1000,
-    mdn: 10000,
-    terraform: 4000,
-    react: 100,
-    python: 300,
-    typescript: 100,
-    zsh: 10,
-    sops: 1,
-  };
+  // A defined source with no directory at all (fetch failed on a cold
+  // cache) is invisible to the 0-files check above: run 28 shipped without
+  // flyio-api, akamai, ietf-rfc and three more while smoke stayed silent on them.
+  it("every source in sources.ts is present", () => {
+    const present = new Set(allSources.map((s) => s.name));
+    const missing = SOURCES.map((s) => s.name).filter((n) => !present.has(n) && !TOLERATED_MISSING[n]);
+    expect(missing, `Missing sources: ${missing.join(", ")}`).toHaveLength(0);
+  });
+
+  // Floors shared with the pre-build gate (src/ci/source-floors.ts).
+  const expectedMinimums = SOURCE_FLOORS;
 
   for (const [name, min] of Object.entries(expectedMinimums)) {
     it(`${name} has >= ${min} files`, () => {
@@ -224,17 +210,7 @@ describe("API specs", () => {
     expect(apiSources.length).toBeGreaterThanOrEqual(6);
   });
 
-  for (const api of [
-    "cloudflare-api",
-    "docker-api",
-    "kubernetes-api",
-    "supabase-api",
-    "supabase-auth-api",
-    "flyio-api",
-    "gitea-api",
-    "authentik-api",
-    "keycloak-api",
-  ]) {
+  for (const api of API_OVERVIEW_SOURCES) {
     it(`${api} has overview.md`, () => {
       const out = ssh(`test -f /docs/${api}/api/overview.md && echo yes || echo no`);
       expect(out).toBe("yes");
