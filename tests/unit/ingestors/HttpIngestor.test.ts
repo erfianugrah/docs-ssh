@@ -1271,6 +1271,54 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("throws when a majority of pages fail (rate-limit collapse)", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+
+    // 25 pages 404, 5 succeed: a partial source must not ship.
+    const mockFetch = vi.fn().mockImplementation(async (url: string) =>
+      /ok-\d+\.html$/.test(url)
+        ? { ok: true, text: async () => "<h1>ok</h1>" }
+        : { ok: false, status: 404 },
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const urls = [
+      ...Array.from({ length: 25 }, (_, i) => `https://example.com/gone-${i}.html`),
+      ...Array.from({ length: 5 }, (_, i) => `https://example.com/ok-${i}.html`),
+    ];
+    const src = new DocSource({
+      name: "majority-fail-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls,
+    });
+
+    await expect(ingestor.ingest(src, tmpDir)).rejects.toThrow("25 of 30 pages failed");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
+  it("throws when the url filters leave nothing to fetch", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+
+    const src = new DocSource({
+      name: "moved-docs-test",
+      type: "http",
+      format: "html",
+      url: "https://example.com/docs/",
+      urls: ["https://example.com/pricing", "https://example.com/about"],
+      urlPattern: "example\\.com/docs/.+",
+    });
+
+    await expect(ingestor.ingest(src, tmpDir)).rejects.toThrow("0 URLs left after urlPattern/urlExclude");
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   // ─── Max retries exhausted ──────────────────────────────────────────
 
   it("throws after exhausting all retries on 500", async () => {

@@ -18,6 +18,8 @@ export type DocSourceType = "git" | "http" | "rsync";
  * - "openapi-dir":  git repo containing multiple OpenAPI specs in a directory structure
  * - "statuspage":   paginates an Atlassian Statuspage /history.json, then fetches each
  *                   /incidents/<code>.json and converts to one markdown file per incident
+ * - "mslearn":       walks Microsoft Learn toc.json sidebar files (discoveryUrl:
+ *                   space-separated list) for the page URLs under url
  */
 export type DiscoveryMethod =
   | "none"
@@ -34,7 +36,8 @@ export type DiscoveryMethod =
   | "openapi"
   | "openapi-dir"
   | "mediawiki"
-  | "statuspage";
+  | "statuspage"
+  | "mslearn";
 
 export interface DocSourceConfig {
   readonly name: string;

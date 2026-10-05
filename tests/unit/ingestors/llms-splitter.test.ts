@@ -4,6 +4,7 @@ import {
   splitVercelStyle,
   splitFrontmatterStyle,
   splitHeadingStyle,
+  splitSourceLineStyle,
 } from "../../../src/ingestors/llms-splitter.js";
 
 describe("splitVercelStyle", () => {
@@ -454,5 +455,49 @@ describe("splitLlmsFull (auto-detect)", () => {
     // Page A should include the divider content, not split on it
     expect(pages.get("page-a.md")).toContain("content with a divider");
     expect(pages.get("page-a.md")).toContain("More content after the divider");
+  });
+});
+
+describe("splitSourceLineStyle (Mintlify)", () => {
+  const page = (title: string, url: string, body: string) => `# ${title}\nSource: ${url}\n\n${body}\n\n`;
+  const doc =
+    page("Billing", "https://docs.fly.io/about/billing", "## Overview\n\nMonthly per org.") +
+    page(
+      "Launch",
+      "https://docs.fly.io/getting-started/launch",
+      "Run this:\n\n```sh\n# not a page boundary\nfly launch\n```",
+    ) +
+    page("Home", "https://docs.fly.io/", "Welcome.");
+
+  it("splits on H1 + Source pairs and paths pages by their URL", () => {
+    const pages = splitSourceLineStyle(doc, "https://docs.fly.io/");
+    expect([...pages.keys()]).toEqual(["about/billing.md", "getting-started/launch.md", "index.md"]);
+  });
+
+  it("keeps the H1, drops the Source line, and does not split on # inside code", () => {
+    const launch = splitSourceLineStyle(doc, "https://docs.fly.io/").get("getting-started/launch.md")!;
+    expect(launch.startsWith("# Launch\n")).toBe(true);
+    expect(launch).not.toContain("Source:");
+    expect(launch).toContain("# not a page boundary\nfly launch");
+  });
+
+  it("falls back to the URL path when the Source host differs from baseUrl", () => {
+    const pages = splitSourceLineStyle(page("Arch", "https://www.paradedb.com/docs/concepts/architecture", "x"), "https://docs.paradedb.com/");
+    expect([...pages.keys()]).toEqual(["docs/concepts/architecture.md"]);
+  });
+
+  it("records per-page origin URLs", () => {
+    const origins = new Map<string, string>();
+    splitSourceLineStyle(doc, "https://docs.fly.io/", origins);
+    expect(origins.get("about/billing.md")).toBe("https://docs.fly.io/about/billing");
+  });
+
+  it("is auto-detected by splitLlmsFull", () => {
+    const many = Array.from({ length: 25 }, (_, i) => page(`P${i}`, `https://docs.fly.io/p/${i}`, "body")).join("");
+    const origins = new Map<string, string>();
+    const pages = splitLlmsFull(many, "https://docs.fly.io/", origins);
+    expect(pages.size).toBe(25);
+    expect(pages.has("p/7.md")).toBe(true);
+    expect(origins.get("p/7.md")).toBe("https://docs.fly.io/p/7");
   });
 });

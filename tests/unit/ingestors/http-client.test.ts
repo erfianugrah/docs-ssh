@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchBufferWithRetry, NonRetryableHttpError } from "../../../src/ingestors/http-client.js";
+import { fetchBufferWithRetry, NonRetryableHttpError, parseRetryAfter } from "../../../src/ingestors/http-client.js";
 
 describe("fetchBufferWithRetry", () => {
   afterEach(() => {
@@ -68,5 +68,39 @@ describe("fetchBufferWithRetry", () => {
     // default BULK_RETRIES = 5: initial + 5 retries = 6 total
     expect(mockFetch).toHaveBeenCalledTimes(6);
     vi.useRealTimers();
+  });
+});
+
+describe("parseRetryAfter", () => {
+  it("parses delay-seconds", () => {
+    expect(parseRetryAfter("3")).toBe(3000);
+  });
+
+  it("caps long delays at 5 minutes", () => {
+    expect(parseRetryAfter("86400")).toBe(5 * 60_000);
+  });
+
+  it("parses a future HTTP-date", () => {
+    const at = new Date(Date.now() + 10_000).toUTCString();
+    const ms = parseRetryAfter(at)!;
+    expect(ms).toBeGreaterThan(8_000);
+    expect(ms).toBeLessThanOrEqual(10_000);
+  });
+
+  // A zero or past hint carries no wait information. Returning 0 used to
+  // override the exponential backoff, so a 429 storm retried instantly
+  // (cloudflare-blog, 2026-10-05: 15k zero-delay retries, 7537/7934 pages
+  // failed). Treat it as "no hint" so the caller backs off normally.
+  it("treats Retry-After: 0 as no hint", () => {
+    expect(parseRetryAfter("0")).toBeUndefined();
+  });
+
+  it("treats a past HTTP-date as no hint", () => {
+    expect(parseRetryAfter(new Date(Date.now() - 60_000).toUTCString())).toBeUndefined();
+  });
+
+  it("ignores absent and malformed headers", () => {
+    expect(parseRetryAfter(null)).toBeUndefined();
+    expect(parseRetryAfter("soon")).toBeUndefined();
   });
 });

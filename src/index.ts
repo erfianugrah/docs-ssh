@@ -43,6 +43,19 @@ if (onlyFilter.length > 0) {
   console.log(`DOCS_ONLY active — fetching ${sources.length} source(s): ${sources.map((s) => s.name).join(", ")}`);
 }
 
+// DOCS_REGRESSION_EXEMPT="name1,name2" skips the file-count regression
+// guard for those sources this run (accept a deliberate change, or recover
+// from a baseline a broken fetch wrote).
+const regressionExempt = new Set(
+  (process.env.DOCS_REGRESSION_EXEMPT ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
+if (regressionExempt.size > 0) {
+  console.log(`DOCS_REGRESSION_EXEMPT: ${[...regressionExempt].join(", ")}`);
+}
+
 const update = new UpdateDocSets({
   sources,
   ingestors: [new GitIngestor(), new HttpIngestor(), new RsyncIngestor()],
@@ -51,6 +64,7 @@ const update = new UpdateDocSets({
   workDir: WORK_DIR,
   concurrency: CONCURRENCY,
   maxAge: MAX_AGE,
+  regressionExempt,
 });
 
 const results = await update.run();

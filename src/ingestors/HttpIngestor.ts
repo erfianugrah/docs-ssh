@@ -49,6 +49,9 @@ const PAGE_ACCEPT = "text/markdown, text/html;q=0.9";
  */
 const MIN_MARKDOWN_BODY = 256;
 
+/** Page failures below this count never fail a source (dead links). */
+const MAJORITY_FAILURE_MIN = 20;
+
 /**
  * Content-Type prefixes accepted as markdown. RFC 7763 standardises
  * only `text/markdown`. Cloudflare's "Markdown for Agents" uses that
@@ -308,6 +311,16 @@ export class HttpIngestor implements DocIngestor {
     // Deduplicate
     urls = [...new Set(urls)];
 
+    // Discovery worked but the include/exclude filters matched nothing:
+    // the upstream moved its docs (flyio, 2026-10: fly.io/docs -> docs.fly.io,
+    // 694 sitemap URLs, 0 under the pattern). Same loud failure as the
+    // 0-URL discovery case above.
+    if (urls.length === 0) {
+      throw new Error(
+        `0 URLs left after urlPattern/urlExclude for ${source.name} (url: ${source.discoveryUrl ?? source.url}) - upstream may have moved its docs`,
+      );
+    }
+
     console.log(`  [${source.name}] fetching ${urls.length} pages…`);
 
     const files = new Map<string, DocFile>();
@@ -381,6 +394,16 @@ export class HttpIngestor implements DocIngestor {
 
     if (errors.length > 0) {
       console.warn(`  [${source.name}] ${errors.length} pages failed (${files.size} succeeded)`);
+    }
+
+    // Majority failure is a broken fetch, not a few dead links: a rate
+    // limiter or an upstream rewrite. Writing it would ship a fraction of
+    // the source (cloudflare-blog, 2026-10-05: 397 of 7934). Failing the
+    // source keeps the previous copy instead.
+    if (errors.length >= MAJORITY_FAILURE_MIN && errors.length > files.size) {
+      throw new Error(
+        `HttpIngestor: ${errors.length} of ${errors.length + files.size} pages failed for ${source.name}. First error: ${errors[0]}`,
+      );
     }
 
     logNegotiationStats(source.name, files.size, outcomes, totalTokens);
@@ -488,13 +511,18 @@ export class HttpIngestor implements DocIngestor {
 
     // Split into per-page files using the separator pattern
     const files = new Map<string, DocFile>();
-    const pages = splitLlmsFull(content, source.url);
+    // URL-carrying formats (Vercel, Mintlify) fill per-page origins.
+    const pageOrigins = new Map<string, string>();
+    const pages = splitLlmsFull(content, source.url, pageOrigins);
 
     for (const [filePath, pageContent] of pages) {
       // Apply include/exclude filters
       if (source.urlPattern && !new RegExp(source.urlPattern).test(filePath)) continue;
       if (source.urlExclude && new RegExp(source.urlExclude).test(filePath)) continue;
-      files.set(filePath, new DocFile(filePath, pageContent, { originUrl: bulkOrigin(source) }));
+      files.set(
+        filePath,
+        new DocFile(filePath, pageContent, { originUrl: pageOrigins.get(filePath) ?? bulkOrigin(source) }),
+      );
     }
 
     console.log(`  [${source.name}] split into ${files.size} pages`);

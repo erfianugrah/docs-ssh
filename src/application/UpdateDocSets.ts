@@ -82,6 +82,13 @@ export interface UpdateDocSetsOptions {
    * 10k+ pages to 4 when their llms.txt format changed.
    */
   regressionThreshold?: number;
+  /**
+   * Source names the regression guard skips for this run. For accepting a
+   * deliberate count change, or recovering from a degraded baseline (a
+   * stamp written by a broken fetch makes the fixed fetch read as growth).
+   * Set from DOCS_REGRESSION_EXEMPT in src/index.ts.
+   */
+  regressionExempt?: ReadonlySet<string>;
 }
 
 export interface SourceResult {
@@ -419,6 +426,7 @@ export class UpdateDocSets {
       // on <50% or >200% of the prior count.
       if (
         this.regressionThreshold > 0 &&
+        !this.opts.regressionExempt?.has(source.name) &&
         prevStamp?.fileCount &&
         prevStamp.fileCount > 0
       ) {

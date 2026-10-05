@@ -12,6 +12,15 @@ import { BULK_RETRIES, fetchWithRetry } from "../http-client.js";
 
 const MAX_ROUNDS = 20;
 
+/**
+ * Page-URL path for a title. `/` (subpages) and `:` (namespaces) stay
+ * literal: MediaWiki 404s their %2F / %3A forms, which cost samba 452 of
+ * 579 pages and nftables/ddwrt their subpages until 2026-10.
+ */
+export function mediaWikiTitlePath(title: string): string {
+  return encodeURIComponent(title.replace(/ /g, "_")).replace(/%2F/g, "/").replace(/%3A/g, ":");
+}
+
 export async function discoverFromMediaWiki(apiUrl: string, baseUrl: string): Promise<string[]> {
   const urls: string[] = [];
   let continueFrom = "";
@@ -33,8 +42,7 @@ export async function discoverFromMediaWiki(apiUrl: string, baseUrl: string): Pr
     const data = JSON.parse(await res.text());
 
     for (const page of data.query?.allpages ?? []) {
-      const title = page.title.replace(/ /g, "_");
-      urls.push(`${baseUrl}${encodeURIComponent(title)}`);
+      urls.push(`${baseUrl}${mediaWikiTitlePath(page.title)}`);
     }
 
     if (data.continue?.apcontinue) {

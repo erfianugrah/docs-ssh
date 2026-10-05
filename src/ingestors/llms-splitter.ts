@@ -26,12 +26,24 @@
  *   # Getting Started
  *   content...
  */
-export function splitLlmsFull(content: string, baseUrl: string): Map<string, string> {
+export function splitLlmsFull(
+  content: string,
+  baseUrl: string,
+  origins?: Map<string, string>,
+): Map<string, string> {
   // Vercel format: long-dash separator immediately followed by metadata lines
   // (title:, source:) within the next few lines — no content in between.
   const hasVercelMeta = /^-{10,}\s*\n(?:(?!\n\n)[^\n]*\n){0,10}source:\s/m.test(content);
   if (hasVercelMeta) {
-    return splitVercelStyle(content, baseUrl);
+    return splitVercelStyle(content, baseUrl, origins);
+  }
+
+  // Mintlify format: every page opens with `# Title` then `Source: <url>`.
+  // Checked before the heading fallback, which would also split on
+  // `# comment` lines inside code fences and lose the page URLs.
+  const sourceLinePairs = content.match(SOURCE_LINE_PAIR_G)?.length ?? 0;
+  if (sourceLinePairs >= 20) {
+    return splitSourceLineStyle(content, baseUrl, origins);
   }
 
   // Try frontmatter style first
@@ -53,7 +65,60 @@ export function splitLlmsFull(content: string, baseUrl: string): Map<string, str
  * Vercel format: pages separated by long-dash lines (80 dashes),
  * with title/source metadata between separators, then content after.
  */
-export function splitVercelStyle(content: string, baseUrl: string): Map<string, string> {
+/** `# Title` immediately followed by `Source: <url>` (Mintlify llms-full). */
+const SOURCE_LINE_PAIR = /^# (.+)\nSource: (https?:\/\/\S+)[ \t]*$/m;
+const SOURCE_LINE_PAIR_G = new RegExp(SOURCE_LINE_PAIR.source, "gm");
+
+/** Page path from its public URL: relative to baseUrl, else the URL path. */
+function urlToPagePath(url: string, baseUrl: string): string {
+  let filePath: string;
+  if (url.startsWith(baseUrl)) {
+    filePath = url.slice(baseUrl.length);
+  } else {
+    try {
+      filePath = new URL(url).pathname;
+    } catch {
+      filePath = url;
+    }
+  }
+  filePath = filePath.replace(/[?#].*$/, "").replace(/^\/+/, "").replace(/\/$/, "");
+  if (!filePath) filePath = "index";
+  if (!filePath.endsWith(".md")) filePath += ".md";
+  return filePath;
+}
+
+/**
+ * Mintlify format (docs.fly.io, bunny.net, paradedb): pages concatenated,
+ * each opening with `# Title` and a `Source: <url>` line. Splits only on
+ * that pair, so `#` comment lines inside code fences stay in their page.
+ * The Source line is dropped from the body and recorded in `origins`.
+ */
+export function splitSourceLineStyle(
+  content: string,
+  baseUrl: string,
+  origins?: Map<string, string>,
+): Map<string, string> {
+  const pages = new Map<string, string>();
+  const starts: { index: number; title: string; url: string; headerEnd: number }[] = [];
+  for (const m of content.matchAll(SOURCE_LINE_PAIR_G)) {
+    starts.push({ index: m.index!, title: m[1].trim(), url: m[2], headerEnd: m.index! + m[0].length });
+  }
+  for (let i = 0; i < starts.length; i++) {
+    const { title, url, headerEnd } = starts[i];
+    const end = i + 1 < starts.length ? starts[i + 1].index : content.length;
+    const body = content.slice(headerEnd, end).trim();
+    const filePath = urlToPagePath(url, baseUrl);
+    pages.set(filePath, body ? `# ${title}\n\n${body}` : `# ${title}`);
+    origins?.set(filePath, url);
+  }
+  return pages;
+}
+
+export function splitVercelStyle(
+  content: string,
+  baseUrl: string,
+  origins?: Map<string, string>,
+): Map<string, string> {
   const pages = new Map<string, string>();
   const separator = /^-{10,}\s*$/m;
   const blocks = content.split(separator);
@@ -91,6 +156,7 @@ export function splitVercelStyle(content: string, baseUrl: string): Map<string, 
           : trimmed;
 
       pages.set(filePath, contentToStore);
+      if (/^https?:\/\//.test(currentSource)) origins?.set(filePath, currentSource);
       currentTitle = "";
       currentSource = "";
     }

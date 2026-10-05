@@ -84,7 +84,12 @@ export class RetryableHttpError extends Error {
 /**
  * RFC 7231 §7.1.3 Retry-After is either a non-negative integer
  * (seconds) or an HTTP-date. Returns a delay in milliseconds, or
- * undefined when the header is absent / malformed / in the past.
+ * undefined when the header is absent / malformed / zero / in the past.
+ *
+ * Zero and past hints return undefined, not 0: the result REPLACES the
+ * exponential backoff, so a 0 made every retry fire instantly. Under a
+ * 429 storm that burned all retries in milliseconds (cloudflare-blog,
+ * 2026-10-05: 7537 of 7934 pages failed).
  *
  * Capped at 5 minutes — any longer and the source-deadline is going
  * to fire anyway, so it's better to fail fast than block the whole
@@ -97,13 +102,14 @@ export function parseRetryAfter(header: string | null): number | undefined {
   // Numeric: seconds.
   if (/^\d+$/.test(trimmed)) {
     const ms = parseInt(trimmed, 10) * 1000;
+    if (ms === 0) return undefined;
     return Math.min(ms, RETRY_AFTER_MAX_MS);
   }
   // HTTP-date.
   const at = Date.parse(trimmed);
   if (!Number.isNaN(at)) {
     const delta = at - Date.now();
-    if (delta <= 0) return 0;
+    if (delta <= 0) return undefined;
     return Math.min(delta, RETRY_AFTER_MAX_MS);
   }
   return undefined;

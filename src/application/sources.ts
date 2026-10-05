@@ -181,6 +181,10 @@ export const SOURCES: readonly DocSource[] = [
     format: "html",
     discovery: "sitemap",
     discoveryUrl: "https://blog.cloudflare.com/sitemap-posts.xml",
+    // Since 2026-10 the posts sitemap also lists every translated copy
+    // (/de-de/, /zh-cn/, ... 4283 of 7934 URLs). English only: the copies
+    // double the request count into the rate limiter for duplicate content.
+    urlExclude: "blog\\.cloudflare\\.com/[a-z]{2}-[a-z]{2}/[^/]+",
     pageConcurrency: 4,
     deadlineMs: 2_400_000,
   }),
@@ -209,10 +213,11 @@ export const SOURCES: readonly DocSource[] = [
   new DocSource({
     name: "bunnycdn",
     type: "http",
-    url: "https://docs.bunny.net/",
+    // Public pages live under bunny.net/docs/ (the Source: lines in the dump).
+    url: "https://bunny.net/docs/",
     format: "markdown",
     discovery: "llms-full",
-    discoveryUrl: "https://docs.bunny.net/llms-full.txt",
+    discoveryUrl: "https://bunny.net/docs/llms-full.txt",
   }),
 
   // ─── Fastly ────────────────────────────────────────────────────────
@@ -481,15 +486,17 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Fly.io ────────────────────────────────────────────────────────
 
-  // Sitemap filtered to /docs/ pages
+  // Fly moved its docs to docs.fly.io (Mintlify) in 2026-10; fly.io/docs/*
+  // 301s there and fly.io/sitemap.xml no longer lists any doc page. The
+  // Mintlify llms-full.txt is one ~2.8MB dump with `# Title` + `Source:`
+  // per page (~890 pages), split by splitSourceLineStyle.
   new DocSource({
     name: "flyio",
     type: "http",
-    url: "https://fly.io/docs/",
-    format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://fly.io/sitemap.xml",
-    urlPattern: "fly\\.io/docs/.+",
+    url: "https://docs.fly.io/",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://docs.fly.io/llms-full.txt",
   }),
 
   // ─── Tailwind CSS ──────────────────────────────────────────────────
@@ -879,14 +886,17 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Bun ───────────────────────────────────────────────────────
 
-  // llms.txt — comprehensive docs with .md URLs
+  // llms.txt with .md URLs. Bun moved to bun.com; bun.sh/llms.txt now lists
+  // bun.com URLs, so `url` must be bun.com or every path keeps the full URL
+  // (`https:/bun.com/docs/...`). The bare /docs/index.md entry 404s.
   new DocSource({
     name: "bun",
     type: "http",
-    url: "https://bun.sh/docs/",
+    url: "https://bun.com/docs/",
     format: "markdown",
     discovery: "llms-txt",
-    discoveryUrl: "https://bun.sh/llms.txt",
+    discoveryUrl: "https://bun.com/llms.txt",
+    urlExclude: "bun\\.com/docs/index\\.md$",
   }),
 
   // ─── React ─────────────────────────────────────────────────────
@@ -1044,14 +1054,16 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://raw.githubusercontent.com/supabase/auth/master/openapi.yaml",
   }),
 
-  // Fly.io Machines API — Swagger 2.0, JSON
+  // Fly.io Machines API, JSON. docs.machines.dev 301s to docs.fly.io since
+  // 2026-10 and the old swagger/doc.json path 404s; the spec moved to
+  // /api/machines/openapi.json (linked from the API reference page).
   new DocSource({
     name: "flyio-api",
     type: "http",
-    url: "https://docs.machines.dev/",
+    url: "https://docs.fly.io/api/machines",
     format: "openapi",
     discovery: "openapi",
-    discoveryUrl: "https://docs.machines.dev/swagger/doc.json",
+    discoveryUrl: "https://docs.fly.io/api/machines/openapi.json",
   }),
 
   // ─── MDN Web Docs ───────────────────────────────────────────────
@@ -1470,7 +1482,9 @@ export const SOURCES: readonly DocSource[] = [
     type: "git",
     url: "https://github.com/earendil-works/pi",
     format: "markdown",
-    paths: ["packages/coding-agent/docs", "packages/agent/docs"],
+    // packages/agent/docs is gone upstream (2026-10); durable + env carry
+    // the harness internals now.
+    paths: ["packages/coding-agent/docs", "packages/durable/docs", "packages/env/docs"],
   }),
 
   // ─── Vitest ────────────────────────────────────────────────────
@@ -1491,10 +1505,10 @@ export const SOURCES: readonly DocSource[] = [
   new DocSource({
     name: "vite",
     type: "http",
-    url: "https://vitejs.dev/",
+    url: "https://vite.dev/",
     format: "markdown",
     discovery: "llms-full",
-    discoveryUrl: "https://vitejs.dev/llms-full.txt",
+    discoveryUrl: "https://vite.dev/llms-full.txt",
   }),
 
   // ─── Turborepo ─────────────────────────────────────────────────
@@ -1647,10 +1661,10 @@ export const SOURCES: readonly DocSource[] = [
   new DocSource({
     name: "rspack",
     type: "http",
-    url: "https://rspack.dev/",
+    url: "https://rspack.rs/",
     format: "html",
     discovery: "llms-txt",
-    discoveryUrl: "https://rspack.dev/llms.txt",
+    discoveryUrl: "https://rspack.rs/llms.txt",
     urlExclude: "/blog/",
   }),
 
@@ -2846,10 +2860,11 @@ export const SOURCES: readonly DocSource[] = [
   new DocSource({
     name: "paradedb",
     type: "http",
-    url: "https://docs.paradedb.com/",
+    // Public pages live under www.paradedb.com/docs/ (the Source: lines).
+    url: "https://www.paradedb.com/docs/",
     format: "markdown",
     discovery: "llms-full",
-    discoveryUrl: "https://docs.paradedb.com/llms-full.txt",
+    discoveryUrl: "https://www.paradedb.com/docs/llms-full.txt",
   }),
 
   // ─── CockroachDB ──────────────────────────────────────────────
@@ -2935,6 +2950,44 @@ export const SOURCES: readonly DocSource[] = [
     name: "supabase-grafana",
     type: "git",
     url: "https://github.com/supabase/supabase-grafana",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── Supabase advisors (splinter) ─────────────────────────────────────────────────
+
+  // Database-advisor lint catalogue behind the dashboard's Security and
+  // Performance advisors and `supabase db lint` (one doc per lint,
+  // 0001_unindexed_foreign_keys ... 0030_autovacuum_disabled).
+  new DocSource({
+    name: "splinter",
+    type: "git",
+    url: "https://github.com/supabase/splinter",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── OrioleDB ────────────────────────────────────────────────────────────────────
+
+  // Cloud-native storage engine for Postgres (Supabase), mdx docs.
+  new DocSource({
+    name: "orioledb",
+    type: "git",
+    url: "https://github.com/orioledb/orioledb",
+    format: "markdown",
+    paths: ["doc"],
+    rootPath: "doc",
+  }),
+
+  // ─── pgmq ────────────────────────────────────────────────────────────────────────
+
+  // Lightweight message queue as a Postgres extension (Supabase Queues).
+  new DocSource({
+    name: "pgmq",
+    type: "git",
+    url: "https://github.com/pgmq/pgmq",
     format: "markdown",
     paths: ["docs"],
     rootPath: "docs",
@@ -3654,6 +3707,11 @@ export const SOURCES: readonly DocSource[] = [
     discovery: "mediawiki",
     discoveryUrl: "https://wiki.samba.org/api.php",
     urlPattern: "wiki\\.samba\\.org/index\\.php/",
+    // wiki.samba.org resets connections (UND_ERR_SOCKET) under the default
+    // 15-wide burst and 429s after; run 28 lost 452 of 579 pages. 3-wide
+    // with a longer deadline gets them all.
+    pageConcurrency: 3,
+    deadlineMs: 1_800_000,
     urlExclude:
       "(Special:|Talk:|User:|File:|Template:|Category:|Help:|MediaWiki:|SambaWiki:)",
   }),
@@ -3850,7 +3908,9 @@ export const SOURCES: readonly DocSource[] = [
     url: "https://whisparr.com/docs/api/",
     format: "openapi",
     discovery: "openapi",
-    discoveryUrl: "https://raw.githubusercontent.com/Whisparr/Whisparr/develop/src/Whisparr.Api.V3/openapi.json",
+    // `develop` no longer exists (default branch is v2-develop, no spec);
+    // the v3 spec is published on eros-api-docs (2026-10, 177 paths).
+    discoveryUrl: "https://raw.githubusercontent.com/Whisparr/Whisparr/eros-api-docs/src/Whisparr.Api.V3/openapi.json",
   }),
 
   // --- Infrastructure APIs --------------------------------------------------
@@ -4622,14 +4682,20 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "articles/container-instances",
   }),
 
-  // Azure Key Vault — azure-security-docs repo.
+  // Azure Key Vault. MicrosoftDocs/azure-security-docs went private in
+  // 2026-10 (anonymous clone asks for credentials), so the pages come from
+  // learn.microsoft.com itself: the sidebar toc.json per section lists
+  // them (~270) and every page answers `Accept: text/markdown`.
   new DocSource({
     name: "azure-key-vault",
-    type: "git",
-    url: "https://github.com/MicrosoftDocs/azure-security-docs",
-    format: "markdown",
-    paths: ["articles/key-vault"],
-    rootPath: "articles/key-vault",
+    type: "http",
+    url: "https://learn.microsoft.com/en-us/azure/key-vault/",
+    format: "html",
+    discovery: "mslearn",
+    discoveryUrl: ["general", "keys", "secrets", "certificates", "managed-hsm"]
+      .map((s) => `https://learn.microsoft.com/en-us/azure/key-vault/${s}/toc.json`)
+      .join(" "),
+    pageConcurrency: 6,
   }),
 
   // Azure Monitor — azure-monitor-docs repo.
