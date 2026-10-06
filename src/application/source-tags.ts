@@ -47,6 +47,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   supavisor: ["postgres-ecosystem", "supabase-ecosystem"],
   "supabase-grafana": ["postgres-ecosystem", "supabase-ecosystem", "monitoring"],
   splinter: ["postgres-ecosystem", "supabase-ecosystem"],
+  "supabase-postgres": ["postgres-ecosystem", "supabase-ecosystem", "nix"],
   orioledb: ["postgres-ecosystem", "supabase-ecosystem"],
   pgmq: ["postgres-ecosystem", "supabase-ecosystem"],
   "supabase-wrappers": ["postgres-ecosystem", "supabase-ecosystem", "databases"],

@@ -8,7 +8,9 @@ name: Check sources
 #     changed (fast, gates the change itself)
 #   - daily 00:30 UTC: every source (~5 min), ahead of the 02:00 build
 #   - dispatch: every source, or the comma-separated `only` list
-# A failing source makes the run red; the TSV report is in the log.
+# Any fail OR warn makes the run red (CHECK_STRICT); TOLERATED_MISSING
+# sources (src/ci/source-floors.ts) are reported but never fail. The TSV
+# report is in the log.
 
 on:
   push:
@@ -76,6 +78,10 @@ jobs:
           CHECK_ONLY: ${{ inputs.only || '' }}
           CHECK_CHANGED_SINCE: ${{ steps.scope.outputs.changed_since }}
           CHECK_CONCURRENCY: "10"
+          # Warnings fail too: a host move or a dead sample page is drift
+          # to fix before it becomes a broken source. Transient 429s and
+          # network errors are retried once by the probe itself.
+          CHECK_STRICT: "1"
         run: node --import tsx/esm src/ci/check-sources-cli.ts > check-report.tsv
 
       - name: Print report

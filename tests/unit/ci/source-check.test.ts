@@ -32,6 +32,15 @@ describe("filterUrls", () => {
     expect(filterUrls(src, ["https://fly.io/pricing", "https://fly.io/"])).toEqual([]);
   });
 
+  // silo's toc already links /docs/index.md; appending again gave index.md/index.md.
+  it("does not append urlSuffix twice", () => {
+    const src = new DocSource({ name: "x", type: "http", format: "html", url: "https://e.com/", urlSuffix: "/index.md" });
+    expect(filterUrls(src, ["https://e.com/docs/index.md", "https://e.com/docs/a/"])).toEqual([
+      "https://e.com/docs/index.md",
+      "https://e.com/docs/a/index.md",
+    ]);
+  });
+
   it("appends urlSuffix", () => {
     const src = new DocSource({ name: "x", type: "http", format: "html", url: "https://e.com/", urlSuffix: ".md" });
     expect(filterUrls(src, ["https://e.com/a/"])).toEqual(["https://e.com/a.md"]);

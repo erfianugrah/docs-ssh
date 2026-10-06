@@ -143,6 +143,12 @@ export interface DocSourceConfig {
    * internal 5000-visited-page cap.
    */
   readonly tocDepth?: number;
+  /**
+   * Page URLs redirect to other hosts by design (planet-postgres RSS items
+   * are postgr.es shortlinks to member blogs). Silences the source checker's
+   * "redirects to <host>" warning; fetching is unaffected.
+   */
+  readonly expectRedirects?: boolean;
 }
 
 /**
@@ -172,6 +178,7 @@ export class DocSource {
   readonly skipMarkdownNegotiation: boolean | undefined;
   readonly userAgent: string | undefined;
   readonly tocDepth: number | undefined;
+  readonly expectRedirects: boolean;
   readonly resolveTrashGuides: boolean;
   readonly publicUrl: ((repoRelPath: string) => string | undefined) | undefined;
 
@@ -204,6 +211,7 @@ export class DocSource {
     this.skipMarkdownNegotiation = config.skipMarkdownNegotiation;
     this.userAgent = config.userAgent;
     this.tocDepth = config.tocDepth;
+    this.expectRedirects = config.expectRedirects ?? false;
     this.resolveTrashGuides = config.resolveTrashGuides ?? false;
     this.publicUrl = config.publicUrl;
   }

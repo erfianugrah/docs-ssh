@@ -91,7 +91,9 @@ export async function discoverFromLlmsTxt(llmsTxtUrl: string): Promise<string[]>
   const absRegex = /https?:\/\/[^\s)>\]]+/g;
   let match;
   while ((match = absRegex.exec(text)) !== null) {
-    urls.add(stripFragment(match[0]));
+    // Bare URLs in prose carry trailing punctuation: backticks, commas,
+    // full stops (idratherbewriting: `https://.../x.md`).).
+    urls.add(stripFragment(match[0].replace(/[`'".,;:!?*]+$/, "")));
   }
 
   // Extract relative paths from markdown links: [text](path)

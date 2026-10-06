@@ -49,6 +49,16 @@ const PAGE_ACCEPT = "text/markdown, text/html;q=0.9";
  */
 const MIN_MARKDOWN_BODY = 256;
 
+/**
+ * Appends a source's urlSuffix (e.g. "/index.md" for Hugo markdown mirrors)
+ * unless the URL already ends with it: silo's toc links /docs/index.md
+ * itself, which became index.md/index.md and 404'd.
+ */
+export function applyUrlSuffix(url: string, suffix: string): string {
+  const bare = url.replace(/\/$/, "");
+  return bare.endsWith(suffix.replace(/^\//, "")) ? bare : bare + suffix;
+}
+
 /** Page failures below this count never fail a source (dead links). */
 const MAJORITY_FAILURE_MIN = 20;
 
@@ -305,7 +315,7 @@ export class HttpIngestor implements DocIngestor {
 
     // Append suffix
     if (source.urlSuffix) {
-      urls = urls.map((u) => u.replace(/\/$/, "") + source.urlSuffix!);
+      urls = urls.map((u) => applyUrlSuffix(u, source.urlSuffix!));
     }
 
     // Deduplicate
@@ -370,7 +380,10 @@ export class HttpIngestor implements DocIngestor {
             filePath = filePath.replace(/\.html$/, ".md");
           }
           return {
-            file: new DocFile(filePath, body, { preNormalised, originUrl: finalUrl }),
+            file: new DocFile(filePath, body, {
+              preNormalised,
+              originUrl: waybackOriginal(url) ?? finalUrl,
+            }),
             outcome,
             tokens,
           };
@@ -618,7 +631,24 @@ function bulkOrigin(source: DocSource): string | undefined {
   return url === "" ? undefined : url;
 }
 
+/**
+ * The original URL inside a Wayback Machine raw capture
+ * (`https://web.archive.org/web/<ts>id_/<original>`), else undefined.
+ */
+export function waybackOriginal(url: string): string | undefined {
+  const m = url.match(/^https?:\/\/web\.archive\.org\/web\/\d+(?:id_|if_)?\/(https?:\/\/.+)$/);
+  return m?.[1];
+}
+
 function urlToPath(url: string, baseUrl: string): string {
+  // A pinned capture is pathed by the page it captured, host first, so it
+  // reads like the live page (privacy-laws-* use these for WAF-walled hosts).
+  const captured = waybackOriginal(url);
+  if (captured) {
+    const u = new URL(captured);
+    url = `${u.host}${u.pathname}${u.search}`;
+    baseUrl = "";
+  }
   let relative = url;
   if (relative.startsWith(baseUrl)) {
     relative = relative.slice(baseUrl.length);

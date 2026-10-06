@@ -26,13 +26,15 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import type { DocSource } from "../domain/DocSource.js";
 import { discover } from "../ingestors/discovery/index.js";
+import { applyUrlSuffix } from "../ingestors/HttpIngestor.js";
 import { UA } from "../ingestors/http-client.js";
 import { splitLlmsFull } from "../ingestors/llms-splitter.js";
 import { convertOpenApiToMarkdown } from "../ingestors/openapi-converter.js";
 
 const execFileAsync = promisify(execFile);
 
-export type CheckStatus = "ok" | "warn" | "fail";
+/** "tolerated" is assigned by the CLI for TOLERATED_MISSING sources. */
+export type CheckStatus = "ok" | "warn" | "fail" | "tolerated";
 
 export interface CheckResult {
   name: string;
@@ -69,7 +71,7 @@ export function filterUrls(source: DocSource, urls: readonly string[]): string[]
     const re = new RegExp(source.urlExclude);
     out = out.filter((u) => !re.test(u));
   }
-  if (source.urlSuffix) out = out.map((u) => u.replace(/\/$/, "") + source.urlSuffix);
+  if (source.urlSuffix) out = out.map((u) => applyUrlSuffix(u, source.urlSuffix!));
   return [...new Set(out)];
 }
 
@@ -80,12 +82,48 @@ export function pickSamples<T>(items: readonly T[], n: number): T[] {
   return Array.from({ length: n }, (_, i) => items[Math.floor(i * step)]);
 }
 
+/**
+ * GET with one retry after 5s on a network-level error (refused, reset,
+ * DNS) or a 429. Other HTTP error statuses are returned, not retried: those
+ * are the signal. archive.org refuses and 429s bursts briefly.
+ */
+/**
+ * Hosts shared by several sources get their requests serialised so the
+ * daily all-source probe does not burst them: four sources pin
+ * web.archive.org captures, and archive.org 429s concurrent hits.
+ */
+const SERIAL_HOSTS = new Set(["web.archive.org"]);
+const hostQueues = new Map<string, Promise<unknown>>();
+
+function serialised<T>(url: string, fn: () => Promise<T>): Promise<T> {
+  const host = hostOf(url);
+  if (!SERIAL_HOSTS.has(host)) return fn();
+  const prev = hostQueues.get(host) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(fn);
+  hostQueues.set(host, next);
+  return next;
+}
+
 async function get(url: string, source: DocSource, timeout = HTTP_TIMEOUT): Promise<Response> {
-  return fetch(url, {
-    headers: { "User-Agent": source.userAgent ?? UA },
-    signal: AbortSignal.timeout(timeout),
-    redirect: "follow",
-  });
+  return serialised(url, () => getOnce(url, source, timeout));
+}
+
+async function getOnce(url: string, source: DocSource, timeout: number): Promise<Response> {
+  const once = () =>
+    fetch(url, {
+      headers: { "User-Agent": source.userAgent ?? UA },
+      signal: AbortSignal.timeout(timeout),
+      redirect: "follow",
+    });
+  try {
+    const res = await once();
+    if (res.status !== 429) return res;
+    await res.body?.cancel();
+  } catch {
+    // network error: fall through to the single retry
+  }
+  await new Promise((r) => setTimeout(r, SERIAL_HOSTS.has(hostOf(url)) ? 15_000 : 5_000));
+  return once();
 }
 
 function redirectNote(requested: string, res: Response): string {
@@ -153,7 +191,9 @@ async function checkBulk(source: DocSource, method: string): Promise<Omit<CheckR
     if (source.fallbackDiscoveryUrl) {
       const fb = await get(source.fallbackDiscoveryUrl, source, BULK_TIMEOUT);
       await fb.body?.cancel();
-      if (fb.ok) return { method, status: "warn", detail: `primary HTTP ${res.status}, fallback mirror ok` };
+      // A configured fallback mirror working is the designed path (mysql:
+      // Oracle's CDN 403s our IPs), not degradation.
+      if (fb.ok) return { method, status: "ok", detail: `primary HTTP ${res.status}, fallback mirror ok` };
     }
     return { method, status: "fail", detail: `HTTP ${res.status} for ${url}` };
   }
@@ -200,7 +240,7 @@ async function checkPages(source: DocSource, method: string, urls: string[]): Pr
         await res.body?.cancel();
         if (!res.ok) failures.push(`HTTP ${res.status} ${u}`);
         const note = redirectNote(u, res);
-        if (note) redirects.add(note);
+        if (note && !source.expectRedirects) redirects.add(note);
       } catch (err) {
         failures.push(`${err instanceof Error ? err.message : String(err)} ${u}`.slice(0, 160));
       }

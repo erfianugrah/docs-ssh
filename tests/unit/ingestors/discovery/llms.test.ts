@@ -39,6 +39,14 @@ describe("discoverFromLlmsTxt", () => {
     expect(urls).toEqual(["https://docs.example.com/billing.md", "https://docs.example.com/terminal.md"]);
   });
 
+  // idratherbewriting's llms.txt mentions an example URL in prose inside
+  // backticks; the bare-URL regex took the closing backtick and comma.
+  it("drops trailing prose punctuation from bare URLs", async () => {
+    mockLlmsTxt("> append `.md` (for example, `https://docs.example.com/a.md`). See https://docs.example.com/b.md, or https://docs.example.com/c.\n");
+    const urls = await discoverFromLlmsTxt("https://docs.example.com/llms.txt");
+    expect(urls.sort()).toEqual(["https://docs.example.com/a.md", "https://docs.example.com/b.md", "https://docs.example.com/c"]);
+  });
+
   it("strips fragments from relative markdown links too", async () => {
     mockLlmsTxt("- [Guide](guides/start.md#setup)\n");
     const urls = await discoverFromLlmsTxt("https://docs.example.com/llms.txt");

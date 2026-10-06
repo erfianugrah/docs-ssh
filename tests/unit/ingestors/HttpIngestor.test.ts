@@ -1743,6 +1743,34 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  // Pinned Wayback raw captures (privacy-laws-*) were stored as
+  // `https:/web.archive.org/web/<ts>id_/https:/...` with an archive.org
+  // origin. Path and origin now come from the captured URL.
+  it("paths and cites a Wayback raw capture by its original URL", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        url: "https://web.archive.org/web/20250924145036id_/https://www.legisquebec.gouv.qc.ca/en/document/cs/P-39.1",
+        headers: new Headers({ "content-type": "text/markdown" }),
+        text: async () => "# Act respecting personal information".padEnd(500, " "),
+      }),
+    );
+    const src = new DocSource({
+      name: "wayback-test",
+      type: "http",
+      format: "html",
+      url: "https://laws-lois.justice.gc.ca/",
+      urls: ["https://web.archive.org/web/20250924145036id_/https://www.legisquebec.gouv.qc.ca/en/document/cs/P-39.1"],
+    });
+    const set = await ingestor.ingest(src, tmpDir);
+    const [[p, file]] = [...set.files.entries()];
+    expect(p).toBe("www.legisquebec.gouv.qc.ca/en/document/cs/P-39.1.md");
+    expect(file.originUrl).toBe("https://www.legisquebec.gouv.qc.ca/en/document/cs/P-39.1");
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   it("derives clean paths for scheme-mismatched same-host URLs", async () => {
     // nginx.org's sitemap lists http:// URLs for the https:// site.
     // urlToPath must fall back to the URL pathname on exact host match,

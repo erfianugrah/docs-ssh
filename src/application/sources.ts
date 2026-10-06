@@ -359,6 +359,7 @@ export const SOURCES: readonly DocSource[] = [
     format: "html",
     discovery: "rss",
     discoveryUrl: "https://planet.postgresql.org/rss20.xml",
+    expectRedirects: true,
   }),
 
   // Weekly curated newsletter. RSS items link to self-hosted issue pages
@@ -745,9 +746,9 @@ export const SOURCES: readonly DocSource[] = [
   new DocSource({
     name: "http-caching-tutorial",
     type: "http",
-    url: "https://www.mnot.net/cache_docs/",
+    url: "https://mnot.net/cache_docs/",
     format: "html",
-    urls: ["https://www.mnot.net/cache_docs/"],
+    urls: ["https://mnot.net/cache_docs/"],
   }),
 
   // ─── Neovim ────────────────────────────────────────────────────
@@ -2969,6 +2970,21 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs",
   }),
 
+  // ─── supabase/postgres ───────────────────────────────────────────────────────────
+
+  // How Supabase builds its Postgres image: Nix flake layout, adding
+  // extensions, pg_upgrade tests, binary cache (nix/docs, ~30 pages).
+  // realtime/storage/edge-runtime/auth repos are not mirrored: their user
+  // docs live in the main supabase source; the repos hold only READMEs.
+  new DocSource({
+    name: "supabase-postgres",
+    type: "git",
+    url: "https://github.com/supabase/postgres",
+    format: "markdown",
+    paths: ["nix/docs"],
+    rootPath: "nix/docs",
+  }),
+
   // ─── OrioleDB ────────────────────────────────────────────────────────────────────
 
   // Cloud-native storage engine for Postgres (Supabase), mdx docs.
@@ -4340,9 +4356,11 @@ export const SOURCES: readonly DocSource[] = [
       "Canadian data protection law for the Supabase ca-central-1 region: PIPEDA (federal) and Quebec Law 25 (Act respecting the protection of personal information in the private sector)",
     urls: [
       "https://laws-lois.justice.gc.ca/eng/acts/P-8.6/FullText.html",
-      "https://www.legisquebec.gouv.qc.ca/en/document/cs/P-39.1",
+      // Quebec Law 25 via a pinned Wayback raw capture: since 2026-10
+      // legisquebec.gouv.qc.ca 502s the dev box and 403s the router with
+      // any UA (it 403'd only the bot UA before). Statutes change slowly.
+      "https://web.archive.org/web/20250924145036id_/https://www.legisquebec.gouv.qc.ca/en/document/cs/P-39.1",
     ],
-    // legisquebec.gouv.qc.ca 403s the docs-ssh UA (browser UA passes).
     userAgent: BROWSER_UA,
   }),
 
@@ -4451,13 +4469,15 @@ export const SOURCES: readonly DocSource[] = [
   // No sitemap exists under docs.nvidia.com/gameworks (404). Stable,
   // decade-old Doxygen output; plain HTML, no JS rendering needed.
   new DocSource({
+    // NVIDIA moved the GameWorks docs to archive.docs.nvidia.com (2026-10;
+    // docs.nvidia.com 301s there).
     name: "nvapi",
     type: "http",
-    url: "https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/",
+    url: "https://archive.docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/",
     format: "html",
     discovery: "toc",
     discoveryUrl:
-      "https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/topics.html",
+      "https://archive.docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/topics.html",
     urlPattern: "coresdk/nvapi/",
     description: "NVAPI function reference (per-group Doxygen pages)",
   }),
@@ -4465,11 +4485,11 @@ export const SOURCES: readonly DocSource[] = [
   new DocSource({
     name: "nvapi-structs",
     type: "http",
-    url: "https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/",
+    url: "https://archive.docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/",
     format: "html",
     discovery: "toc",
     discoveryUrl:
-      "https://docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/annotated.html",
+      "https://archive.docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/annotated.html",
     urlPattern: "coresdk/nvapi/",
     description: "NVAPI struct/enum reference (annotated Doxygen index)",
   }),

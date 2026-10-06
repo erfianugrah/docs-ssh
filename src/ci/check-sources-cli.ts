@@ -76,18 +76,18 @@ async function worker(): Promise<void> {
     const r = await checkSource(s, timeoutMs);
     // A known upstream block (src/ci/source-floors.ts) stays visible but
     // does not turn every run red.
-    if (r.status === "fail" && TOLERATED_MISSING[r.name]) {
-      r.status = "warn";
+    if (r.status !== "ok" && TOLERATED_MISSING[r.name]) {
+      r.status = "tolerated";
       r.detail = `tolerated (${TOLERATED_MISSING[r.name]}): ${r.detail}`;
     }
     results.push(r);
-    const mark = r.status === "ok" ? "ok  " : r.status === "warn" ? "WARN" : "FAIL";
+    const mark = { ok: "ok  ", warn: "WARN", fail: "FAIL", tolerated: "TOL " }[r.status];
     console.error(`[${results.length}/${sources.length}] ${mark} ${r.name} (${(r.ms / 1000).toFixed(1)}s) ${r.detail}`);
   }
 }
 await Promise.all(Array.from({ length: Math.min(concurrency, sources.length) }, worker));
 
-const order: Record<string, number> = { fail: 0, warn: 1, ok: 2 };
+const order: Record<string, number> = { fail: 0, warn: 1, tolerated: 2, ok: 3 };
 results.sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name));
 console.log(["name", "status", "method", "count", "ms", "detail"].join("\t"));
 for (const r of results) {
@@ -95,6 +95,10 @@ for (const r of results) {
 }
 const fails = results.filter((r) => r.status === "fail");
 const warns = results.filter((r) => r.status === "warn");
-console.error(`\n${results.length} checked: ${results.length - fails.length - warns.length} ok, ${warns.length} warn, ${fails.length} fail`);
-for (const r of fails) console.error(`  FAIL ${r.name}: ${r.detail}`);
+const tolerated = results.filter((r) => r.status === "tolerated");
+const okCount = results.length - fails.length - warns.length - tolerated.length;
+console.error(
+  `\n${results.length} checked: ${okCount} ok, ${warns.length} warn, ${fails.length} fail, ${tolerated.length} tolerated`,
+);
+for (const r of [...fails, ...(strict ? warns : [])]) console.error(`  ${r.status.toUpperCase()} ${r.name}: ${r.detail}`);
 process.exit(fails.length > 0 || (strict && warns.length > 0) ? 1 : 0);
