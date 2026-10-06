@@ -232,13 +232,18 @@ async function checkBulk(source: DocSource, method: string): Promise<Omit<CheckR
 async function checkPages(source: DocSource, method: string, urls: string[]): Promise<Omit<CheckResult, "name" | "ms">> {
   const samples = pickSamples(urls, SAMPLE_PAGES);
   const failures: string[] = [];
+  const throttled: string[] = [];
   const redirects = new Set<string>();
   await Promise.all(
     samples.map(async (u) => {
       try {
         const res = await get(u, source);
         await res.body?.cancel();
-        if (!res.ok) failures.push(`HTTP ${res.status} ${u}`);
+        // A 429 from a SERIAL_HOSTS archive after the retry is the shared
+        // host rate-limiting the probe, not drift in the source (CI saw
+        // web.archive.org 429 a pinned capture that fetches fine).
+        if (res.status === 429 && SERIAL_HOSTS.has(hostOf(u))) throttled.push(u);
+        else if (!res.ok) failures.push(`HTTP ${res.status} ${u}`);
         const note = redirectNote(u, res);
         if (note && !source.expectRedirects) redirects.add(note);
       } catch (err) {
@@ -247,7 +252,8 @@ async function checkPages(source: DocSource, method: string, urls: string[]): Pr
     }),
   );
   const notes = [`${urls.length} URLs`, ...redirects];
-  if (failures.length === samples.length) {
+  if (throttled.length > 0) notes.push(`${throttled.length} sample(s) rate-limited by ${hostOf(throttled[0])}, not counted`);
+  if (failures.length > 0 && failures.length === samples.length - throttled.length) {
     return { method, status: "fail", count: urls.length, detail: `all ${samples.length} sample pages failed: ${failures[0]}` };
   }
   if (failures.length > 0) {
