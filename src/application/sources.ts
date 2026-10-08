@@ -1067,6 +1067,16 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl: "https://docs.fly.io/api/machines/openapi.json",
   }),
 
+  // OpenAQ v3 API -- OpenAPI 3.1.0, JSON (~89KB, 39 paths, tagged "v3").
+  new DocSource({
+    name: "openaq-api",
+    type: "http",
+    url: "https://docs.openaq.org/api/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://api.openaq.org/openapi.json",
+  }),
+
   // ─── MDN Web Docs ───────────────────────────────────────────────
 
   // Markdown docs from the mdn/content repo (English only)
@@ -4192,6 +4202,21 @@ export const SOURCES: readonly DocSource[] = [
     discovery: "toc",
     discoveryUrl: "https://www.airgradient.com/documentation/",
     urlPattern: "airgradient\\.com/documentation/[a-z0-9-]+/",
+  }),
+
+  // OpenAQ -- open air quality data platform. Starlight/Astro docs site
+  // with guide sections (about, using-the-api, examples, resources,
+  // errors, aws). Excludes /api/operations/ auto-generated endpoint
+  // pages covered by the openaq-api OpenAPI source.
+  new DocSource({
+    name: "openaq",
+    type: "http",
+    url: "https://docs.openaq.org/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://docs.openaq.org/sitemap-index.xml",
+    urlPattern: "docs\\.openaq\\.org/",
+    urlExclude: "api/operations/",
   }),
 
   // ─── S3-compatible object storage (MinIO alternatives) ─────────

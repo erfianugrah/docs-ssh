@@ -329,6 +329,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "authentik-api": ["api-specs"],
   "keycloak-api": ["api-specs"],
   "stripe-api": ["api-specs"],
+  "openaq-api": ["api-specs"],
   "sonarr-api-v3": ["api-specs", "media"],
   "sonarr-api-v5": ["api-specs", "media"],
   "radarr-api": ["api-specs", "media"],
@@ -444,6 +445,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   openthread: ["smarthome"],
   athom: ["smarthome", "hardware"],
   airgradient: ["smarthome", "hardware"],
+  openaq: ["smarthome"],
 
   // ─── Legal: privacy & data protection (per Supabase region) ──────
   "privacy-laws-us": ["legal"],

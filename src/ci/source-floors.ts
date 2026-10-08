@@ -26,6 +26,8 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   typescript: 100,
   zsh: 10,
   sops: 1,
+  openaq: 19,
+  "openaq-api": 1,
   flyio: 400,
   bunnycdn: 300,
   "ietf-rfc": 5000,
@@ -42,6 +44,7 @@ export const API_OVERVIEW_SOURCES: readonly string[] = [
   "gitea-api",
   "authentik-api",
   "keycloak-api",
+  "openaq-api",
 ];
 
 /**
