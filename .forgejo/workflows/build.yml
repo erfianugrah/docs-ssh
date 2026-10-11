@@ -307,12 +307,13 @@ jobs:
 
       - name: Wait for Composer job to finish
         if: steps.plan.outputs.build == 'true'
-        # Polls /api/v1/jobs/{id} every 5s for up to 10 minutes. On 'failed'
+        # Polls /api/v1/jobs/{id} every 5s for up to 20 minutes (the servarr
+        # image pull usually takes ~95s but took 11.5 min on 2026-10-10). On 'failed'
         # surfaces composer's error+output to the CI log so we don't have to
         # SSH to the host to find out what went wrong.
         run: |
           job_id="${{ steps.deploy.outputs.job_id }}"
-          for i in $(seq 1 120); do
+          for i in $(seq 1 240); do
             job=$(curl -sf \
               --connect-timeout 10 --max-time 20 --retry 2 --retry-all-errors \
               -H "Authorization: Bearer ${{ secrets.COMPOSER_API_KEY }}" \
@@ -340,7 +341,7 @@ jobs:
             esac
             sleep 5
           done
-          echo "::error::composer job $job_id did not finish within 10 minutes"
+          echo "::error::composer job $job_id did not finish within 20 minutes"
           exit 1
 
   smoke:

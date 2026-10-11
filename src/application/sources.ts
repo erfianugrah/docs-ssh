@@ -4332,8 +4332,10 @@ export const SOURCES: readonly DocSource[] = [
     description:
       "US state privacy laws for Supabase US regions: CCPA/CPRA (California), VCDPA (Virginia), OCPA (Oregon), Ohio ORC ch. 1354 cybersecurity safe harbor (Ohio has no comprehensive consumer privacy law)",
     urls: [
-      // California - CCPA as amended by CPRA (Civ. Code title 1.81.5)
-      "https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?division=3.&part=4.&lawCode=CIV&title=1.81.5",
+      // California - CCPA as amended by CPRA (Civ. Code title 1.81.5).
+      // leginfo.legislature.ca.gov 403s every client since ~2026-10-08 (bot
+      // and browser UA alike), so pin a Wayback capture of the same page.
+      "https://web.archive.org/web/20261003081430id_/https://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?division=3.&part=4.&lawCode=CIV&title=1.81.5",
       // Virginia - Consumer Data Protection Act (Va. Code ch. 53)
       "https://law.lis.virginia.gov/vacodefull/title59.1/chapter53/",
       // Ohio - ORC Chapter 1354 (Data Protection Act, cyber safe harbor)
