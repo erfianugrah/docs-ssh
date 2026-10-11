@@ -124,20 +124,22 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern: "supabase\\.com/changelog/[0-9]+-",
   }),
 
-  // Incident + status history - status.supabase.com is an Atlassian
-  // Statuspage. The whole history (back to Apr 2021) is reachable via the
-  // JSON API: `/history.json?page=N` paginates 3 months/page listing every
-  // incident code, and `/incidents/<code>.json` returns the full update
-  // timeline (investigating -> resolved) + postmortem for any incident,
-  // old ones included. `discovery: "statuspage"` drives the paginate-then-
-  // fetch-each flow (statuspage-converter.ts), emitting one `<code>.md` per
-  // incident. Resolved incidents are immutable, so this caches perfectly.
+  // Incident + status history - status.supabase.com moved from Atlassian
+  // Statuspage to incident.io in 2026-10 (Next.js on Vercel). The old
+  // /history.json + /incidents/<code>.json endpoints are gone. The new
+  // proxy API serves a rolling ~3-month window only: `/proxy/<host>/incidents`
+  // lists every current incident (no paging; query params are ignored) and
+  // `/proxy/<host>/incidents/<id>` returns the full update timeline. `discovery:
+  // "incidentio"` drives the list-then-fetch-each flow (incidentio-converter.ts),
+  // emitting one `incidents/<id>.md` per incident. Because the window rolls,
+  // the ingestor carries forward every older incident file from the previous
+  // output dir so the Atlassian-era archive is preserved across fetches.
   new DocSource({
     name: "supabase-status",
     type: "http",
     url: "https://status.supabase.com",
     format: "markdown",
-    discovery: "statuspage",
+    discovery: "incidentio",
   }),
 
   // ─── Logflare ─────────────────────────────────────────────────────

@@ -34,7 +34,7 @@ describe("SOURCES configuration", () => {
     const validMethods = new Set([
       "none", "tarball", "texinfo", "llms-full", "sitemap",
       "sitemap-index", "toc", "llms-index", "llms-txt", "rss", "openapi", "openapi-dir", "mediawiki",
-      "dokuwiki", "statuspage", "mslearn",
+      "dokuwiki", "statuspage", "incidentio", "mslearn",
     ]);
     for (const source of SOURCES) {
       expect(validMethods.has(source.discovery)).toBe(true);
@@ -43,9 +43,15 @@ describe("SOURCES configuration", () => {
 
   it("has discoveryUrl for sources that need it", () => {
     for (const source of SOURCES) {
-      // "statuspage" derives all endpoints from `url` (base), so it needs
-      // no separate discoveryUrl - exempt it from the requirement.
-      if (source.discovery !== "none" && source.discovery !== "statuspage" && source.type === "http") {
+      // "statuspage"/"incidentio" derive all endpoints from `url` (base),
+      // so they need no separate discoveryUrl - exempt them from the
+      // requirement.
+      if (
+        source.discovery !== "none" &&
+        source.discovery !== "statuspage" &&
+        source.discovery !== "incidentio" &&
+        source.type === "http"
+      ) {
         expect(source.discoveryUrl).toBeTruthy();
       }
     }

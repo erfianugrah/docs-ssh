@@ -1,0 +1,139 @@
+{
+  "incidents": [
+    {
+      "id": "01M3T5X0M7MY87TX29CFN1HCJS",
+      "name": "Statuspage Migration",
+      "published_at": "2026-09-30T22:08:26.542Z",
+      "status": "maintenance_complete",
+      "type": "maintenance",
+      "updates": [
+        {
+          "id": "01M3T5X0M7AA48QNQJCFTW323K",
+          "to_status": "maintenance_scheduled",
+          "published_at": "2026-09-30T22:08:26.617Z",
+          "message_string": "Starting October 7th, we are migrating our status page to a new platform to give you better visibility into Supabase's service status.\n\nWhat's changing:\n\nThe status page URL will stay the same: https://status.supabase.com\n\nIf you are subscribed via email, you will automatically be resubscribed, no action needed.\n\nIf you are subscribed via any other method (SMS, Slack, webhook, RSS, etc.), you will need to resubscribe on the new page, since these subscriptions will not carry over automatically. Note that our new platform only offers Email, RSS, and Slack notifications.\n\nWhat's new:\n\nThe new status page lets you choose exactly what you want updates about. Instead of getting notified about all products, services and regions, email subscribers can now subscribe to only the specific products, services, and regions relevant to them. You will hear about the incidents that actually affect you.\n\nThanks, The Supabase Team"
+        },
+        {
+          "id": "01M4BERDM2CFH49230NHA72APD",
+          "to_status": "maintenance_in_progress",
+          "published_at": "2026-10-07T15:00:07.413Z",
+          "message_string": "Scheduled maintenance is currently in progress. We will provide updates as necessary."
+        },
+        {
+          "id": "01M4BN425RQF5VV9XM29V53W2F",
+          "to_status": "maintenance_complete",
+          "published_at": "2026-10-07T17:03:34.639Z",
+          "message_string": "The statuspage migration is now complete. \n\nIf you were previously subscribed via email, no action is needed, you were automatically resubscribed.\n\nIf you were previously subscribed via any other method (SMS, Slack, webhook, RSS, etc.), you can now resubscribe."
+        }
+      ]
+    },
+    {
+      "id": "01M48WZN5HSPR8TG7AT83XRS1K",
+      "name": "Upgrade Issues",
+      "published_at": "2026-10-06T15:23:14.386Z",
+      "status": "resolved",
+      "type": "incident",
+      "updates": [
+        {
+          "id": "01M48WZN5H54CSJV1J53YSPNV5",
+          "to_status": "investigating",
+          "published_at": "2026-10-06T15:23:14.589Z",
+          "message_string": "We have observed failures in attempted upgrades to 17.11.0.003.  We are investigating."
+        },
+        {
+          "id": "01M48Z96PZQYX53301NSW8SAKP",
+          "to_status": "identified",
+          "published_at": "2026-10-06T16:03:24.839Z",
+          "message_string": "We have identified the issue with the upgrade. To prevent issues, we have suspended the ability to upgrade projects while we resolve this issue. The problem is limited to upgrades from earlier versions of PG17 to the most recent release. We are working on a fix."
+        },
+        {
+          "id": "01M4916T7F54XS8P0MVHFZ62BQ",
+          "to_status": "identified",
+          "published_at": "2026-10-06T16:37:03.545Z",
+          "message_string": "A fix has been developed and we are going through the review and implementation process."
+        },
+        {
+          "id": "01M4942X7WN27TE5MD6BPK3GEY",
+          "to_status": "monitoring",
+          "published_at": "2026-10-06T17:27:21.383Z",
+          "message_string": "The fix has been implemented. Upgrade operation has been restored. We will monitor for stability."
+        },
+        {
+          "id": "01M49710P2HYQ8QP393XJXQCXR",
+          "to_status": "resolved",
+          "published_at": "2026-10-06T18:18:45.162Z",
+          "message_string": "We've rolled out a fix for this issue and re-enabled upgrades in the dashboard. We apologize for the inconvenience."
+        }
+      ]
+    },
+    {
+      "id": "01M3PZTHHR2P5PR1WRCZ36EDVV",
+      "name": "Intermittent latency in Eastern US",
+      "published_at": "2026-09-29T16:26:33.12Z",
+      "status": "resolved",
+      "type": "incident",
+      "updates": [
+        {
+          "id": "01M3PZTHHRV0PYZSS7MBWJQ0VG",
+          "to_status": "identified",
+          "published_at": "2026-09-29T16:26:33.19Z",
+          "message_string": "We have identified an issue with increased latency for clients in the eastern US during spikes caused by bursty traffic. This is most noticeable during EDT working hours around the :00 and :30 hour marks.\n\nWe are actively working on a fix. We will provide updates as the fix is implemented."
+        },
+        {
+          "id": "01M3Q4XZXPB71T2280QD04NK5A",
+          "to_status": "identified",
+          "published_at": "2026-09-29T17:55:49Z",
+          "message_string": "We are continuing our work to fix this latency issue, which has been observed to impact clients connecting to Supabase Projects from the eastern United States. These clients may include servers and serverless functions located in that geographical region, regardless of the region in which the Project is hosted."
+        },
+        {
+          "id": "01M3QHFJCAE20Z7RKETCP1BJGW",
+          "to_status": "identified",
+          "published_at": "2026-09-29T21:35:08.081Z",
+          "message_string": "A mitigation for this issue was applied earlier today, but we do not have sufficient evidence to conclude that the mitigation resulted in improvement to this eastern US latency issue. We have tied the issue to a particular PoP, and we are continuing to work with our networking partners to bring this issue to a final resolution. We will provide another update within 4 hours, if not before. We appreciate your patience."
+        },
+        {
+          "id": "01M3R1EZ51JZKFSJWE8VDVT4VY",
+          "to_status": "identified",
+          "published_at": "2026-09-30T02:14:25.392Z",
+          "message_string": "We are working with our networking partners on a permanent fix.\n\nWhile we do not have an estimated resolution time, we will share updates here as they become available."
+        },
+        {
+          "id": "01M3SDFEEBQQS6E2A47PRBRJDF",
+          "to_status": "identified",
+          "published_at": "2026-09-30T14:54:28.877Z",
+          "message_string": "We're continuing to coordinate with our networking partners to deliver a permanent resolution. We will provide updates as soon as they're available."
+        },
+        {
+          "id": "01M3T3CZV4MFEYHXSTFNS8A5GF",
+          "to_status": "identified",
+          "published_at": "2026-09-30T21:26:46.631Z",
+          "message_string": "We are seeing signs of improvement and are continuing to work alongside our networking partners towards a resolution. We will provide another update as more information becomes available."
+        },
+        {
+          "id": "01M3WJ5G59HC6JERT4D99H4H03",
+          "to_status": "identified",
+          "published_at": "2026-10-01T20:23:18.723Z",
+          "message_string": "Our networking partners have implemented a mitigation to the latency issue at the problematic PoP in the Eastern US, and we have since observed significant improvement in rates of high latency across the region. We are continuing to work with those partners to isolate any additional root causes of latency and improve the reliability of our networking infrastructure across the region."
+        },
+        {
+          "id": "01M3Z710CS62QG5E9MH173WZ4S",
+          "to_status": "identified",
+          "published_at": "2026-10-02T21:06:20.553Z",
+          "message_string": "While we have observed significant improvement in rates of high latency, we note that some users are still experiencing issues during peak Eastern US business hours. We continue to work with our networking partners to isolate and resolve any lingering sources of high latency. We recognize that this is a longstanding issue and appreciate the patience of affected customers. We will continue to share additional updates here as soon as they are available."
+        },
+        {
+          "id": "01M46P5T6ASZ3169JW66WWT57F",
+          "to_status": "monitoring",
+          "published_at": "2026-10-05T18:45:47.704Z",
+          "message_string": "A fix for this issue has been implemented and our data shows recovery for users on projects that have previously been affected. We expect this situation to be resolved, but will keep monitoring for a while until fully resolving this incident."
+        },
+        {
+          "id": "01M48J8FMQ6PZMSWBPWHDWGW44",
+          "to_status": "resolved",
+          "published_at": "2026-10-06T12:15:49.765Z",
+          "message_string": "A fix for this issue has been implemented and our data shows previous impacted users have recovered."
+        }
+      ]
+    }
+  ]
+}

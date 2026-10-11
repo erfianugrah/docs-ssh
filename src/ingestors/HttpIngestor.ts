@@ -11,6 +11,14 @@ import { splitLlmsFull } from "./llms-splitter.js";
 import { splitTexinfo } from "./info-splitter.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { collectIncidentCodes, incidentToMarkdown } from "./statuspage-converter.js";
+import {
+  collectIncidentIds,
+  incidentToMarkdown as incidentioToMarkdown,
+  loadCarriedArchive,
+  mergeCarriedArchive,
+  type IncidentioDetail,
+  type IncidentioList,
+} from "./incidentio-converter.js";
 import { walkDir } from "../shared/walkDir.js";
 import {
   BULK_RETRIES,
@@ -276,6 +284,9 @@ export class HttpIngestor implements DocIngestor {
     }
     if (source.discovery === "statuspage") {
       return this.ingestFromStatuspage(source, signal);
+    }
+    if (source.discovery === "incidentio") {
+      return this.ingestFromIncidentio(source, signal);
     }
 
     // Everything else is URL-based: discover URLs, filter, fetch each page
@@ -615,6 +626,87 @@ export class HttpIngestor implements DocIngestor {
     }
     console.log(`  [${source.name}] converted to ${files.size} markdown files`);
     return new DocSet(source, files, new Date());
+  }
+
+  // ─── incident.io ───────────────────────────────────────────────────
+
+  /**
+   * incident.io status pages (e.g. status.supabase.com): list incidents
+   * via the proxy API and fetch each detail. The list is a rolling
+   * ~3-month window with no paging, so older incidents must be carried
+   * forward from the previous output dir - otherwise the mirror silently
+   * shrinks and the regression guard (which compares against the
+   * previous file count) would read the shrink as an upstream change.
+   */
+  private async ingestFromIncidentio(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
+    const base = source.url.replace(/\/$/, "");
+    const host = new URL(base).host;
+    const fetchJson = async (url: string): Promise<unknown> => {
+      const buffer = await fetchBufferWithRetry(url, BULK_RETRIES, BULK_TIMEOUT, signal);
+      return JSON.parse(buffer.toString("utf-8"));
+    };
+
+    console.log(`  [${source.name}] fetching incident list...`);
+    const list = (await fetchJson(`${base}/proxy/${host}/incidents`)) as IncidentioList;
+    const ids = collectIncidentIds(list);
+    console.log(`  [${source.name}] discovered ${ids.length} incidents (rolling window)`);
+    if (ids.length === 0) {
+      throw new Error(
+        `incidentio discovery returned 0 incidents for ${source.name} (${base}/proxy/${host}/incidents) - upstream format may have changed`,
+      );
+    }
+
+    const files = new Map<string, DocFile>();
+    const errors: string[] = [];
+    const concurrency =
+      source.pageConcurrency && source.pageConcurrency > 0 ? source.pageConcurrency : CONCURRENCY;
+    for (let i = 0; i < ids.length; i += concurrency) {
+      if (signal?.aborted) {
+        throw new Error(`fetch aborted: ${signal.reason ?? "deadline exceeded"}`);
+      }
+      const batch = ids.slice(i, i + concurrency);
+      const results = await Promise.allSettled(
+        batch.map(async (id) => {
+          const detail = (await fetchJson(`${base}/proxy/${host}/incidents/${id}`)) as IncidentioDetail;
+          if (!detail.incident) {
+            throw new Error(`incident ${id} detail has no "incident" key - upstream format may have changed`);
+          }
+          return incidentioToMarkdown(detail.incident, id, base);
+        }),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") {
+          const fpath = r.value.path;
+          // One file per incident; the public page is /incidents/<id>.
+          const id = fpath.replace(/^incidents\//, "").replace(/\.md$/, "");
+          files.set(fpath, new DocFile(fpath, r.value.content, { originUrl: `${base}/incidents/${id}` }));
+        } else {
+          errors.push(r.reason?.message ?? String(r.reason));
+        }
+      }
+    }
+
+    if (files.size === 0) {
+      throw new Error(`HttpIngestor: all incident fetches failed. First error: ${errors[0]}`);
+    }
+    if (errors.length > 0) {
+      console.warn(`  [${source.name}] ${errors.length} incidents failed (${files.size} succeeded)`);
+    }
+
+    // Archive carry-forward: the proxy API only serves the rolling
+    // window, so every older incident file from the previous output dir
+    // must rejoin the set or it is deleted by UpdateDocSets.write().
+    // Fresh wins on collision; origin URLs come from the previous stamp.
+    const carried = await loadCarriedArchive(
+      path.join(process.env.DOCS_OUT_DIR ?? path.join(process.cwd(), "docs"), source.name),
+    );
+    const { files: merged, carriedCount } = mergeCarriedArchive(files, carried);
+    if (carriedCount > 0) {
+      console.log(`  [${source.name}] carried forward ${carriedCount} archived file(s) from the previous output dir`);
+    }
+
+    console.log(`  [${source.name}] converted to ${merged.size - carriedCount} markdown files (+${carriedCount} carried)`);
+    return new DocSet(source, merged, new Date());
   }
 }
 

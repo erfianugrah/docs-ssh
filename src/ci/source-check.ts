@@ -276,6 +276,30 @@ async function checkHttp(source: DocSource): Promise<Omit<CheckResult, "name" | 
       ? { method, status: "ok", detail: "history.json reachable" }
       : { method, status: "fail", detail: `HTTP ${res.status} for ${url}` };
   }
+  if (source.discovery === "incidentio") {
+    const base = source.url.replace(/\/$/, "");
+    const url = `${base}/proxy/${hostOf(base)}/incidents`;
+    const res = await get(url, source);
+    if (!res.ok) {
+      await res.body?.cancel();
+      return { method, status: "fail", detail: `HTTP ${res.status} for ${url}` };
+    }
+    let incidents: { incidents?: unknown[] } | null = null;
+    try {
+      incidents = (await res.json()) as { incidents?: unknown[] };
+    } catch (err) {
+      return {
+        method,
+        status: "fail",
+        detail: `incident list is not JSON: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200),
+      };
+    }
+    const list = incidents && Array.isArray(incidents.incidents) ? incidents.incidents : [];
+    if (list.length === 0) {
+      return { method, status: "fail", count: 0, detail: `incident list returned 0 incidents for ${url}` };
+    }
+    return { method, status: "ok", count: list.length, detail: `${list.length} incidents (rolling window)` };
+  }
   let urls: string[];
   if (source.urls.length > 0) {
     urls = [...source.urls];

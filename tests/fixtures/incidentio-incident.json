@@ -1,0 +1,49 @@
+{
+  "updates": [
+    {
+      "published_at": "2026-09-30T22:08:26.617Z",
+      "id": "01M3T5X0M7AA48QNQJCFTW323K",
+      "message": {
+        "feature_set": "mrkdwn",
+        "markdown": "Starting October 7th, we are migrating our status page to a new platform to give you better visibility into Supabase's service status.\n\nWhat's changing:\n\nThe status page URL will stay the same: https://status.supabase.com\n\nIf you are subscribed via email, you will automatically be resubscribed, no action needed.\n\nIf you are subscribed via any other method (SMS, Slack, webhook, RSS, etc.), you will need to resubscribe on the new page, since these subscriptions will not carry over automatically. Note that our new platform only offers Email, RSS, and Slack notifications.\n\nWhat's new:\n\nThe new status page lets you choose exactly what you want updates about. Instead of getting notified about all products, services and regions, email subscribers can now subscribe to only the specific products, services, and regions relevant to them. You will hear about the incidents that actually affect you.\n\nThanks, The Supabase Team",
+        "schema_version": "v1.0.0"
+      },
+      "message_string": "Starting October 7th, we are migrating our status page to a new platform to give you better visibility into Supabase's service status.\n\nWhat's changing:\n\nThe status page URL will stay the same: https://status.supabase.com\n\nIf you are subscribed via email, you will automatically be resubscribed, no action needed.\n\nIf you are subscribed via any other method (SMS, Slack, webhook, RSS, etc.), you will need to resubscribe on the new page, since these subscriptions will not carry over automatically. Note that our new platform only offers Email, RSS, and Slack notifications.\n\nWhat's new:\n\nThe new status page lets you choose exactly what you want updates about. Instead of getting notified about all products, services and regions, email subscribers can now subscribe to only the specific products, services, and regions relevant to them. You will hear about the incidents that actually affect you.\n\nThanks, The Supabase Team",
+      "to_status": "maintenance_scheduled",
+      "automated_update": false
+    },
+    {
+      "published_at": "2026-10-07T15:00:07.413Z",
+      "id": "01M4BERDM2CFH49230NHA72APD",
+      "message": {
+        "feature_set": "mrkdwn",
+        "markdown": "Scheduled maintenance is currently in progress. We will provide updates as necessary.",
+        "schema_version": "v1.0.0"
+      },
+      "message_string": "Scheduled maintenance is currently in progress. We will provide updates as necessary.",
+      "to_status": "maintenance_in_progress",
+      "automated_update": false
+    },
+    {
+      "published_at": "2026-10-07T17:03:34.639Z",
+      "id": "01M4BN425RQF5VV9XM29V53W2F",
+      "message": {
+        "feature_set": "mrkdwn",
+        "markdown": "The statuspage migration is now complete. \n\nIf you were previously subscribed via email, no action is needed, you were automatically resubscribed.\n\nIf you were previously subscribed via any other method (SMS, Slack, webhook, RSS, etc.), you can now resubscribe.",
+        "schema_version": "v1.0.0"
+      },
+      "message_string": "The statuspage migration is now complete. \n\nIf you were previously subscribed via email, no action is needed, you were automatically resubscribed.\n\nIf you were previously subscribed via any other method (SMS, Slack, webhook, RSS, etc.), you can now resubscribe.",
+      "to_status": "maintenance_complete",
+      "automated_update": false
+    }
+  ],
+  "component_impacts": [],
+  "status_summaries": [],
+  "published_at": "2026-09-30T22:08:26.542Z",
+  "id": "01M3T5X0M7MY87TX29CFN1HCJS",
+  "status_page_id": "01KJZVWMNKKQM1MY9H5QWY34VG",
+  "name": "Statuspage Migration",
+  "status": "maintenance_complete",
+  "affected_components": [],
+  "type": "maintenance"
+}

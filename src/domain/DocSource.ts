@@ -18,6 +18,9 @@ export type DocSourceType = "git" | "http" | "rsync";
  * - "openapi-dir":  git repo containing multiple OpenAPI specs in a directory structure
  * - "statuspage":   paginates an Atlassian Statuspage /history.json, then fetches each
  *                   /incidents/<code>.json and converts to one markdown file per incident
+ * - "incidentio":   fetches an incident.io proxy API (<url>/proxy/<host>/incidents, a
+ *                   rolling window with no paging) plus each incident detail; older
+ *                   incidents are carried forward from the previous output dir
  * - "mslearn":       walks Microsoft Learn toc.json sidebar files (discoveryUrl:
  *                   space-separated list) for the page URLs under url
  */
@@ -37,6 +40,7 @@ export type DiscoveryMethod =
   | "openapi-dir"
   | "mediawiki"
   | "statuspage"
+  | "incidentio"
   | "mslearn";
 
 export interface DocSourceConfig {
