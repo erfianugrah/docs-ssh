@@ -4586,42 +4586,6 @@ export const SOURCES: readonly DocSource[] = [
   //
   // The previous umbrella source pulled ~14k pages through llms-index
   // discovery; sharding splits that into independent fetches.
-  // ─── Akamai ────────────────────────────────────────────────────────
-  //
-  // techdocs.akamai.com (ReadMe.io) publishes a top-level llms.txt that
-  // now enumerates ~982 child llms.txt files (product + section + category
-  // indexes, all levels flattened) rather than pages directly - hence
-  // llms-index discovery. The leaves list per-page `.md` URLs (~8-9k pages
-  // before URL dedup) across every PUBLIC product (Property
-  // Manager, App & API Protector, EdgeWorkers, Edge DNS, NetStorage,
-  // Cloudlets, Linode/cloud-computing, PowerShell, Terraform, all API
-  // references). The `.md` variants return clean markdown directly.
-  //
-  // GATED PRODUCTS ARE EXCLUDED BY UPSTREAM: Bot Manager, Account
-  // Protector, and Content Protector render only behind a Control Center
-  // login - anonymous fetch of e.g. /bot-manager/docs returns a 325-byte
-  // SPA shell titled "Control Center", and they have no llms.txt/sitemap
-  // entry. There is no anonymous mirror path for them. What public
-  // bot/abuse material exists (terraform/docs/bmgr-*, cloud-security
-  // about-bots, security-ctr bot-reports, edgeworkers botscore-object,
-  // ~49 pages) is already inside this index and captured automatically.
-  //
-  // ~8-9k pages makes this the second-largest source after AWS, so it
-  // sits in the slow tier and is throttled (pageConcurrency: 6) with a
-  // generous 40-min deadline. urlPattern keeps only `.md` page URLs and
-  // drops the two stray `.html` links + the index self-reference.
-  new DocSource({
-    name: "akamai",
-    type: "http",
-    url: "https://techdocs.akamai.com/",
-    format: "markdown",
-    discovery: "llms-index",
-    discoveryUrl: "https://techdocs.akamai.com/llms.txt",
-    urlPattern: "techdocs\\.akamai\\.com/.+\\.md$",
-    pageConcurrency: 6,
-    deadlineMs: 2_400_000,
-  }),
-
   ...((): readonly DocSource[] => {
     type AwsShard = readonly [name: string, llmsPath: string];
     const shards: readonly AwsShard[] = [

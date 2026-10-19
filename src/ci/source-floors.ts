@@ -53,8 +53,6 @@ export const API_OVERVIEW_SOURCES: readonly string[] = [
  * once unblocked; remove the entry then. Each entry needs a reason + date.
  */
 export const TOLERATED_MISSING: Readonly<Record<string, string>> = {
-  // Akamai Bot Manager answers 403 "Access Denied" to every techdocs URL,
-  // llms.txt included, from both the router (CI) and dev-box IPs, with any
-  // User-Agent - since the 2026-10-05 cold fetch (9.8k pages).
-  akamai: "techdocs.akamai.com 403s our egress IPs (2026-10-05)",
+  // (empty) akamai was here until 2026-10-19; its Bot Manager 403s came and
+  // went and its 9.7k pages never fit a deadline, so the source was removed.
 };
