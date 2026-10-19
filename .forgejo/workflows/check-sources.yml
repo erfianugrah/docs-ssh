@@ -12,6 +12,10 @@ name: Check sources
 # sources (src/ci/source-floors.ts) are reported but never fail. The TSV
 # report is in the log.
 
+# Email the triggering user (scheduled runs: the repo owner) when a run
+# fails: build.yml was red 2026-10-13..19 and nobody noticed.
+enable-email-notifications: true
+
 on:
   push:
     branches: [main]

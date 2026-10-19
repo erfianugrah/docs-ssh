@@ -20,6 +20,10 @@ name: Build
 # runner volume allowlist is needed. Deleting the volume just means the next
 # run does a cold fetch (~2h20m).
 
+# Email the triggering user (scheduled runs: the repo owner) when a run
+# fails: build.yml was red 2026-10-13..19 and nobody noticed.
+enable-email-notifications: true
+
 on:
   push:
     tags:
