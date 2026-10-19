@@ -181,12 +181,16 @@ export const SOURCES: readonly DocSource[] = [
     type: "http",
     url: "https://blog.cloudflare.com/",
     format: "html",
-    discovery: "sitemap",
-    discoveryUrl: "https://blog.cloudflare.com/sitemap-posts.xml",
-    // Since 2026-10 the posts sitemap also lists every translated copy
-    // (/de-de/, /zh-cn/, ... 4283 of 7934 URLs). English only: the copies
-    // double the request count into the rate limiter for duplicate content.
-    urlExclude: "blog\\.cloudflare\\.com/[a-z]{2}-[a-z]{2}/[^/]+",
+    // Since 2026-10 posts are split across sitemap-posts{,-2,...}.xml (2000
+    // <loc> each), so read the index; sitemap-posts.xml alone held 1952 of
+    // ~3670 English posts. The index also lists archives/authors/tags.
+    discovery: "sitemap-index",
+    discoveryUrl: "https://blog.cloudflare.com/sitemap.xml",
+    // Posts are single-segment, no trailing slash. This drops the
+    // translated copies (/de-de/<slug>, which would double the request
+    // count into the rate limiter for duplicate content) and the
+    // /tag/, /author/ and archive index pages (trailing slash).
+    urlPattern: "^https://blog\\.cloudflare\\.com/[^/]+$",
     pageConcurrency: 4,
     deadlineMs: 2_400_000,
   }),
