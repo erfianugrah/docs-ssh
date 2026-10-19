@@ -1,7 +1,9 @@
 #!/bin/sh
 # Entrypoint: generates host keys, persists env, sets up logging, starts services.
 
-# Generate host keys in tmpfs (unique per container, not baked into image)
+# Generate host keys once, never baked into the image. /run/sshd is a tmpfs
+# by default (new key per container); deploy/edge/compose.yaml mounts a
+# volume there so the production key survives redeploys.
 KEY_DIR="/run/sshd"
 mkdir -p "$KEY_DIR"
 if [ ! -f "$KEY_DIR/ssh_host_ed25519_key" ]; then

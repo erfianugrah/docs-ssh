@@ -4,8 +4,10 @@
 # `up --remove-orphans` would delete another's containers).
 name: docs-ssh
 
-# Stateless service: docs baked into the image, host keys ephemeral per
-# container, no volumes. Servarr differences:
+# Docs baked into the image; the only state is the SSH host keys, kept in
+# the `sshd` volume at /run/sshd so a redeploy does not change the host key
+# (it did on every deploy until 2026-10-19; clients pin it). entrypoint.sh
+# only runs ssh-keygen when /run/sshd has no key. Servarr differences:
 #   - macvlan IP on servarr_lan (10.0.71.65), not host-published ports -
 #     first-class LAN service, same class as copyparty/jellyfin
 #   - edge Caddy terminates HTTP on 443 (reverse_proxy 10.0.71.65:8080) and
@@ -42,7 +44,6 @@ services:
       - 8080
     tmpfs:
       - /tmp:size=16M
-      - /run/sshd:size=1M
       - /var/log:size=8M
     environment:
       - TZ=UTC
@@ -57,9 +58,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    volumes:
+      - sshd:/run/sshd # host keys + per-start env/pid files
     networks:
       lan:
         ipv4_address: 10.0.71.65
+
+volumes:
+  sshd:
 
 networks:
   lan:
