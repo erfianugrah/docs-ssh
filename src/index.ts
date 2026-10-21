@@ -14,6 +14,7 @@ import { UpdateDocSets } from "./application/UpdateDocSets.js";
 import { SOURCES } from "./application/sources.js";
 import { SOURCE_TAGS, buildSourceGroupsPayload } from "./application/source-tags.js";
 import { writeOriginsTsv } from "./application/origins.js";
+import { writeLinksTsv } from "./application/link-graph.js";
 
 const OUT_DIR = process.env.DOCS_OUT_DIR ?? path.join(process.cwd(), "docs");
 const WORK_DIR = process.env.DOCS_WORK_DIR ?? path.join(os.tmpdir(), "docs-ssh-work");
@@ -107,6 +108,15 @@ const originCount = await writeOriginsTsv(
   sources.map((s) => s.name),
 );
 console.log(`Generated ${path.join(OUT_DIR, "_origins.tsv")} (${originCount} origin URLs)`);
+
+// Build a doc-to-doc link graph over the corpus. siteHosts names each
+// http source's own site host so absolute links can match by path.
+const siteHosts = new Map<string, string>();
+for (const s of SOURCES) {
+  if (s.type === "http") siteHosts.set(s.name, new URL(s.url).host);
+}
+const linkCount = await writeLinksTsv(OUT_DIR, siteHosts);
+console.log(`Generated ${path.join(OUT_DIR, "_links.tsv")} (${linkCount} links)`);
 
 // Validate: warn about untagged sources (parity with the standalone CLI).
 const untagged = SOURCES.filter((s) => !SOURCE_TAGS[s.name]).map((s) => s.name);
