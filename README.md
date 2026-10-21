@@ -61,7 +61,7 @@ Chat LLMs that can't open an SSH connection - Claude.ai custom connectors, ChatG
 https://docs.erfi.io/mcp
 ```
 
-It exposes the same six tools (`docs_search`, `docs_read`, `docs_grep`, `docs_find`, `docs_summary`, `docs_sources`) as the SSH path, running against the in-container docs tree - so it keeps the same search -> summary -> targeted-read token efficiency, **not** the full-page dumps typical of documentation MCP servers. Stateless (no session state, sits behind a CDN cleanly), read-only, and open (public documentation). Origin/Host allowlists guard against DNS-rebinding.
+It exposes the same seven tools (`docs_search`, `docs_read`, `docs_grep`, `docs_find`, `docs_summary`, `docs_sources`, `docs_links`) as the SSH path, running against the in-container docs tree - so it keeps the same search -> summary -> targeted-read token efficiency, **not** the full-page dumps typical of documentation MCP servers. Stateless (no session state, sits behind a CDN cleanly), read-only, and open (public documentation). Origin/Host allowlists guard against DNS-rebinding.
 
 Every `docs_read` / `docs_summary` result starts with a `[source] /docs/<source>/<path>.md` line and, when the mirror knows it, a `[url] https://...` line with the file's original public URL (the fetched page for web sources, the forge file view or the published site for git sources). `docs_search` rows carry the same URL as a 4th tab-separated column. Cite the `[url]`; the `[source]` path is the fallback.
 
@@ -105,7 +105,7 @@ ssh -p 2222 docs@localhost "rg --json 'auth' /docs/supabase/"
 
 ## What `tools` and `tools pi` generate
 
-Both commands output a **TypeScript file you save locally** — no code is executed during the install. The file implements the docs tools (docs_search, docs_read, docs_grep, docs_find, docs_summary, docs_sources) as thin wrappers around SSH commands to the docs server.
+Both commands output a **TypeScript file you save locally** — no code is executed during the install. The file implements the docs tools (docs_search, docs_read, docs_grep, docs_find, docs_summary, docs_sources, docs_links) as thin wrappers around SSH commands to the docs server.
 
 - `tools` → OpenCode custom tools format (Zod schemas, `.opencode/tools/docs.ts`)
 - `tools pi` → Pi extension format (TypeBox, `~/.pi/agent/extensions/docs.ts`)
@@ -193,11 +193,11 @@ fly deploy
 - **Read-only filesystem** — docs cannot be modified at runtime
 - **Capability-restricted** — `cap_drop: ALL`, adds back only CHOWN/SETUID/SETGID/SYS_CHROOT/AUDIT_WRITE
 - **no-new-privileges** — processes cannot escalate
-- **Runtime host keys** — ed25519 + RSA generated at startup, not baked into the image
+- **Runtime host keys** - ed25519 + RSA generated on first start, never baked into the image (production keeps them on a volume so the key survives redeploys)
 - **Content sanitised** — ANSI escapes, null bytes, control characters stripped at ingest
 - **Path traversal prevented** — `..` stripped from all paths during ingest
 - **Output capped** — 51K char limit with truncation hints prevents context window exhaustion
-- **Structured audit logging** — every command logged as JSON to Docker logs with cache status
+- **Structured query log** - every command and MCP tool call logged as JSON (operation, query, path, cache status) to Docker logs and a file kept 30 days
 - **Passwordless by design** — serves public documentation, same model as supabase.sh
 
 ## CI workflows
