@@ -64,19 +64,9 @@ function keyOf(p: string): string {
 
 // Page-relative href: join against the page's dir within its source, refusing
 // to escape the source root.
-function candidatePath(rel: string, href: string, siteHost?: string): string | undefined {
+function candidatePath(rel: string, href: string): string | undefined {
   if (href.startsWith("/")) return href;
-  if (/^https?:\/\//i.test(href)) {
-    if (siteHost) {
-      try {
-        const u = new URL(href);
-        if (u.host === siteHost) return u.pathname;
-      } catch {
-        return undefined;
-      }
-    }
-    return undefined;
-  }
+  if (/^https?:\/\//i.test(href)) return undefined;
   const stack = rel.split("/").slice(0, -1).filter(Boolean);
   for (const part of href.split("/")) {
     if (part === "" || part === ".") continue;
@@ -90,11 +80,12 @@ function candidatePath(rel: string, href: string, siteHost?: string): string | u
   return stack.join("/");
 }
 
-export function buildLinkGraph(
-  pages: ReadonlyArray<{ path: string; links: readonly string[] }>,
+// Shared resolution rules: origin lookup first (absolute URLs resolve only
+// through it), then per-source path-suffix index.
+function makeResolver(
+  pagePaths: ReadonlyArray<string>,
   origins: ReadonlyMap<string, string>,
-  siteHosts?: ReadonlyMap<string, string>,
-): Array<[string, string]> {
+): (pagePath: string, links: readonly string[]) => string[] {
   // Reverse origin map: a URL shared by 3+ files is bulk; 2 -> smallest wins.
   const byUrl = new Map<string, string[]>();
   for (const [p, url] of origins) {
@@ -112,24 +103,24 @@ export function buildLinkGraph(
 
   // Index every page of a source by the key of its rel path (smallest wins).
   const indexBySource = new Map<string, Map<string, string>>();
-  for (const page of pages) {
-    const [source, ...rest] = page.path.split("/");
+  for (const pagePath of pagePaths) {
+    const [source, ...rest] = pagePath.split("/");
     const key = keyOf(rest.join("/"));
     let idx = indexBySource.get(source);
     if (!idx) {
       idx = new Map();
       indexBySource.set(source, idx);
     }
-    if (!idx.has(key) || page.path < idx.get(key)!) idx.set(key, page.path);
+    if (!idx.has(key) || pagePath < idx.get(key)!) idx.set(key, pagePath);
   }
 
-  const edgeSet = new Set<string>();
-  for (const page of pages) {
-    const [source, ...rest] = page.path.split("/");
+  return function resolve(pagePath: string, links: readonly string[]): string[] {
+    const [source, ...rest] = pagePath.split("/");
     const rel = rest.join("/");
     const idx = indexBySource.get(source);
-    const origin = origins.get(page.path);
-    for (const raw of page.links) {
+    const origin = origins.get(pagePath);
+    const out: string[] = [];
+    for (const raw of links) {
       if (
         raw.startsWith("#") ||
         raw.startsWith("mailto:") ||
@@ -150,12 +141,12 @@ export function buildLinkGraph(
         }
         target = originToPath.get(normaliseUrl(abs) ?? "");
       }
-      if (target && target !== page.path) {
-        edgeSet.add(`${page.path}\t${target}`);
+      if (target && target !== pagePath) {
+        out.push(target);
         continue;
       }
       if (!idx) continue;
-      const candidate = candidatePath(rel, href, siteHosts?.get(source));
+      const candidate = candidatePath(rel, href);
       if (candidate === undefined) continue;
       const segs = keyOf(candidate).split("/").filter(Boolean);
       let found: string | undefined;
@@ -165,15 +156,21 @@ export function buildLinkGraph(
         if (found) break;
         if (segs.length - start === 2) break; // don't drop to a single segment
       }
-      if (found && found !== page.path) edgeSet.add(`${page.path}\t${found}`);
+      if (found && found !== pagePath) out.push(found);
     }
-  }
+    return out;
+  };
+}
 
-  // Navigation-hub filter: in a 20+ page source, drop targets linked from
-  // more than half of that source's pages.
+// Navigation-hub filter: in a 20+ page source, drop targets linked from
+// more than half of that source's pages.
+function hubFilter(
+  edgeSet: ReadonlySet<string>,
+  pagePaths: ReadonlyArray<string>,
+): Array<[string, string]> {
   const pagesPerSource = new Map<string, number>();
-  for (const page of pages) {
-    const [s] = page.path.split("/");
+  for (const p of pagePaths) {
+    const [s] = p.split("/");
     pagesPerSource.set(s, (pagesPerSource.get(s) ?? 0) + 1);
   }
   const linkersByTarget = new Map<string, Set<string>>();
@@ -200,13 +197,29 @@ export function buildLinkGraph(
     if (total >= 20 && 2 * linkers > total) continue;
     filtered.push(e);
   }
-
   return filtered
     .sort()
     .map((e) => {
       const [from, to] = e.split("\t");
       return [from, to] as [string, string];
     });
+}
+
+export function buildLinkGraph(
+  pages: ReadonlyArray<{ path: string; links: readonly string[] }>,
+  origins: ReadonlyMap<string, string>,
+): Array<[string, string]> {
+  const resolve = makeResolver(
+    pages.map((p) => p.path),
+    origins,
+  );
+  const edgeSet = new Set<string>();
+  for (const page of pages) {
+    for (const target of resolve(page.path, page.links)) {
+      edgeSet.add(`${page.path}\t${target}`);
+    }
+  }
+  return hubFilter(edgeSet, pages.map((p) => p.path));
 }
 
 async function collectMd(root: string, dir: string, out: { path: string; rel: string }[]): Promise<void> {
@@ -222,7 +235,7 @@ async function collectMd(root: string, dir: string, out: { path: string; rel: st
   }
 }
 
-export async function writeLinksTsv(outDir: string, siteHosts?: ReadonlyMap<string, string>): Promise<number> {
+export async function writeLinksTsv(outDir: string): Promise<number> {
   const origins = new Map<string, string>();
   const originsPath = path.join(outDir, "_origins.tsv");
   try {
@@ -236,23 +249,39 @@ export async function writeLinksTsv(outDir: string, siteHosts?: ReadonlyMap<stri
     // no origins file - fine
   }
 
-  const files: { source: string; full: string; rel: string }[] = [];
+  // Pass 1: page paths only (for the resolver); full paths kept for reading.
+  const files: { source: string; full: string; pagePath: string }[] = [];
   const top = await fs.readdir(outDir, { withFileTypes: true });
   for (const e of top) {
     if (!e.isDirectory() || e.name.startsWith("_") || e.name.startsWith(".")) continue;
     const list: { path: string; rel: string }[] = [];
     const srcDir = path.join(outDir, e.name);
     await collectMd(srcDir, srcDir, list);
-    for (const f of list) files.push({ source: e.name, full: f.path, rel: f.rel });
+    for (const f of list) {
+      files.push({
+        source: e.name,
+        full: f.path,
+        pagePath: `${e.name}/${f.rel.split(path.sep).join("/")}`,
+      });
+    }
   }
 
-  const pages: { path: string; links: string[] }[] = [];
+  const resolve = makeResolver(
+    files.map((f) => f.pagePath),
+    origins,
+  );
+
+  // Pass 2: read one file at a time; links are resolved and dropped
+  // immediately, only the edges survive.
+  const edgeSet = new Set<string>();
   for (const f of files) {
     const content = await fs.readFile(f.full, "utf-8");
-    pages.push({ path: `${f.source}/${f.rel.split(path.sep).join("/")}`, links: extractLinks(content) });
+    for (const target of resolve(f.pagePath, extractLinks(content))) {
+      edgeSet.add(`${f.pagePath}\t${target}`);
+    }
   }
 
-  const edges = buildLinkGraph(pages, origins, siteHosts);
+  const edges = hubFilter(edgeSet, files.map((f) => f.pagePath));
   const body = edges.map(([from, to]) => `${from}\t${to}\n`).join("");
   await fs.writeFile(path.join(outDir, LINKS_FILENAME), body);
   return edges.length;

@@ -109,13 +109,7 @@ const originCount = await writeOriginsTsv(
 );
 console.log(`Generated ${path.join(OUT_DIR, "_origins.tsv")} (${originCount} origin URLs)`);
 
-// Build a doc-to-doc link graph over the corpus. siteHosts names each
-// http source's own site host so absolute links can match by path.
-const siteHosts = new Map<string, string>();
-for (const s of SOURCES) {
-  if (s.type === "http") siteHosts.set(s.name, new URL(s.url).host);
-}
-const linkCount = await writeLinksTsv(OUT_DIR, siteHosts);
+const linkCount = await writeLinksTsv(OUT_DIR);
 console.log(`Generated ${path.join(OUT_DIR, "_links.tsv")} (${linkCount} links)`);
 
 // Validate: warn about untagged sources (parity with the standalone CLI).
