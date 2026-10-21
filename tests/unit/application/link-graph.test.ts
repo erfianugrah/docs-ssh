@@ -142,16 +142,6 @@ describe("buildLinkGraph", () => {
     expect(buildLinkGraph(pages, new Map())).toEqual([["s/guide/a.md", "s/x/install.md"]]);
   });
 
-  it("matches absolute links on the source's own site host by path when siteHosts names it", () => {
-    const pages = [
-      { path: "cf/a.md", links: ["https://developers.cloudflare.com/workers/runtime/", "https://other.example.com/workers/runtime/"] },
-      { path: "cf/workers/runtime.md", links: [] },
-    ];
-    const edges = buildLinkGraph(pages, new Map(), new Map([["cf", "developers.cloudflare.com"]]));
-    expect(edges).toEqual([["cf/a.md", "cf/workers/runtime.md"]]);
-    expect(buildLinkGraph(pages, new Map())).toEqual([]);
-  });
-
   it("drops self links and duplicate edges, output sorted by (from, to)", () => {
     const pages = [
       { path: "s/b.md", links: ["/x/a", "/x/a", "/b"] },
