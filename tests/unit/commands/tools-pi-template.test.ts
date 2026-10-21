@@ -92,4 +92,13 @@ describe("tools-pi-template", () => {
       expect(line.trim()).not.toBe('PI_STATIC');
     }
   });
+
+  it("ships docs_links with the shared output format", () => {
+    expect(PI_EXPECTED_TOOLS).toContain("docs_links");
+    expect(PI_STATIC_BODY).toContain('name: "docs_links"');
+    expect(PI_STATIC_BODY).toContain("pi.registerTool(linksTool)");
+    for (const s of ["/docs/_links.tsv", "outgoing (", "backlinks (", "[no links recorded for ", "link graph not available on this server"]) {
+      expect(PI_STATIC_BODY).toContain(s);
+    }
+  });
 });

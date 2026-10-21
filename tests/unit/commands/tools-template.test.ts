@@ -414,3 +414,13 @@ describe("filePath alias", () => {
     expect(STATIC_BODY).toMatch(/args\.path\s*\?\?\s*args\.filePath/);
   });
 });
+
+describe("links tool (tools.sh)", () => {
+  it("is exported with the shared output format", () => {
+    expect(EXPECTED_EXPORTS).toContain("links");
+    expect(REMAINING_TOOLS).toContain("export const links");
+    for (const s of ["/docs/_links.tsv", "outgoing (", "backlinks (", "[no links recorded for ", "link graph not available on this server"]) {
+      expect(REMAINING_TOOLS).toContain(s);
+    }
+  });
+});
