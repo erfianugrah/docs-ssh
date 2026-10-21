@@ -83,10 +83,14 @@ export function pickSamples<T>(items: readonly T[], n: number): T[] {
 }
 
 /**
- * GET with one retry after 5s on a network-level error (refused, reset,
- * DNS) or a 429. Other HTTP error statuses are returned, not retried: those
- * are the signal. archive.org refuses and 429s bursts briefly.
+ * 429 and 5xx are worth one retry: rate limits and origin blips (ubuntu.com
+ * 500'd one sample page on 2026-10-21, 200 minutes later). A 5xx that
+ * persists through the retry is still reported.
  */
+export function isTransientStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
 /**
  * Hosts shared by several sources get their requests serialised so the
  * daily all-source probe does not burst them: four sources pin
@@ -108,6 +112,12 @@ async function get(url: string, source: DocSource, timeout = HTTP_TIMEOUT): Prom
   return serialised(url, () => getOnce(url, source, timeout));
 }
 
+/**
+ * GET with one retry after 5s on a network-level error (refused, reset,
+ * DNS) or a transient status (isTransientStatus). Other HTTP error statuses
+ * are returned, not retried: those are the signal. archive.org refuses and
+ * 429s bursts briefly.
+ */
 async function getOnce(url: string, source: DocSource, timeout: number): Promise<Response> {
   const once = () =>
     fetch(url, {
@@ -117,7 +127,7 @@ async function getOnce(url: string, source: DocSource, timeout: number): Promise
     });
   try {
     const res = await once();
-    if (res.status !== 429) return res;
+    if (!isTransientStatus(res.status)) return res;
     await res.body?.cancel();
   } catch {
     // network error: fall through to the single retry

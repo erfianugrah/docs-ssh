@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterUrls, hostOf, pickSamples } from "../../../src/ci/source-check.js";
+import { filterUrls, hostOf, isTransientStatus, pickSamples } from "../../../src/ci/source-check.js";
 import { DocSource } from "../../../src/domain/DocSource.js";
 
 describe("filterUrls", () => {
@@ -61,5 +61,12 @@ describe("hostOf", () => {
   it("returns the host or empty", () => {
     expect(hostOf("https://docs.fly.io/x")).toBe("docs.fly.io");
     expect(hostOf("not a url")).toBe("");
+  });
+});
+
+describe("isTransientStatus", () => {
+  it("retries 429 and 5xx, not 4xx or success", () => {
+    for (const s of [429, 500, 502, 503, 504]) expect(isTransientStatus(s)).toBe(true);
+    for (const s of [200, 301, 403, 404, 410]) expect(isTransientStatus(s)).toBe(false);
   });
 });
