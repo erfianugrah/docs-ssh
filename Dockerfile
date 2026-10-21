@@ -73,7 +73,7 @@ RUN sh /tmp/build-sources-json.sh /docs > /docs/_sources.json \
  && rm /tmp/build-sources-json.sh /tmp/build-health-check.sh
 
 # sshd configuration + command logger + built-in commands + entrypoint
-RUN mkdir -p /var/run/sshd /var/log /usr/local/lib/docs-ssh/lib
+RUN mkdir -p /var/run/sshd /var/log /var/lib/docs-ssh/log /usr/local/lib/docs-ssh/lib
 COPY sshd_config /etc/ssh/sshd_config
 COPY log-cmd.sh /usr/local/bin/log-cmd
 COPY entrypoint.sh /usr/local/bin/entrypoint

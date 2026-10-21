@@ -6,6 +6,7 @@ import * as path from "node:path";
 const IMAGE = "docs-ssh:e2e-test";
 const CONTAINER = "docs-ssh-e2e-test";
 const PORT = "22222";
+const LOG_VOLUME = "docs-ssh-e2e-log";
 const SSH_CMD = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -p ${PORT} docs@localhost`;
 
 describe("E2E smoke tests", () => {
@@ -132,6 +133,8 @@ describe("E2E smoke tests", () => {
     execSync(
       `docker run -d --name ${CONTAINER} -p ${PORT}:2222 ` +
         `-e DOCS_CMD_TIMEOUT=3 ` +
+        // Production layout: the query log on a volume (deploy/edge/compose.yaml).
+        `-e DOCS_LOG_DIR=/var/lib/docs-ssh/log -v ${LOG_VOLUME}:/var/lib/docs-ssh/log ` +
         `--read-only --cap-drop ALL ` +
         `--cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add SYS_CHROOT --cap-add AUDIT_WRITE ` +
         `--security-opt no-new-privileges:true ` +
@@ -149,6 +152,7 @@ describe("E2E smoke tests", () => {
   afterAll(() => {
     try { execSync(`docker rm -f ${CONTAINER}`, { stdio: "pipe" }); } catch {}
     try { execSync(`docker rmi ${IMAGE}`, { stdio: "pipe" }); } catch {}
+    try { execSync(`docker volume rm ${LOG_VOLUME}`, { stdio: "pipe" }); } catch {}
   });
 
   // ─── Basic file operations ───────────────────────────────────────
@@ -765,6 +769,35 @@ describe("E2E smoke tests", () => {
     expect(elapsed).toBeGreaterThan(2_000);
     expect([124, 143]).toContain(exitCode);
   }, 20_000);
+
+  describe("E2E query log", () => {
+    const LOG = "/var/lib/docs-ssh/log/docs-ssh.jsonl";
+    const logLines = (): Array<Record<string, unknown>> =>
+      run(`docker exec ${CONTAINER} cat ${LOG}`).trim().split("\n").filter(Boolean).map((l) => JSON.parse(l));
+
+    it("logs the docsop marker as fields and runs the bare command", () => {
+      const meta = Buffer.from(JSON.stringify({ op: "read", path: "/docs/postgres/rls.md", sid: "e2e1" })).toString("base64");
+      const out = run(`${SSH_CMD} ": docsop ${meta}; head -1 /docs/postgres/rls.md"`);
+      expect(out.trim()).toBe("# Row Level Security");
+      const hit = logLines().filter((l) => l.sid === "e2e1");
+      expect(hit.length).toBeGreaterThan(0);
+      expect(hit[0]).toMatchObject({ type: "exec", op: "read", path: "/docs/postgres/rls.md", cmd: "head -1 /docs/postgres/rls.md" });
+    });
+
+    it("does not log the localhost healthcheck", () => {
+      run(`docker exec ${CONTAINER} ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p 2222 docs@localhost 'echo ok'`);
+      expect(logLines().some((l) => l.cmd === "echo ok" && l.client === "127.0.0.1")).toBe(false);
+    });
+
+    it("archives the log on restart and keeps it on the volume", async () => {
+      run(`docker restart ${CONTAINER}`);
+      await waitForSsh(20_000);
+      const files = run(`docker exec ${CONTAINER} ls /var/lib/docs-ssh/log`).trim().split("\n");
+      const archive = files.find((f) => /^docs-ssh\.\d{8}T\d{6}Z\.jsonl$/.test(f));
+      expect(archive).toBeDefined();
+      expect(run(`docker exec ${CONTAINER} cat /var/lib/docs-ssh/log/${archive}`)).toContain('"sid":"e2e1"');
+    }, 40_000);
+  });
 });
 
 function run(cmd: string): string {

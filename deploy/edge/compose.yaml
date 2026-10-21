@@ -4,9 +4,11 @@
 # `up --remove-orphans` would delete another's containers).
 name: docs-ssh
 
-# Docs baked into the image; the only state is the SSH host keys, kept in
-# the `sshd` volume at /run/sshd so a redeploy does not change the host key
-# (it did on every deploy until 2026-10-19; clients pin it). entrypoint.sh
+# Docs baked into the image; the state is the SSH host keys, kept in the
+# `sshd` volume at /run/sshd so a redeploy does not change the host key (it
+# did on every deploy until 2026-10-19; clients pin it), and the query log in
+# the `logs` volume (DOCS_LOG_DIR; entrypoint.sh archives it per start and
+# deletes archives older than 30 days). entrypoint.sh
 # only runs ssh-keygen when /run/sshd has no key. Servarr differences:
 #   - macvlan IP on servarr_lan (10.0.71.65), not host-published ports -
 #     first-class LAN service, same class as copyparty/jellyfin
@@ -49,6 +51,7 @@ services:
       - TZ=UTC
       - DOCS_SSH_HOST=docs.erfi.io
       - DOCS_SSH_PORT=2222
+      - DOCS_LOG_DIR=/var/lib/docs-ssh/log
     healthcheck:
       test:
         - CMD-SHELL
@@ -60,12 +63,14 @@ services:
       start_period: 10s
     volumes:
       - sshd:/run/sshd # host keys + per-start env/pid files
+      - logs:/var/lib/docs-ssh/log # query log, 30-day retention
     networks:
       lan:
         ipv4_address: 10.0.71.65
 
 volumes:
   sshd:
+  logs:
 
 networks:
   lan:

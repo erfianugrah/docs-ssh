@@ -18,17 +18,28 @@ ENV_FILE="/run/sshd/docs-ssh.env"
 _safe_host=$(printf '%s' "${DOCS_SSH_HOST:-localhost}" | tr -cd 'a-zA-Z0-9._-')
 _safe_port=$(printf '%s' "${DOCS_SSH_PORT:-2222}" | tr -cd '0-9')
 _safe_timeout=$(printf '%s' "${DOCS_CMD_TIMEOUT:-60}" | tr -cd '0-9')
+_safe_logdir=$(printf '%s' "${DOCS_LOG_DIR:-/var/log}" | tr -cd 'a-zA-Z0-9/._-')
 # Fall back to defaults if sanitisation stripped the input to empty
 # (e.g. DOCS_SSH_HOST='///' → '' → localhost).
 : "${_safe_host:=localhost}"
 : "${_safe_port:=2222}"
 : "${_safe_timeout:=60}"
-printf 'DOCS_SSH_HOST=%s\nDOCS_SSH_PORT=%s\nDOCS_CMD_TIMEOUT=%s\n' \
-  "$_safe_host" "$_safe_port" "$_safe_timeout" > "$ENV_FILE"
+: "${_safe_logdir:=/var/log}"
+printf 'DOCS_SSH_HOST=%s\nDOCS_SSH_PORT=%s\nDOCS_CMD_TIMEOUT=%s\nDOCS_LOG_DIR=%s\n' \
+  "$_safe_host" "$_safe_port" "$_safe_timeout" "$_safe_logdir" > "$ENV_FILE"
 
 # Audit log — owned by root, group-writable by docs user (append only via jq >>).
 # The docs user can append but not truncate (sshd runs ForceCommand as docs).
-LOG_FILE="/var/log/docs-ssh.jsonl"
+# DOCS_LOG_DIR is a volume in production (deploy/edge/compose.yaml), so the
+# log survives redeploys: each start archives the previous file as
+# docs-ssh.<UTC start time>.jsonl and deletes archives older than 30 days.
+LOG_DIR="$_safe_logdir"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/docs-ssh.jsonl"
+if [ -s "$LOG_FILE" ]; then
+  mv "$LOG_FILE" "$LOG_DIR/docs-ssh.$(date -u +%Y%m%dT%H%M%SZ).jsonl"
+fi
+find "$LOG_DIR" -maxdepth 1 -name 'docs-ssh.*.jsonl' -mtime +30 -delete 2>/dev/null
 touch "$LOG_FILE"
 chown root:docs "$LOG_FILE"
 chmod 664 "$LOG_FILE"
@@ -57,6 +68,7 @@ if [ -x /usr/local/bin/docs-mcp ]; then
   MCP_ALLOWED_HOSTS="${MCP_ALLOWED_HOSTS:-docs.erfi.io,docs-ssh.fly.dev,localhost,127.0.0.1}" \
   MCP_ALLOWED_ORIGINS="${MCP_ALLOWED_ORIGINS:-https://claude.ai,https://chatgpt.com,https://chat.openai.com}" \
   VERSION="${VERSION:-}" \
+  DOCS_LOG_FILE="$LOG_FILE" \
   /usr/local/bin/docs-mcp &
 elif [ -f /usr/local/lib/docs-ssh/index.html ]; then
   httpd -f -p 8080 -h /usr/local/lib/docs-ssh &

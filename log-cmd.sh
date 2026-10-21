@@ -13,7 +13,7 @@
 [ -f /run/sshd/docs-ssh.env ] && . /run/sshd/docs-ssh.env
 export DOCS_SSH_HOST DOCS_SSH_PORT DOCS_CMD_TIMEOUT
 
-LOG_FILE="/var/log/docs-ssh.jsonl"
+LOG_FILE="${DOCS_LOG_DIR:-/var/log}/docs-ssh.jsonl"
 CMD_DIR="/usr/local/lib/docs-ssh"
 LIB_DIR="$CMD_DIR/lib"
 CLIENT="${SSH_CLIENT%% *}"
@@ -44,6 +44,11 @@ if [ -z "$SSH_ORIGINAL_COMMAND" ]; then
   fi
   exec /bin/bash -l
 fi
+
+# Strip a client's `: docsop <meta>; ` marker: the meta goes to the log,
+# the cache key and the executed command are the bare command.
+docsop_split "$SSH_ORIGINAL_COMMAND"
+SSH_ORIGINAL_COMMAND="$DOCS_CMD"
 
 # ─── Route: built-in commands ──────────────────────────────────────
 

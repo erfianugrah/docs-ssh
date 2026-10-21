@@ -17,7 +17,7 @@
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { stat, readFile } from "node:fs/promises";
+import { stat, readFile, appendFile } from "node:fs/promises";
 import { join, normalize, extname } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -26,6 +26,8 @@ import { DocsService } from "./docs-service.js";
 
 const VERSION = process.env.VERSION ?? "dev";
 const DOCS_ROOT = process.env.DOCS_ROOT ?? "/docs";
+const LOG_FILE = process.env.DOCS_LOG_FILE;
+const LOG_MAX_BYTES = 52_428_800; // same cap as commands/lib/log.sh
 
 // Hosts/origins allowed by DNS-rebinding protection. Extend via env
 // (comma-separated) for self-hosted deployments.
@@ -243,6 +245,48 @@ export function buildServer(service: DocsService = docs): McpServer {
   return server;
 }
 
+const LOGGED_ARGS: Record<string, string> = {
+  query: "q",
+  path: "path",
+  filePath: "path",
+  source: "source",
+  pattern: "pattern",
+  direction: "direction",
+  filter: "source",
+};
+
+/**
+ * Append one line per tools/call to the query log shared with the SSH path
+ * (commands/lib/log.sh): op = tool name without "docs_", whitelisted args
+ * truncated to 500 chars, client = first X-Forwarded-For hop. Never throws.
+ */
+async function logToolCalls(body: unknown, req: IncomingMessage, logFile: string): Promise<void> {
+  const msgs = (Array.isArray(body) ? body : [body]) as Array<{ method?: unknown; params?: { name?: unknown; arguments?: unknown } }>;
+  const calls = msgs.filter((m) => m?.method === "tools/call" && typeof m.params?.name === "string");
+  if (calls.length === 0) return;
+  try {
+    if ((await stat(logFile)).size >= LOG_MAX_BYTES) return;
+  } catch {
+    // no log file yet
+  }
+  const fwd = req.headers["x-forwarded-for"];
+  const client = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(",")[0].trim() || req.socket.remoteAddress || "";
+  const lines = calls.map((m) => {
+    const entry: Record<string, string> = {
+      ts: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+      type: "mcp",
+      client,
+      op: (m.params!.name as string).replace(/^docs_/, ""),
+    };
+    const args = (m.params!.arguments ?? {}) as Record<string, unknown>;
+    for (const [k, field] of Object.entries(LOGGED_ARGS)) {
+      if (args[k] !== undefined && args[k] !== null) entry[field] = String(args[k]).slice(0, 500);
+    }
+    return JSON.stringify(entry) + "\n";
+  });
+  await appendFile(logFile, lines.join("")).catch(() => {});
+}
+
 /** Read and JSON-parse an HTTP request body. */
 function readJsonBody(req: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -283,6 +327,8 @@ export interface HttpServerOptions {
   allowedHosts?: string[];
   /** DNS-rebinding Origin allowlist (default: MCP_ALLOWED_ORIGINS). */
   allowedOrigins?: string[];
+  /** JSONL query log for tools/call (default: DOCS_LOG_FILE; unset = no logging). */
+  logFile?: string;
 }
 
 /**
@@ -296,6 +342,7 @@ export function createHttpServer(options: HttpServerOptions = {}) {
   const staticDir = options.staticDir ?? STATIC_DIR;
   const allowedHosts = options.allowedHosts ?? ALLOWED_HOSTS;
   const allowedOrigins = options.allowedOrigins ?? ALLOWED_ORIGINS;
+  const logFile = options.logFile ?? LOG_FILE;
 
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
@@ -346,6 +393,8 @@ export function createHttpServer(options: HttpServerOptions = {}) {
     try {
       await server.connect(transport);
       await transport.handleRequest(req, res, body);
+      // Only requests the transport accepted (Host/Origin checks passed).
+      if (logFile && res.statusCode === 200) await logToolCalls(body, req, logFile);
     } catch (err) {
       if (!res.headersSent) {
         jsonRpcError(res, 500, `Internal error: ${(err as Error).message}`);
