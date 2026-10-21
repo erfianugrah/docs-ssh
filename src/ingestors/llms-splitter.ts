@@ -46,20 +46,56 @@ export function splitLlmsFull(
     return splitSourceLineStyle(content, baseUrl, origins);
   }
 
-  // Try frontmatter style first
-  const fmResult = splitFrontmatterStyle(content, baseUrl);
+  // Try frontmatter style first. Each candidate fills its own origin map;
+  // only the returned split's origins are reported.
+  const fmOrigins = new Map<string, string>();
+  const fmResult = splitFrontmatterStyle(content, baseUrl, fmOrigins);
   if (fmResult.size > 20) {
+    copyInto(origins, fmOrigins);
     return fmResult;
   }
 
   // Fallback: split on top-level headings (# Title) for continuous docs
-  const headingResult = splitHeadingStyle(content);
+  const headingOrigins = new Map<string, string>();
+  const headingResult = splitHeadingStyle(content, baseUrl, headingOrigins);
   if (headingResult.size > fmResult.size) {
+    copyInto(origins, headingOrigins);
     return headingResult;
   }
 
+  copyInto(origins, fmOrigins);
   return fmResult;
 }
+
+function copyInto(to: Map<string, string> | undefined, from: Map<string, string>): void {
+  if (to) for (const [k, v] of from) to.set(k, v);
+}
+
+/**
+ * Public page URL from a marker in the dump: absolute, or relative to
+ * baseUrl. A markdown twin (`/x/index.md`, `/x.md`) maps to the HTML page
+ * (`/x/`, `/x`). Undefined when the marker is not a URL.
+ */
+export function pageUrlFromMarker(raw: string, baseUrl: string): string | undefined {
+  let u: URL;
+  try {
+    u = new URL(raw.trim().replace(/^["']|["']$/g, ""), baseUrl || undefined);
+  } catch {
+    return undefined;
+  }
+  if (!/^https?:$/.test(u.protocol)) return undefined;
+  if (u.pathname.endsWith("/index.md")) u.pathname = u.pathname.slice(0, -"index.md".length);
+  else if (u.pathname.endsWith(".md")) u.pathname = u.pathname.slice(0, -".md".length);
+  return u.href;
+}
+
+/** `url:` in a frontmatter block (nextjs), else the page's own "View as Markdown" link (cloudflare). */
+const FM_URL = /^url:\s*(\S+)\s*$/m;
+const VIEW_AS_MARKDOWN = /\[View as Markdown\]\((https?:\/\/[^)\s]+)\)/;
+/** A url-only frontmatter block (vitest, vite, bitwarden) that opens the next page. */
+const URL_ONLY_FM = /^(?:URL|url):\s*(\S+)\s*$/;
+/** `URL: <url>` in the first lines after a page heading (deno). */
+const URL_LINE = /^URL: (https?:\/\/\S+)\s*$/;
 
 /**
  * Vercel format: pages separated by long-dash lines (80 dashes),
@@ -173,13 +209,17 @@ export function splitVercelStyle(
  * We distinguish frontmatter from HRs by requiring that a frontmatter
  * block contains at least one "key: value" line (specifically "title:").
  */
-export function splitFrontmatterStyle(content: string, _baseUrl: string): Map<string, string> {
+export function splitFrontmatterStyle(
+  content: string,
+  baseUrl: string,
+  origins?: Map<string, string>,
+): Map<string, string> {
   const pages = new Map<string, string>();
 
   // Find all frontmatter blocks: ---\n<yaml with title:>\n---
   // The key insight: YAML frontmatter must contain a "title:" line.
   // A bare ---\n\n--- or ---\n## Heading\n--- is NOT frontmatter.
-  const fmPositions: { start: number; end: number; title: string }[] = [];
+  const fmPositions: { start: number; end: number; title: string; url?: string }[] = [];
 
   // Scan line-by-line to find frontmatter blocks reliably
   const lines = content.split("\n");
@@ -213,7 +253,8 @@ export function splitFrontmatterStyle(content: string, _baseUrl: string): Map<st
           for (let k = i; k <= j; k++) {
             endCharPos += lines[k].length + 1; // +1 for \n
           }
-          fmPositions.push({ start: fmStart, end: endCharPos, title });
+          const url = yamlContent.match(FM_URL)?.[1];
+          fmPositions.push({ start: fmStart, end: endCharPos, title, url });
           i = j + 1;
           charPos = endCharPos;
           continue;
@@ -250,6 +291,9 @@ export function splitFrontmatterStyle(content: string, _baseUrl: string): Map<st
       filePath = slug ? `${slug}-${idx}.md` : `page-${idx}-dup.md`;
     }
     pages.set(filePath, pageContent);
+    const marker = fmPositions[idx].url ?? pageContent.slice(0, 2000).match(VIEW_AS_MARKDOWN)?.[1];
+    const url = marker ? pageUrlFromMarker(marker, baseUrl) : undefined;
+    if (url) origins?.set(filePath, url);
   }
 
   return pages;
@@ -260,12 +304,17 @@ export function splitFrontmatterStyle(content: string, _baseUrl: string): Map<st
  * Used for llms-full.txt files that are a single concatenated document
  * with no frontmatter or separators (e.g. Astro).
  */
-export function splitHeadingStyle(content: string): Map<string, string> {
+export function splitHeadingStyle(
+  content: string,
+  baseUrl = "",
+  origins?: Map<string, string>,
+): Map<string, string> {
   const pages = new Map<string, string>();
   const lines = content.split("\n");
 
   let currentTitle = "";
   let currentLines: string[] = [];
+  let currentUrl: string | undefined;
 
   function flush() {
     if (!currentTitle || currentLines.length === 0) return;
@@ -276,22 +325,37 @@ export function splitHeadingStyle(content: string): Map<string, string> {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
-    const filePath = slug ? `${slug}.md` : `page-${pages.size}.md`;
+    let filePath = slug ? `${slug}.md` : `page-${pages.size}.md`;
 
     // Deduplicate: if slug already exists, append a suffix
-    if (pages.has(filePath)) {
-      pages.set(`${slug}-${pages.size}.md`, `# ${currentTitle}\n\n${pageContent}`);
-    } else {
-      pages.set(filePath, `# ${currentTitle}\n\n${pageContent}`);
-    }
+    if (pages.has(filePath)) filePath = `${slug}-${pages.size}.md`;
+    pages.set(filePath, `# ${currentTitle}\n\n${pageContent}`);
+
+    const marker = currentUrl ?? currentLines.slice(0, 8).map((l) => l.match(URL_LINE)?.[1]).find(Boolean);
+    const url = marker ? pageUrlFromMarker(marker, baseUrl) : undefined;
+    if (url) origins?.set(filePath, url);
+  }
+
+  /** Pops a trailing `---` / `url: X` / `---` block (it opens the next page) and returns X. */
+  function takeTrailingUrlBlock(): string | undefined {
+    let end = currentLines.length;
+    while (end > 0 && !currentLines[end - 1].trim()) end--;
+    if (end < 3) return undefined;
+    const [open, mid, close] = currentLines.slice(end - 3, end);
+    const url = mid.match(URL_ONLY_FM)?.[1];
+    if (!/^---\s*$/.test(open) || !/^---\s*$/.test(close) || !url) return undefined;
+    currentLines = currentLines.slice(0, end - 3);
+    return url;
   }
 
   for (const line of lines) {
     const headingMatch = line.match(/^# (.+)$/);
     if (headingMatch) {
+      const nextUrl = takeTrailingUrlBlock();
       flush();
       currentTitle = headingMatch[1].trim();
       currentLines = [];
+      currentUrl = nextUrl;
     } else {
       currentLines.push(line);
     }

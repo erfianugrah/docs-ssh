@@ -501,3 +501,64 @@ describe("splitSourceLineStyle (Mintlify)", () => {
     expect(origins.get("p/7.md")).toBe("https://docs.fly.io/p/7");
   });
 });
+
+describe("per-page origin URLs from llms-full markers", () => {
+  it("frontmatter url: field (nextjs)", () => {
+    const origins = new Map<string, string>();
+    const content = [
+      "---", "title: Getting Started", 'url: "https://nextjs.org/docs/app/getting-started"', "---", "", "Body one.", "",
+      "---", "title: Glossary", 'url: "https://nextjs.org/docs/app/glossary"', "---", "", "Body two.",
+    ].join("\n");
+    splitFrontmatterStyle(content, "https://nextjs.org/docs/", origins);
+    expect(origins.get("getting-started.md")).toBe("https://nextjs.org/docs/app/getting-started");
+    expect(origins.get("glossary.md")).toBe("https://nextjs.org/docs/app/glossary");
+  });
+
+  it("View as Markdown link in the body (cloudflare), index.md stripped", () => {
+    const origins = new Map<string, string>();
+    const content = [
+      "---", "title: Argo Smart Routing", "---", "",
+      "# Argo Smart Routing", "",
+      "Last updated|Copy as Markdown| [View as Markdown](https://developers.cloudflare.com/argo-smart-routing/index.md)", "",
+      "Body, which links [elsewhere](https://developers.cloudflare.com/other/index.md).",
+      "---", "title: No Marker", "---", "", "Plain body.",
+    ].join("\n");
+    splitFrontmatterStyle(content, "https://developers.cloudflare.com/", origins);
+    expect(origins.get("argo-smart-routing.md")).toBe("https://developers.cloudflare.com/argo-smart-routing/");
+    expect(origins.has("no-marker.md")).toBe(false);
+  });
+
+  it("url-only frontmatter before a heading (vitest, bitwarden); block not left in the previous page", () => {
+    const origins = new Map<string, string>();
+    const content = [
+      "---", "url: /config.md", "---", "", "# Configuring Vitest", "", "Config body.", "", "---", "",
+      "---", "URL: https://vitest.dev/config/include/", "---", "# include", "", "Include body.",
+    ].join("\n");
+    const pages = splitHeadingStyle(content, "https://vitest.dev/", origins);
+    expect(origins.get("configuring-vitest.md")).toBe("https://vitest.dev/config");
+    expect(origins.get("include.md")).toBe("https://vitest.dev/config/include/");
+    expect(pages.get("configuring-vitest.md")).not.toContain("include/");
+  });
+
+  it("URL: line just after the heading (deno)", () => {
+    const origins = new Map<string, string>();
+    const content = [
+      "# Acceptable use policy", "", "> What counts.", "", "URL: https://docs.deno.com/deploy/acceptable_use_policy", "", "Body.",
+      "# No URL page", "", "Body without one.",
+    ].join("\n");
+    splitHeadingStyle(content, "https://docs.deno.com/", origins);
+    expect(origins.get("acceptable-use-policy.md")).toBe("https://docs.deno.com/deploy/acceptable_use_policy");
+    expect(origins.has("no-url-page.md")).toBe(false);
+  });
+
+  it("splitLlmsFull only reports origins for the split it returns", () => {
+    const origins = new Map<string, string>();
+    const pages = Array.from({ length: 25 }, (_, i) =>
+      ["---", `title: Page ${i}`, `url: "https://example.com/docs/p${i}"`, "---", "", `# Heading ${i}`, "", "Body."].join("\n"),
+    ).join("\n");
+    const out = splitLlmsFull(pages, "https://example.com/docs/", origins);
+    expect(out.has("page-3.md")).toBe(true);
+    expect([...origins.keys()].every((k) => out.has(k))).toBe(true);
+    expect(origins.get("page-3.md")).toBe("https://example.com/docs/p3");
+  });
+});
