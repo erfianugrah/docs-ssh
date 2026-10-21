@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterUrls, hostOf, isTransientStatus, pickSamples } from "../../../src/ci/source-check.js";
+import { filterUrls, hostOf, isTransientStatus, isUncounted, pickSamples, samplesStatus } from "../../../src/ci/source-check.js";
 import { DocSource } from "../../../src/domain/DocSource.js";
 
 describe("filterUrls", () => {
@@ -68,5 +68,29 @@ describe("isTransientStatus", () => {
   it("retries 429 and 5xx, not 4xx or success", () => {
     for (const s of [429, 500, 502, 503, 504]) expect(isTransientStatus(s)).toBe(true);
     for (const s of [200, 301, 403, 404, 410]) expect(isTransientStatus(s)).toBe(false);
+  });
+});
+
+describe("isUncounted", () => {
+  it("skips archive 429s and origin 5xx, counts the rest", () => {
+    expect(isUncounted(429, "https://web.archive.org/web/1id_/https://x.example/")).toBe(true);
+    expect(isUncounted(429, "https://docs.example/")).toBe(false);
+    expect(isUncounted(500, "https://ubuntu.com/server/docs/x/")).toBe(true);
+    expect(isUncounted(404, "https://docs.example/")).toBe(false);
+  });
+});
+
+describe("samplesStatus", () => {
+  it("is ok when the only misses are uncounted", () => {
+    expect(samplesStatus(3, 0, 1)).toBe("ok");
+  });
+  it("warns on a hard failure", () => {
+    expect(samplesStatus(3, 1, 0)).toBe("warn");
+    expect(samplesStatus(3, 1, 1)).toBe("warn");
+  });
+  it("fails when no sample fetched, uncounted misses included", () => {
+    expect(samplesStatus(3, 3, 0)).toBe("fail");
+    expect(samplesStatus(3, 0, 3)).toBe("fail");
+    expect(samplesStatus(3, 2, 1)).toBe("fail");
   });
 });

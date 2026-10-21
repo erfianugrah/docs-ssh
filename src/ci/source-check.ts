@@ -239,20 +239,37 @@ async function checkBulk(source: DocSource, method: string): Promise<Omit<CheckR
   return { method, status: note ? "warn" : "ok", detail: [`HTTP 200 ${ctype}`.trim(), note].filter(Boolean).join("; ") };
 }
 
+/**
+ * A sample response that survived the retry but says nothing about drift in
+ * the source: a SERIAL_HOSTS archive rate-limiting the probe (CI saw
+ * web.archive.org 429 a pinned capture that fetches fine) or an origin 5xx
+ * (ubuntu.com 500'd a different sample page on two runs in a row while
+ * the nightly fetch, with its multi-retry backoff, got all 255 pages).
+ */
+export function isUncounted(status: number, url: string): boolean {
+  return (status === 429 && SERIAL_HOSTS.has(hostOf(url))) || status >= 500;
+}
+
+/**
+ * Verdict over the sample pages: no sample fetched = fail, whether the
+ * misses were hard failures or uncounted ones; any hard failure = warn.
+ */
+export function samplesStatus(samples: number, failures: number, uncounted: number): CheckStatus {
+  if (samples > 0 && failures + uncounted >= samples) return "fail";
+  return failures > 0 ? "warn" : "ok";
+}
+
 async function checkPages(source: DocSource, method: string, urls: string[]): Promise<Omit<CheckResult, "name" | "ms">> {
   const samples = pickSamples(urls, SAMPLE_PAGES);
   const failures: string[] = [];
-  const throttled: string[] = [];
+  const uncounted: string[] = [];
   const redirects = new Set<string>();
   await Promise.all(
     samples.map(async (u) => {
       try {
         const res = await get(u, source);
         await res.body?.cancel();
-        // A 429 from a SERIAL_HOSTS archive after the retry is the shared
-        // host rate-limiting the probe, not drift in the source (CI saw
-        // web.archive.org 429 a pinned capture that fetches fine).
-        if (res.status === 429 && SERIAL_HOSTS.has(hostOf(u))) throttled.push(u);
+        if (isUncounted(res.status, u)) uncounted.push(`HTTP ${res.status} ${u}`);
         else if (!res.ok) failures.push(`HTTP ${res.status} ${u}`);
         const note = redirectNote(u, res);
         if (note && !source.expectRedirects) redirects.add(note);
@@ -262,10 +279,11 @@ async function checkPages(source: DocSource, method: string, urls: string[]): Pr
     }),
   );
   const notes = [`${urls.length} URLs`, ...redirects];
-  if (throttled.length > 0) notes.push(`${throttled.length} sample(s) rate-limited by ${hostOf(throttled[0])}, not counted`);
-  if (failures.length > 0 && failures.length === samples.length - throttled.length) {
-    return { method, status: "fail", count: urls.length, detail: `all ${samples.length} sample pages failed: ${failures[0]}` };
+  const status = samplesStatus(samples.length, failures.length, uncounted.length);
+  if (status === "fail") {
+    return { method, status, count: urls.length, detail: `all ${samples.length} sample pages failed: ${failures[0] ?? uncounted[0]}` };
   }
+  if (uncounted.length > 0) notes.push(`${uncounted.length} sample(s) rate-limited or 5xx, not counted: ${uncounted[0]}`);
   if (failures.length > 0) {
     notes.push(`${failures.length}/${samples.length} samples failed: ${failures[0]}`);
     return { method, status: "warn", count: urls.length, detail: notes.join("; ") };
