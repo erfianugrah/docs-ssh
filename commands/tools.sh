@@ -450,6 +450,73 @@ export const summary = {
   },
 }
 
+export const links = {
+  description:
+    "Outgoing links and backlinks of a page, from the /docs/_links.tsv link graph. " +
+    "Rows are /docs/<path>, with the page title appended tab-separated when known.",
+  args: {
+    path: z.string().optional().describe("Page path (e.g. /docs/supabase/guides/auth.md)"),
+    filePath: z.string().optional().describe("Alias for 'path'."),
+    direction: z.enum(["out", "in", "both"]).optional().describe("'out' = pages it links to, 'in' = backlinks, 'both' (default)."),
+    maxResults: z.number().optional().describe("Max rows per list (default: 50)"),
+  },
+  async execute(args: { path?: string; filePath?: string; direction?: "out" | "in" | "both"; maxResults?: number }) {
+    const argPath = resolvePath(args)
+    const p = safePath(argPath)
+    const rel = p.replace(/^\/docs\//, "")
+    const dir = args.direction ?? "both"
+    const cap = Math.max(1, Math.floor(args.maxResults ?? 50))
+    // rg -F narrows candidate lines of _links.tsv; awk keeps exact-field
+    // matches tagged O/B (a path containing the key as a substring is
+    // dropped). Titles come from _index.tsv, only for printed rows.
+    const raw = await ssh(
+      `L='/docs/_links.tsv'; [ -f "$L" ] || { printf 'MISSING\n'; exit 0; }; { rg -F --no-filename '${sq(rel)}' "$L" 2>/dev/null || true; } | awk -F'\t' -v k='${sq(rel)}' '($1==k){print "O\t" $2} ($2==k){print "B\t" $1}'`,
+    )
+    if (raw === "MISSING") {
+      return "[error] link graph not available on this server (/docs/_links.tsv missing)"
+    }
+    const outRows: string[] = []
+    const inRows: string[] = []
+    for (const line of raw.split("\n")) {
+      if (line.startsWith("O\t")) outRows.push(line.slice(2))
+      else if (line.startsWith("B\t")) inRows.push(line.slice(2))
+    }
+    if (outRows.length === 0 && inRows.length === 0) {
+      return `[no links recorded for ${argPath}]`
+    }
+    const printed = [...outRows.slice(0, cap), ...inRows.slice(0, cap)]
+    const titles = new Map<string, string>()
+    if (printed.length > 0) {
+      const targs = printed.map((r) => `-e '${sq(r)}'`).join(" ")
+      const t = await ssh(`rg -F --no-filename ${targs} /docs/_index.tsv 2>/dev/null`)
+      const printedSet = new Set(printed)
+      for (const line of t.split("\n")) {
+        const i = line.indexOf("\t")
+        if (i === -1) continue
+        const key = line.slice(0, i)
+        if (printedSet.has(key)) {
+          const j = line.indexOf("\t", i + 1)
+          titles.set(key, j === -1 ? line.slice(i + 1) : line.slice(i + 1, j))
+        }
+      }
+    }
+    const lineOf = (relPath: string): string =>
+      `/docs/${relPath}${titles.has(relPath) ? `\t${titles.get(relPath)}` : ""}`
+    const outgoingHeader =
+      outRows.length > cap
+        ? `outgoing (${outRows.length}, showing ${cap}):`
+        : `outgoing (${outRows.length}):`
+    const backlinksHeader =
+      inRows.length > cap
+        ? `backlinks (${inRows.length}, showing ${cap}):`
+        : `backlinks (${inRows.length}):`
+    const sections: string[] = []
+    if (dir !== "in") sections.push([outgoingHeader, ...outRows.slice(0, cap).map(lineOf)].join("\n"))
+    if (dir !== "out") sections.push([backlinksHeader, ...inRows.slice(0, cap).map(lineOf)].join("\n"))
+    return `[source] ${argPath}\n\n${sections.join("\n\n")}`
+  },
+}
+
 export const sources = {
   description: "List all available documentation sources and their file counts.",
   args: {

@@ -1,5 +1,5 @@
 /**
- * DocsService - transport-agnostic core for the six docs operations.
+ * DocsService - transport-agnostic core for the seven docs operations.
  *
  * This is the shared logic behind BOTH the SSH builtins (via the Pi
  * extension, which SSHes in and runs the same shell commands remotely)
@@ -248,6 +248,12 @@ export interface SummaryParams {
 export interface SourcesParams {
   filter?: string;
 }
+export interface LinksParams {
+  path?: string;
+  filePath?: string;
+  direction?: "out" | "in" | "both";
+  maxResults?: number;
+}
 
 export class DocsService {
   private readonly root: string;
@@ -261,7 +267,7 @@ export class DocsService {
   }
 
   // --- Result cache -------------------------------------------------
-  // Docs are immutable per container lifetime and all six ops are
+  // Docs are immutable per container lifetime and all seven ops are
   // idempotent reads, so identical (op,args) calls can serve a cached
   // result - mirroring the tmpfs cache the SSH ForceCommand path uses
   // (log-cmd.sh). Bounded insertion-order Map = simple LRU; transient
@@ -311,6 +317,9 @@ export class DocsService {
   }
   sources(p: SourcesParams): Promise<string> {
     return this.cached("sources", p, () => this.sourcesImpl(p));
+  }
+  links(p: LinksParams): Promise<string> {
+    return this.cached("links", p, () => this.linksImpl(p));
   }
 
   /**
@@ -521,5 +530,68 @@ export class DocsService {
     return this.exec(
       `cd '${sq(this.root)}' && find . -mindepth 2 -type f 2>/dev/null | awk -F/ '{c[$2]++} END{for (d in c) printf "%s: %d files\\n", d, c[d]}' | sort${filterCmd}`,
     );
+  }
+
+  private async linksImpl(params: LinksParams): Promise<string> {
+    const argPath = this.resolvePath(params);
+    const p = this.safePath(argPath);
+    const rel = p.slice(this.root.length + 1);
+    const dir = params.direction ?? "both";
+    const cap = Math.max(1, Math.floor(params.maxResults ?? 50));
+    // rg -F narrows candidate lines of _links.tsv; awk keeps exact-field
+    // matches tagged O/B (a path containing the key as a substring is
+    // dropped). Titles are looked up from _index.tsv only for printed rows.
+    const raw = await this.exec(
+      `L='${sq(this.root)}/_links.tsv'; ` +
+        `[ -f "$L" ] || { printf 'MISSING\\n'; exit 0; }; ` +
+        `{ rg -F --no-filename '${sq(rel)}' "$L" 2>/dev/null || true; } | ` +
+        `awk -F'\\t' -v k='${sq(rel)}' '($1==k){print "O\\t" $2} ($2==k){print "B\\t" $1}'`,
+    );
+    if (raw === "MISSING") {
+      return "[error] link graph not available on this server (/docs/_links.tsv missing)";
+    }
+    const outRows: string[] = [];
+    const inRows: string[] = [];
+    for (const line of raw.split("\n")) {
+      if (line.startsWith("O\t")) outRows.push(line.slice(2));
+      else if (line.startsWith("B\t")) inRows.push(line.slice(2));
+    }
+    if (outRows.length === 0 && inRows.length === 0) {
+      return `[no links recorded for ${argPath}]`;
+    }
+    const printed = [...outRows.slice(0, cap), ...inRows.slice(0, cap)];
+    const titles = new Map<string, string>();
+    if (printed.length > 0) {
+      const args = printed.map((r) => `-e '${sq(r)}'`).join(" ");
+      const t = await this.exec(
+        `rg -F --no-filename ${args} '${sq(this.root)}/_index.tsv' 2>/dev/null`,
+      );
+      const printedSet = new Set(printed);
+      for (const line of t.split("\n")) {
+        const i = line.indexOf("\t");
+        if (i === -1) continue;
+        const key = line.slice(0, i);
+        if (printedSet.has(key)) {
+          const j = line.indexOf("\t", i + 1);
+          titles.set(key, j === -1 ? line.slice(i + 1) : line.slice(i + 1, j));
+        }
+      }
+    }
+    const lineOf = (relPath: string): string =>
+      `/docs/${relPath}${titles.has(relPath) ? `\t${titles.get(relPath)}` : ""}`;
+    const headerOf = (name: string, total: number): string =>
+      total > cap ? `${name} (${total}, showing ${cap}):` : `${name} (${total}):`;
+    const sections: string[] = [];
+    if (dir !== "in") {
+      sections.push(
+        [headerOf("outgoing", outRows.length), ...outRows.slice(0, cap).map(lineOf)].join("\n"),
+      );
+    }
+    if (dir !== "out") {
+      sections.push(
+        [headerOf("backlinks", inRows.length), ...inRows.slice(0, cap).map(lineOf)].join("\n"),
+      );
+    }
+    return `[source] ${argPath}\n\n${sections.join("\n\n")}`;
   }
 }
