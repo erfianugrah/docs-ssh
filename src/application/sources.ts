@@ -383,15 +383,18 @@ export const SOURCES: readonly DocSource[] = [
   // ─── DuckDB ────────────────────────────────────────────────────
 
   // In-process analytical DB; reads/writes Parquet/CSV/JSON and Iceberg. Docs
-  // are Jekyll markdown in duckdb-web; pin to the LTS docs dir to avoid the
-  // per-version duplication (docs/0.10 … docs/current all coexist in-repo).
+  // are Jekyll markdown in duckdb-web; pin ONE version dir to avoid the
+  // per-version duplication (docs/0.10 ... docs/2.0 all coexist in-repo).
+  // Upstream dropped the moving docs/lts alias on 2026-10-20 (d72ca333, moved
+  // to docs/1.4), so this is a hard pin: bump it when the site's
+  // current_duckdb version in duckdb-web _config.yml moves (1.5 = Variegata).
   new DocSource({
     name: "duckdb",
     type: "git",
     url: "https://github.com/duckdb/duckdb-web",
     format: "markdown",
-    paths: ["docs/lts"],
-    rootPath: "docs/lts",
+    paths: ["docs/1.5"],
+    rootPath: "docs/1.5",
   }),
 
   // ─── PlanetScale ───────────────────────────────────────────────
