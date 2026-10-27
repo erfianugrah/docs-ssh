@@ -8,10 +8,10 @@ export default defineConfig({
     testTimeout: 60_000,
     hookTimeout: 60_000,
     // Smoke tests hit a single live SSH endpoint. Force serial
-    // execution so a future second test file doesn't double-connect.
+    // execution (one file at a time) so a future second test file
+    // doesn't double-connect. vitest 4 removed poolOptions.forks.singleFork;
+    // fileParallelism:false (= maxWorkers:1) is the documented replacement.
     pool: "forks",
-    poolOptions: {
-      forks: { singleFork: true },
-    },
+    fileParallelism: false,
   },
 });
