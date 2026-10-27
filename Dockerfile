@@ -38,8 +38,8 @@ RUN find /docs -name '.stamp.json' -delete \
 # runtime stage needs no Node/node_modules (only libstdc++/libgcc, added below).
 FROM oven/bun:1-alpine AS mcp-builder
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN bun install --no-save @modelcontextprotocol/sdk zod
+COPY mcp-builder.package.json ./package.json
+RUN bun install --no-save
 COPY tsconfig.json ./
 COPY src/mcp/ ./src/mcp/
 # No --target: compiles for the build platform's arch (musl on alpine),

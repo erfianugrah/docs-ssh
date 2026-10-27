@@ -1,0 +1,12 @@
+{
+  "name": "docs-ssh-mcp-builder",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.7"
+  },
+  "overrides": {
+    "body-parser": ">=2.4.0"
+  }
+}

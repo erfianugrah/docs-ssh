@@ -1,2 +1,5 @@
+overrides:
+  body-parser: ">=2.4.0"
+
 allowBuilds:
   esbuild: true
