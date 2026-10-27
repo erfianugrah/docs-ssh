@@ -344,6 +344,14 @@ async function checkHttp(source: DocSource): Promise<Omit<CheckResult, "name" | 
   return checkPages(source, method, filtered);
 }
 
+/** Probe ceiling for one source: the CLI default, or the source's build
+ *  deadline when that is longer. A source given a long deadlineMs is slow on
+ *  purpose (throttled or a slow host); a probe cut off well before the build
+ *  would be is a false alarm (openwrt.org at ~20 s per index page, 2026-10-27). */
+export function probeTimeoutMs(source: DocSource, defaultMs: number): number {
+  return Math.max(defaultMs, source.deadlineMs ?? 0);
+}
+
 /** Probes one source; never throws. `timeoutMs` bounds the whole probe. */
 export async function checkSource(source: DocSource, timeoutMs = 300_000): Promise<CheckResult> {
   const t0 = Date.now();

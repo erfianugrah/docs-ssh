@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterUrls, hostOf, isTransientStatus, isUncounted, pickSamples, samplesStatus } from "../../../src/ci/source-check.js";
+import { filterUrls, hostOf, isTransientStatus, isUncounted, pickSamples, probeTimeoutMs, samplesStatus } from "../../../src/ci/source-check.js";
 import { DocSource } from "../../../src/domain/DocSource.js";
 
 describe("filterUrls", () => {
@@ -92,5 +92,21 @@ describe("samplesStatus", () => {
     expect(samplesStatus(3, 3, 0)).toBe("fail");
     expect(samplesStatus(3, 0, 3)).toBe("fail");
     expect(samplesStatus(3, 2, 1)).toBe("fail");
+  });
+});
+
+describe("probeTimeoutMs", () => {
+  const base = { name: "x", type: "http" as const, format: "html" as const, url: "https://wiki.example.com/" };
+
+  it("uses the CLI default for a source with no deadline", () => {
+    expect(probeTimeoutMs(new DocSource(base), 300_000)).toBe(300_000);
+  });
+
+  it("extends to the source's build deadline when that is longer (slow wikis)", () => {
+    expect(probeTimeoutMs(new DocSource({ ...base, deadlineMs: 1_800_000 }), 300_000)).toBe(1_800_000);
+  });
+
+  it("never shortens the CLI default", () => {
+    expect(probeTimeoutMs(new DocSource({ ...base, deadlineMs: 60_000 }), 300_000)).toBe(300_000);
   });
 });

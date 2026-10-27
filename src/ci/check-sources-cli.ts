@@ -7,14 +7,15 @@
  *   CHECK_ONLY=flyio,flyio-api node --import tsx/esm src/ci/check-sources-cli.ts
  *   CHECK_CHANGED_SINCE=origin/main ...   # only sources whose definition changed
  *
- * CHECK_CONCURRENCY (default 8), CHECK_TIMEOUT_S (default 300) per source.
+ * CHECK_CONCURRENCY (default 8), CHECK_TIMEOUT_S (default 300) per source;
+ * a source's own deadlineMs raises its ceiling (probeTimeoutMs).
  * CHECK_STRICT=1 also fails on warnings. Failures of sources listed in
  * TOLERATED_MISSING (src/ci/source-floors.ts) count as warnings.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { SOURCES } from "../application/sources.js";
-import { type CheckResult, checkSource } from "./source-check.js";
+import { type CheckResult, checkSource, probeTimeoutMs } from "./source-check.js";
 import { TOLERATED_MISSING } from "./source-floors.js";
 
 const concurrency = Number(process.env.CHECK_CONCURRENCY ?? 8) || 8;
@@ -73,7 +74,7 @@ let next = 0;
 async function worker(): Promise<void> {
   while (next < sources.length) {
     const s = sources[next++];
-    const r = await checkSource(s, timeoutMs);
+    const r = await checkSource(s, probeTimeoutMs(s, timeoutMs));
     // A known upstream block (src/ci/source-floors.ts) stays visible but
     // does not turn every run red.
     if (r.status !== "ok" && TOLERATED_MISSING[r.name]) {
