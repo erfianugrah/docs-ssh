@@ -898,7 +898,8 @@ export const SOURCES: readonly DocSource[] = [
 
   // llms.txt with .md URLs. Bun moved to bun.com; bun.sh/llms.txt now lists
   // bun.com URLs, so `url` must be bun.com or every path keeps the full URL
-  // (`https:/bun.com/docs/...`). The bare /docs/index.md entry 404s.
+  // (`https:/bun.com/docs/...`). The bare /docs/index.md and stale
+  // /docs/bundler/executables.md entries 404 (the latter is absent from the sitemap).
   new DocSource({
     name: "bun",
     type: "http",
@@ -906,7 +907,7 @@ export const SOURCES: readonly DocSource[] = [
     format: "markdown",
     discovery: "llms-txt",
     discoveryUrl: "https://bun.com/llms.txt",
-    urlExclude: "bun\\.com/docs/index\\.md$",
+    urlExclude: "bun\\.com/docs/(index|bundler/executables)\\.md$",
   }),
 
   // ─── React ─────────────────────────────────────────────────────
