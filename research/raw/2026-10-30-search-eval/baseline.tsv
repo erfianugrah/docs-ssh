@@ -1,0 +1,32 @@
+rank	query	source	expected
+7	read replicas scale reads availability	supabase	/docs/supabase/guides/platform/read-replicas.md
+0	update timescaledb extension ALTER EXTENSION		/docs/timescaledb/upgrade-timescaledb-running-in-docker.md
+9	multigres analytics buckets iceberg	supabase	/docs/supabase/guides/database/multigres.md
+1	S3 compatibility access keys storage endpoint region	supabase	/docs/supabase/guides/storage/s3/authentication.md
+1	sequence manipulation functions nextval		/docs/postgres/functions-sequence.md
+2	edge functions regional invocation x-region limits	supabase	/docs/supabase/guides/functions/limits.md
+4	hyperdrive limits idle connection timeout	cloudflare	/docs/cloudflare/connection-lifecycle.md
+1	session format version migration	pi	/docs/pi/session-format.md
+1	SECRET_KEY app.ini configuration 2FA OAuth	forgejo	/docs/forgejo/admin/config-cheat-sheet.md
+1	auth redirect URLs	supabase	/docs/supabase/guides/auth/redirect-urls.md
+2	workers cron trigger	cloudflare	/docs/cloudflare/cron-triggers.md
+1	jellyfin plugin template	jellyfin	/docs/jellyfin/general/server/plugins/index.md
+1	jellyfin startup wizard	jellyfin	/docs/jellyfin/general/post-install/setup-wizard.md
+5	median quantile_cont	duckdb	/docs/duckdb/sql/functions/aggregates.md
+1	jellyfin media segments	jellyfin	/docs/jellyfin/general/server/metadata/media-segments.md
+0	subtitles sync subsync	bazarr	/docs/bazarr/Settings.md
+7	read replicas 80% reads upgrade compute	supabase	/docs/supabase/guides/platform/read-replicas.md
+1	hyperdrive idle connection timeout limits	cloudflare	/docs/cloudflare/limits-3600.md
+3	HDMI audio EDID NvAPI	nvapi	/docs/nvapi/group__dispapi.md
+11	NvAPI GPU SetEDID EDID GeForce	nvapi	/docs/nvapi/group__dispapi.md
+2	statement timeout role	supabase	/docs/supabase/guides/database/postgres/timeouts.md
+2	scoped personal access tokens	supabase	/docs/supabase/guides/platform/personal-access-tokens.md
+3	pre_start hook	docker	/docs/docker/manuals/compose/how-tos/init-containers.md
+3	pstates20	nvapi	/docs/nvapi/group__gpupstate.md
+0	Get-WinEvent ConvertTo-Json	nvapi	/docs/powershell/7.5/Microsoft.PowerShell.Diagnostics/Get-WinEvent.md
+4	pstates20 curve	nvapi	/docs/nvapi/group__gpupstate.md
+0	clickAction	home-assistant	/docs/home-assistant/integrations/mobile_app/index.md
+1	secondary DNS override proxy records	cloudflare	/docs/cloudflare/proxy-traffic.md
+4	sqlite topics	sqlite	/docs/sqlite/docs.md
+1	audio subtitles	jellyfin	/docs/jellyfin/general/server/media/_video-external-streams.md
+1	privatelink	supabase	/docs/supabase/guides/platform/privatelink.md

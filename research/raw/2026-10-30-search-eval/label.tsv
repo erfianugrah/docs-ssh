@@ -1,0 +1,52 @@
+label	query	source	expected	expected_url
+N	disk autoscale	supabase	/docs/supabase/guides/deployment/going-into-prod.md	
+Y	read replicas scale reads availability	supabase	/docs/supabase/guides/platform/read-replicas.md	https://github.com/supabase/supabase/blob/HEAD/apps/docs/content/guides/platform/read-replicas.mdx
+Y	update timescaledb extension ALTER EXTENSION		/docs/timescaledb/upgrade-timescaledb-running-in-docker.md	https://www.tigerdata.com/docs/
+N	high availability failover standby SLA uptime	supabase	/docs/supabase/guides/realtime/limits.md	
+Y	multigres analytics buckets iceberg	supabase	/docs/supabase/guides/database/multigres.md	https://github.com/supabase/supabase/blob/HEAD/apps/docs/content/guides/database/multigres.mdx
+Y	S3 compatibility access keys storage endpoint region	supabase	/docs/supabase/guides/storage/s3/authentication.md	https://github.com/supabase/supabase/blob/HEAD/apps/docs/content/guides/storage/s3/authentication.mdx
+N	management api storage s3 access keys credentials create		/docs/supabase-wrappers/catalog/s3.md	
+N	Supabase Compute services	supabase	/docs/supabase/guides/observability/advanced-log-filtering.md	
+Y	sequence manipulation functions nextval		/docs/postgres/functions-sequence.md	https://www.postgresql.org/docs/current/functions-sequence.html
+N	get project logs analytics endpoints logs reference	supabase	/docs/supabase/guides/auth/auth-hooks/custom-access-token-hook.md	
+Y	edge functions regional invocation x-region limits	supabase	/docs/supabase/guides/functions/limits.md	https://github.com/supabase/supabase/blob/HEAD/apps/docs/content/guides/functions/limits.mdx
+Y	hyperdrive limits idle connection timeout	cloudflare	/docs/cloudflare/connection-lifecycle.md	https://developers.cloudflare.com/hyperdrive/concepts/connection-lifecycle/
+Y	session format version migration	pi	/docs/pi/session-format.md	https://github.com/earendil-works/pi/blob/HEAD/packages/coding-agent/docs/session-format.md
+Y	SECRET_KEY app.ini configuration 2FA OAuth	forgejo	/docs/forgejo/admin/config-cheat-sheet.md	https://codeberg.org/forgejo/docs/src/branch/next/docs/admin/config-cheat-sheet.md
+Y	auth redirect URLs	supabase	/docs/supabase/guides/auth/redirect-urls.md	https://github.com/supabase/supabase/blob/HEAD/apps/docs/content/guides/auth/redirect-urls.mdx
+Y	workers cron trigger	cloudflare	/docs/cloudflare/cron-triggers.md	https://developers.cloudflare.com/workers/configuration/cron-triggers/
+Y	jellyfin plugin template	jellyfin	/docs/jellyfin/general/server/plugins/index.md	https://github.com/jellyfin/jellyfin.org/blob/HEAD/docs/general/server/plugins/index.mdx
+Y	jellyfin startup wizard	jellyfin	/docs/jellyfin/general/post-install/setup-wizard.md	https://github.com/jellyfin/jellyfin.org/blob/HEAD/docs/general/post-install/setup-wizard.md
+Y	median quantile_cont	duckdb	/docs/duckdb/sql/functions/aggregates.md	https://github.com/duckdb/duckdb-web/blob/HEAD/docs/1.5/sql/functions/aggregates.md
+Y	jellyfin media segments	jellyfin	/docs/jellyfin/general/server/metadata/media-segments.md	https://github.com/jellyfin/jellyfin.org/blob/HEAD/docs/general/server/metadata/media-segments.md
+Y	subtitles sync subsync	bazarr	/docs/bazarr/Settings.md	https://github.com/morpheus65535/bazarr.wiki/blob/HEAD/Settings.md
+N	supabase-js createClient options rpc get		/docs/supabase/guides/api/automatic-retries-in-supabase-js.md	
+N	realtime limits concurrent connections compute	supabase	/docs/supabase/guides/auth/rate-limits.md	
+N	pg_net		/docs/supabase/guides/platform/compute-and-disk.md	
+N	"Scheduling Edge Functions" cron edge function	supabase	/docs/supabase/guides/realtime/settings.md	
+N	Supabase Queues pgmq	supabase	/docs/supabase/guides/database/connection-management.md	
+?	"Auth server" connections percentage max_connections		/docs/supabase/guides/deployment/going-into-prod.md	
+gone	pg_net timeout "Timeout of" reached edge function	supabase	/docs/supabase/troubleshooting/edge-function-takes-too-long-to-respond.md	
+Y	read replicas 80% reads upgrade compute	supabase	/docs/supabase/guides/platform/read-replicas.md	https://github.com/supabase/supabase/blob/HEAD/apps/docs/content/guides/platform/read-replicas.mdx
+Y	hyperdrive idle connection timeout limits	cloudflare	/docs/cloudflare/limits-3600.md	https://developers.cloudflare.com/hyperdrive/platform/limits/
+N	mcp build	mcp	/docs/docker/manuals/dhi/migration/migrate-from-ubuntu.md	
+Y	HDMI audio EDID NvAPI	nvapi	/docs/nvapi/group__dispapi.md	https://archive.docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/group__dispapi.html
+Y	NvAPI GPU SetEDID EDID GeForce	nvapi	/docs/nvapi/group__dispapi.md	https://archive.docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/group__dispapi.html
+Y	statement timeout role	supabase	/docs/supabase/guides/database/postgres/timeouts.md	https://github.com/supabase/supabase/blob/HEAD/apps/docs/content/guides/database/postgres/timeouts.mdx
+Y	scoped personal access tokens	supabase	/docs/supabase/guides/platform/personal-access-tokens.md	https://github.com/supabase/supabase/blob/HEAD/apps/docs/content/guides/platform/personal-access-tokens.mdx
+N	HX711 load cell	esphome	/docs/esphome/components/sensor/ld2410.md	
+Y	pre_start hook	docker	/docs/docker/manuals/compose/how-tos/init-containers.md	https://github.com/docker/docs/blob/HEAD/content/manuals/compose/how-tos/init-containers.md
+Y	pstates20	nvapi	/docs/nvapi/group__gpupstate.md	https://archive.docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/group__gpupstate.html
+Y	Get-WinEvent ConvertTo-Json	nvapi	/docs/powershell/7.5/Microsoft.PowerShell.Diagnostics/Get-WinEvent.md	https://github.com/MicrosoftDocs/PowerShell-Docs/blob/HEAD/reference/7.5/Microsoft.PowerShell.Diagnostics/Get-WinEvent.md
+N	gh api contents	github	/docs/github/actions/tutorials/authenticate-with-github_token.md	
+N	optional	zod	/docs/bun/guides/ecosystem/astro.md	
+Y	pstates20 curve	nvapi	/docs/nvapi/group__gpupstate.md	https://archive.docs.nvidia.com/gameworks/content/gameworkslibrary/coresdk/nvapi/group__gpupstate.html
+N	compose env	docker	/docs/sops/index.md	
+Y	clickAction	home-assistant	/docs/home-assistant/integrations/mobile_app/index.md	https://www.home-assistant.io/integrations/mobile_app/
+N	notification clickAction	home-assistant	/docs/home-assistant/integrations/shopping_list/index.md	
+N	PowerShell version	powershell	/docs/powershell/7.5/Microsoft.PowerShell.Core/About/about_Functions_Advanced_Parameters.md	
+Y	secondary DNS override proxy records	cloudflare	/docs/cloudflare/proxy-traffic.md	https://developers.cloudflare.com/dns/zone-setups/zone-transfers/cloudflare-as-secondary/proxy-traffic/
+Y	sqlite topics	sqlite	/docs/sqlite/docs.md	https://www.sqlite.org/docs.html
+?	100 seconds	cloudflare	/docs/cloudflare/build-a-websocket-server-with-websocket-hibernation.md	
+Y	audio subtitles	jellyfin	/docs/jellyfin/general/server/media/_video-external-streams.md	https://github.com/jellyfin/jellyfin.org/blob/HEAD/docs/general/server/media/_video-external-streams.md
+Y	privatelink	supabase	/docs/supabase/guides/platform/privatelink.md	https://github.com/supabase/supabase/blob/HEAD/apps/docs/content/guides/platform/privatelink.mdx
