@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Rank of the expected page in live docs_search (MCP endpoint, the same
-DocsService as SSH-side search) for every label=Y row of label.tsv.
+DocsService as SSH-side search) for every row labelled Y (the page the agent opened answers the query) or
+fixed (the agent opened the wrong page; the right one was labelled by hand),
+reported per group and combined.
 
 A result matches on its path, or on its origin URL (search's 4th column)
 when no other result in the list shares that URL - some sources map every
@@ -26,10 +28,10 @@ def search(q, source):
         res.append((p, cols[3].strip() if len(cols) > 3 else ""))
     return res
 rows = [l.split("\t") for l in open("label.tsv").read().splitlines()[1:]]
-out = ["rank\tquery\tsource\texpected"]
-ranks = []
+out = ["rank\tlabel\tquery\tsource\texpected"]
+ranks = {"Y": [], "fixed": []}
 for lab, q, src, exp, url in rows:
-    if lab != "Y":
+    if lab not in ranks:
         continue
     res = search(q, src)
     urls = Counter(u for _, u in res)
@@ -38,11 +40,13 @@ for lab, q, src, exp, url in rows:
         if p == exp or (url and u == url and urls[u] == 1):
             r = i
             break
-    ranks.append(r)
-    out.append(f"{r}\t{q}\t{src}\t{exp}")
+    ranks[lab].append(r)
+    out.append(f"{r}\t{lab}\t{q}\t{src}\t{exp}")
 open("baseline.tsv", "w").write("\n".join(out) + "\n")
-n = len(ranks)
-for k in (1, 5, 15):
-    h = sum(1 for r in ranks if 0 < r <= k)
-    print(f"hit@{k}: {h}/{n} = {h/n:.0%}")
-print("MRR@15:", round(sum(1 / r for r in ranks if r) / n, 3))
+def report(name, rs):
+    n = len(rs)
+    hits = "  ".join(f"hit@{k} {sum(1 for r in rs if 0 < r <= k)}/{n}" for k in (1, 5, 15))
+    print(f"{name:<8} {hits}  MRR@15 {sum(1 / r for r in rs if r) / n:.3f}")
+report("Y", ranks["Y"])
+report("fixed", ranks["fixed"])
+report("all", ranks["Y"] + ranks["fixed"])

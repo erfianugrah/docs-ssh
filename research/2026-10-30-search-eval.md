@@ -18,14 +18,18 @@ That gave 53 candidate pairs; after merging pairs that differ only in query
 case and dropping one query that names a private host, 51 remain.
 
 A pair records what the agent opened next, which is not always the answer.
-Each pair was judged by hand (`label.tsv`, one labeller):
+Each pair was judged by hand (`label.tsv`, one labeller), and where the agent
+opened the wrong page, the right one was found by reading the corpus:
 
 | Label | Count | Meaning |
 |---|---|---|
-| Y | 31 | the opened page answers the query |
-| N | 17 | the agent opened an unrelated page (e.g. "realtime limits concurrent connections" -> `auth/rate-limits.md`) |
-| ? | 2 | could not tell from the path |
+| Y | 30 | the opened page answers the query |
+| fixed | 14 | the agent opened the wrong page (e.g. "realtime limits concurrent connections" -> `auth/rate-limits.md`); the expected column holds the right page, labelled by hand |
+| absent | 4 | no page in the corpus answers it: no Supabase HA/SLA page, no supabase-js reference, no Home Assistant companion-app notification docs |
+| ? | 2 | could not tell |
 | gone | 1 | the page no longer exists in the corpus |
+
+One first-pass Y was wrong: "clickAction" -> `home-assistant/integrations/mobile_app` looked right by path, but that page never mentions `clickAction`; it appears only in a shopping_list example. It is `absent` now.
 
 Two expected paths had moved since they were logged and were remapped by
 hand: the pi docs moved under `pi/packages/coding-agent/docs/`, and
@@ -39,42 +43,42 @@ the list shares the URL (some sources map every page to one root URL).
 
 ## Keyword baseline
 
-`baseline.py` runs each Y query, with the source filter the agent used,
-through live `docs_search` on the MCP endpoint (the same DocsService the
-SSH tools use), top 15:
+`baseline.py` runs each Y and fixed query, with the source filter the agent
+used, through live `docs_search` on the MCP endpoint (the same DocsService
+the SSH tools use), top 15:
 
-| Metric | Value |
-|---|---|
-| hit@1 | 12/31 (39%) |
-| hit@5 | 23/31 (74%) |
-| hit@15 | 27/31 (87%) |
-| MRR@15 | 0.53 |
+| Group | n | hit@1 | hit@5 | hit@15 | MRR@15 |
+|---|---|---|---|---|---|
+| Y | 30 | 12 | 23 | 27 | 0.548 |
+| fixed | 14 | 3 | 6 | 9 | 0.303 |
+| all | 44 | 15 | 29 | 36 | 0.470 |
 
-Two runs gave identical numbers (the search is deterministic over one
-build). The four misses: "update timescaledb extension ALTER EXTENSION"
-(no source), "subtitles sync subsync" (bazarr), "clickAction"
-(home-assistant), and "Get-WinEvent ConvertTo-Json" searched under the
-`nvapi` source, which no search can answer.
+Repeat runs give identical numbers (the search is deterministic over one
+build). Three fixed rows already rank first ("realtime limits ...",
+"Scheduling Edge Functions", "HX711 load cell"): there the agent picked a
+lower result, which no search change fixes. The fixed misses are where
+search loses: "management api storage s3 access keys credentials create"
+and "get project logs analytics endpoints" (the right pages are the
+supabase-api spec pages), "mcp build", "gh api contents", "PowerShell
+version". The Y misses: "update timescaledb extension ALTER EXTENSION"
+(no source), "subtitles sync subsync" (bazarr), and "Get-WinEvent
+ConvertTo-Json" searched under the `nvapi` source, which no search can
+answer.
 
 ## What these numbers can and cannot say
 
-- n = 31, one labeller. A difference of one or two queries is noise.
-- The set is biased toward keyword search. The Y pages are mostly pages
-  the agent reached through the current search, so the baseline is
-  inflated, and a semantic search that finds a better page than the one
-  the agent opened scores as a miss. The 17 N rows are the opposite case:
-  queries where search led the agent astray. Labelling the right page for
-  them is the most useful next addition, because they are the queries an
-  embedding search would have to win.
+- n = 44, one labeller. A difference of one or two queries is noise.
+- The Y group is biased toward keyword search: those pages are mostly
+  pages the agent reached through the current search, so its numbers are
+  inflated. The fixed group is the counterweight, and the one a semantic
+  search has to win; compare candidates on it first.
 - The set describes one user's agents over eight days: Supabase,
   Cloudflare, NVAPI, Jellyfin and Home Assistant dominate.
 
 ## Next
 
-1. Label the correct page for the 17 N rows (by reading the corpus), so
-   the set measures failures as well as successes.
-2. Re-run `extract.py` as the log grows; rows naming private hosts are
+1. Re-run `extract.py` as the log grows; rows naming private hosts are
    dropped before commit (the repo is mirrored publicly).
-3. Phase 2 (embedding neighbours) is measured against this set. Its open
+2. Phase 2 (embedding neighbours) is measured against this set. Its open
    question stands: where the embedding pass runs (the CI runner on the
    router has no GPU; the dev-box GPU is shared with llmc).

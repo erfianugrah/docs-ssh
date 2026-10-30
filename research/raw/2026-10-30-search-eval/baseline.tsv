@@ -1,32 +1,45 @@
-rank	query	source	expected
-7	read replicas scale reads availability	supabase	/docs/supabase/guides/platform/read-replicas.md
-0	update timescaledb extension ALTER EXTENSION		/docs/timescaledb/upgrade-timescaledb-running-in-docker.md
-9	multigres analytics buckets iceberg	supabase	/docs/supabase/guides/database/multigres.md
-1	S3 compatibility access keys storage endpoint region	supabase	/docs/supabase/guides/storage/s3/authentication.md
-1	sequence manipulation functions nextval		/docs/postgres/functions-sequence.md
-2	edge functions regional invocation x-region limits	supabase	/docs/supabase/guides/functions/limits.md
-4	hyperdrive limits idle connection timeout	cloudflare	/docs/cloudflare/connection-lifecycle.md
-1	session format version migration	pi	/docs/pi/session-format.md
-1	SECRET_KEY app.ini configuration 2FA OAuth	forgejo	/docs/forgejo/admin/config-cheat-sheet.md
-1	auth redirect URLs	supabase	/docs/supabase/guides/auth/redirect-urls.md
-2	workers cron trigger	cloudflare	/docs/cloudflare/cron-triggers.md
-1	jellyfin plugin template	jellyfin	/docs/jellyfin/general/server/plugins/index.md
-1	jellyfin startup wizard	jellyfin	/docs/jellyfin/general/post-install/setup-wizard.md
-5	median quantile_cont	duckdb	/docs/duckdb/sql/functions/aggregates.md
-1	jellyfin media segments	jellyfin	/docs/jellyfin/general/server/metadata/media-segments.md
-0	subtitles sync subsync	bazarr	/docs/bazarr/Settings.md
-7	read replicas 80% reads upgrade compute	supabase	/docs/supabase/guides/platform/read-replicas.md
-1	hyperdrive idle connection timeout limits	cloudflare	/docs/cloudflare/limits-3600.md
-3	HDMI audio EDID NvAPI	nvapi	/docs/nvapi/group__dispapi.md
-11	NvAPI GPU SetEDID EDID GeForce	nvapi	/docs/nvapi/group__dispapi.md
-2	statement timeout role	supabase	/docs/supabase/guides/database/postgres/timeouts.md
-2	scoped personal access tokens	supabase	/docs/supabase/guides/platform/personal-access-tokens.md
-3	pre_start hook	docker	/docs/docker/manuals/compose/how-tos/init-containers.md
-3	pstates20	nvapi	/docs/nvapi/group__gpupstate.md
-0	Get-WinEvent ConvertTo-Json	nvapi	/docs/powershell/7.5/Microsoft.PowerShell.Diagnostics/Get-WinEvent.md
-4	pstates20 curve	nvapi	/docs/nvapi/group__gpupstate.md
-0	clickAction	home-assistant	/docs/home-assistant/integrations/mobile_app/index.md
-1	secondary DNS override proxy records	cloudflare	/docs/cloudflare/proxy-traffic.md
-4	sqlite topics	sqlite	/docs/sqlite/docs.md
-1	audio subtitles	jellyfin	/docs/jellyfin/general/server/media/_video-external-streams.md
-1	privatelink	supabase	/docs/supabase/guides/platform/privatelink.md
+rank	label	query	source	expected
+3	fixed	disk autoscale	supabase	/docs/supabase/guides/platform/database-size.md
+7	Y	read replicas scale reads availability	supabase	/docs/supabase/guides/platform/read-replicas.md
+0	Y	update timescaledb extension ALTER EXTENSION		/docs/timescaledb/upgrade-timescaledb-running-in-docker.md
+9	Y	multigres analytics buckets iceberg	supabase	/docs/supabase/guides/database/multigres.md
+1	Y	S3 compatibility access keys storage endpoint region	supabase	/docs/supabase/guides/storage/s3/authentication.md
+0	fixed	management api storage s3 access keys credentials create		/docs/supabase-api/api/storage.md
+11	fixed	Supabase Compute services	supabase	/docs/supabase/guides/platform/compute-and-disk.md
+1	Y	sequence manipulation functions nextval		/docs/postgres/functions-sequence.md
+0	fixed	get project logs analytics endpoints logs reference	supabase	/docs/supabase-api/api/analytics.md
+2	Y	edge functions regional invocation x-region limits	supabase	/docs/supabase/guides/functions/limits.md
+4	Y	hyperdrive limits idle connection timeout	cloudflare	/docs/cloudflare/connection-lifecycle.md
+1	Y	session format version migration	pi	/docs/pi/session-format.md
+1	Y	SECRET_KEY app.ini configuration 2FA OAuth	forgejo	/docs/forgejo/admin/config-cheat-sheet.md
+1	Y	auth redirect URLs	supabase	/docs/supabase/guides/auth/redirect-urls.md
+2	Y	workers cron trigger	cloudflare	/docs/cloudflare/cron-triggers.md
+1	Y	jellyfin plugin template	jellyfin	/docs/jellyfin/general/server/plugins/index.md
+1	Y	jellyfin startup wizard	jellyfin	/docs/jellyfin/general/post-install/setup-wizard.md
+5	Y	median quantile_cont	duckdb	/docs/duckdb/sql/functions/aggregates.md
+1	Y	jellyfin media segments	jellyfin	/docs/jellyfin/general/server/metadata/media-segments.md
+0	Y	subtitles sync subsync	bazarr	/docs/bazarr/Settings.md
+1	fixed	realtime limits concurrent connections compute	supabase	/docs/supabase/guides/realtime/limits.md
+5	fixed	pg_net		/docs/supabase/guides/database/extensions/pg_net.md
+1	fixed	"Scheduling Edge Functions" cron edge function	supabase	/docs/supabase/guides/functions/schedule-functions.md
+3	fixed	Supabase Queues pgmq	supabase	/docs/supabase/guides/queues/pgmq.md
+7	Y	read replicas 80% reads upgrade compute	supabase	/docs/supabase/guides/platform/read-replicas.md
+1	Y	hyperdrive idle connection timeout limits	cloudflare	/docs/cloudflare/limits-3600.md
+0	fixed	mcp build	mcp	/docs/mcp/docs/2026-07-28/develop/build-server.md
+3	Y	HDMI audio EDID NvAPI	nvapi	/docs/nvapi/group__dispapi.md
+11	Y	NvAPI GPU SetEDID EDID GeForce	nvapi	/docs/nvapi/group__dispapi.md
+2	Y	statement timeout role	supabase	/docs/supabase/guides/database/postgres/timeouts.md
+2	Y	scoped personal access tokens	supabase	/docs/supabase/guides/platform/personal-access-tokens.md
+1	fixed	HX711 load cell	esphome	/docs/esphome/components/sensor/hx711.md
+3	Y	pre_start hook	docker	/docs/docker/manuals/compose/how-tos/init-containers.md
+3	Y	pstates20	nvapi	/docs/nvapi/group__gpupstate.md
+0	Y	Get-WinEvent ConvertTo-Json	nvapi	/docs/powershell/7.5/Microsoft.PowerShell.Diagnostics/Get-WinEvent.md
+0	fixed	gh api contents	github	/docs/github/rest/repos/contents.md
+6	fixed	optional	zod	/docs/zod/api.md
+4	Y	pstates20 curve	nvapi	/docs/nvapi/group__gpupstate.md
+9	fixed	compose env	docker	/docs/docker/manuals/compose/how-tos/environment-variables/_index.md
+0	fixed	PowerShell version	powershell	/docs/powershell/7.5/Microsoft.PowerShell.Core/About/about_Automatic_Variables.md
+1	Y	secondary DNS override proxy records	cloudflare	/docs/cloudflare/proxy-traffic.md
+4	Y	sqlite topics	sqlite	/docs/sqlite/docs.md
+1	Y	audio subtitles	jellyfin	/docs/jellyfin/general/server/media/_video-external-streams.md
+1	Y	privatelink	supabase	/docs/supabase/guides/platform/privatelink.md
