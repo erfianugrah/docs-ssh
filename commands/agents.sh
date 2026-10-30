@@ -97,7 +97,7 @@ MCP
 
 # ─── Instructions for agents WITH custom tools installed ────────────
 # OpenCode has docs_search, docs_read, docs_grep, docs_find, docs_summary,
-# docs_links, docs_sources as first-class tools.  The agent should NEVER fall back to
+# docs_links, docs_related, docs_sources as first-class tools.  The agent should NEVER fall back to
 # raw SSH — the tools handle connection, output capping, and structured
 # parsing automatically.
 
@@ -107,7 +107,7 @@ emit_tools_instructions() {
 
 Docs server at \`$HOST\` — ${SOURCE_COUNT} sources (docs + API specs), searchable markdown over SSH. Check docs before implementing/debugging.
 
-**Always use custom \`docs_search\`, \`docs_read\`, \`docs_grep\`, \`docs_find\`, \`docs_summary\`, \`docs_links\`, \`docs_sources\` tools.** No raw \`ssh\` or \`Bash\` for docs access.
+**Always use custom \`docs_search\`, \`docs_read\`, \`docs_grep\`, \`docs_find\`, \`docs_summary\`, \`docs_links\`, \`docs_related\`, \`docs_sources\` tools.** No raw \`ssh\` or \`Bash\` for docs access.
 
 ### Sources
 
@@ -145,6 +145,7 @@ ${API_SOURCES}
 | \`docs_grep\` | Regex search + context lines | Find content within files |
 | \`docs_find\` | Find files by name pattern | Know part of filename |
 | \`docs_links\` | Outgoing links + backlinks of a page | To find related pages (direction=out/in, titles from the index) |
+| \`docs_related\` | Pages most similar in meaning (embedding neighbours) | After a read - similar pages with no explicit link (maxResults, default 8) |
 | \`docs_sources\` | List sources + file counts | Check what available |
 
 ### Reading the output

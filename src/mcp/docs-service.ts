@@ -1,5 +1,5 @@
 /**
- * DocsService - transport-agnostic core for the seven docs operations.
+ * DocsService - transport-agnostic core for the eight docs operations.
  *
  * This is the shared logic behind BOTH the SSH builtins (via the Pi
  * extension, which SSHes in and runs the same shell commands remotely)
@@ -248,6 +248,11 @@ export interface SummaryParams {
 export interface SourcesParams {
   filter?: string;
 }
+export interface RelatedParams {
+  path?: string;
+  filePath?: string;
+  maxResults?: number;
+}
 export interface LinksParams {
   path?: string;
   filePath?: string;
@@ -267,7 +272,7 @@ export class DocsService {
   }
 
   // --- Result cache -------------------------------------------------
-  // Docs are immutable per container lifetime and all seven ops are
+  // Docs are immutable per container lifetime and all eight ops are
   // idempotent reads, so identical (op,args) calls can serve a cached
   // result - mirroring the tmpfs cache the SSH ForceCommand path uses
   // (log-cmd.sh). Bounded insertion-order Map = simple LRU; transient
@@ -320,6 +325,9 @@ export class DocsService {
   }
   links(p: LinksParams): Promise<string> {
     return this.cached("links", p, () => this.linksImpl(p));
+  }
+  related(p: RelatedParams): Promise<string> {
+    return this.cached("related", p, () => this.relatedImpl(p));
   }
 
   /**
@@ -593,5 +601,52 @@ export class DocsService {
       );
     }
     return `[source] ${argPath}\n\n${sections.join("\n\n")}`;
+  }
+
+  private async relatedImpl(params: RelatedParams): Promise<string> {
+    const argPath = this.resolvePath(params);
+    const p = this.safePath(argPath);
+    const rel = p.slice(this.root.length + 1);
+    const cap = Math.max(1, Math.floor(params.maxResults ?? 8));
+    // rg -F narrows candidate lines of _related.tsv; awk keeps only the line
+    // whose FIRST field is the path (a longer path containing it is dropped)
+    // and prints its neighbours, most similar first. Titles come from
+    // _index.tsv, only for printed rows.
+    const raw = await this.exec(
+      `R='${sq(this.root)}/_related.tsv'; ` +
+        `[ -f "$R" ] || { printf 'MISSING\\n'; exit 0; }; ` +
+        `{ rg -F --no-filename '${sq(rel)}' "$R" 2>/dev/null || true; } | ` +
+        `awk -F'\\t' -v k='${sq(rel)}' '($1==k){for(i=2;i<=NF;i++) if ($i!="") print $i}'`,
+    );
+    if (raw === "MISSING") {
+      return "[error] related pages not available on this server (/docs/_related.tsv missing)";
+    }
+    const rows = raw.split("\n").filter((l) => l !== "");
+    if (rows.length === 0) {
+      return `[no related pages recorded for ${argPath}]`;
+    }
+    const printed = rows.slice(0, cap);
+    const titles = new Map<string, string>();
+    const args = printed.map((r) => `-e '${sq(r)}'`).join(" ");
+    const t = await this.exec(
+      `rg -F --no-filename ${args} '${sq(this.root)}/_index.tsv' 2>/dev/null`,
+    );
+    const printedSet = new Set(printed);
+    for (const line of t.split("\n")) {
+      const i = line.indexOf("\t");
+      if (i === -1) continue;
+      const key = line.slice(0, i);
+      if (printedSet.has(key)) {
+        const j = line.indexOf("\t", i + 1);
+        titles.set(key, j === -1 ? line.slice(i + 1) : line.slice(i + 1, j));
+      }
+    }
+    const lineOf = (relPath: string): string =>
+      `/docs/${relPath}${titles.has(relPath) ? `\t${titles.get(relPath)}` : ""}`;
+    const header =
+      rows.length > cap
+        ? `related (${rows.length}, showing ${cap}):`
+        : `related (${rows.length}):`;
+    return `[source] ${argPath}\n\n${[header, ...printed.map(lineOf)].join("\n")}`;
   }
 }

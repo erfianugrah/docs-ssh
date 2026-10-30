@@ -1,8 +1,8 @@
 /**
  * MCP-over-HTTP server for docs.erfi.io.
  *
- * Exposes the seven docs operations (search / read / grep / find / summary
- * / sources / links) as MCP tools over the Streamable HTTP transport, so remote
+ * Exposes the eight docs operations (search / read / grep / find / summary
+ * / sources / links / related) as MCP tools over the Streamable HTTP transport, so remote
  * chat LLMs (Claude custom connectors, ChatGPT connectors) can use the
  * docs corpus directly - no SSH client required.
  *
@@ -95,7 +95,7 @@ async function serveStatic(
   }
 }
 
-/** Build a fresh MCP server with the seven docs tools registered. */
+/** Build a fresh MCP server with the eight docs tools registered. */
 export function buildServer(service: DocsService = docs): McpServer {
   const server = new McpServer(
     { name: "docs-ssh", version: VERSION },
@@ -106,7 +106,8 @@ export function buildServer(service: DocsService = docs): McpServer {
         "files, then docs_read (use offset/lines on large files). docs_grep for " +
         "regex within a known source, docs_summary for an outline, docs_find by " +
         "filename, docs_sources to list available sources, docs_links for the " +
-        "outgoing links and backlinks of a page.",
+        "outgoing links and backlinks of a page, docs_related for pages most " +
+        "similar in meaning.",
     },
   );
 
@@ -242,6 +243,27 @@ export function buildServer(service: DocsService = docs): McpServer {
     async (args) => text(await service.links(args)),
   );
 
+  server.registerTool(
+    "docs_related",
+    {
+      title: "Docs Related",
+      description:
+        "Pages most similar in meaning to a page (embedding neighbours from /docs/_related.tsv), most similar first. Complements docs_links, which follows explicit links.",
+      inputSchema: {
+        path: z
+          .string()
+          .optional()
+          .describe("Page path, e.g. /docs/supabase/guides/auth.md"),
+        filePath: z.string().optional().describe("Alias for 'path'."),
+        maxResults: z
+          .number()
+          .optional()
+          .describe("Max rows (default 8)"),
+      },
+    },
+    async (args) => text(await service.related(args)),
+  );
+
   return server;
 }
 
@@ -319,7 +341,7 @@ function jsonRpcError(res: ServerResponse, status: number, message: string): voi
 }
 
 export interface HttpServerOptions {
-  /** DocsService backing the seven tools (default: module-level /docs instance). */
+  /** DocsService backing the eight tools (default: module-level /docs instance). */
   service?: DocsService;
   /** Static file root for GET requests outside /mcp (default: MCP_STATIC_DIR). */
   staticDir?: string;

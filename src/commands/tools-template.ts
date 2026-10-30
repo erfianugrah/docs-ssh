@@ -501,6 +501,57 @@ export const links = {
   },
 }
 
+export const related = {
+  description:
+    "Pages most similar in meaning to a page (embedding neighbours from /docs/_related.tsv), most similar first. Complements docs_links, which follows explicit links. " +
+    "Rows are /docs/<path>, with the page title appended tab-separated when known.",
+  args: {
+    path: z.string().optional().describe("Page path (e.g. /docs/supabase/guides/auth.md)"),
+    filePath: z.string().optional().describe("Alias for 'path'."),
+    maxResults: z.number().optional().describe("Max rows (default: 8)"),
+  },
+  async execute(args: { path?: string; filePath?: string; maxResults?: number }) {
+    const argPath = resolvePath(args)
+    const p = safePath(argPath)
+    const rel = p.replace(/^\\/docs\\//, "")
+    const cap = Math.max(1, Math.floor(args.maxResults ?? 8))
+    // rg -F narrows candidate lines of _related.tsv; awk keeps only the line
+    // whose FIRST field is the path, then prints its neighbours (most similar
+    // first). Titles come from _index.tsv, only for printed rows.
+    const raw = await ssh(
+      \`R='/docs/_related.tsv'; [ -f "$R" ] || { printf 'MISSING\\n'; exit 0; }; { rg -F --no-filename '\${sq(rel)}' "$R" 2>/dev/null || true; } | awk -F'\\t' -v k='\${sq(rel)}' '($1==k){for(i=2;i<=NF;i++) if ($i!="") print $i}'\`,
+    )
+    if (raw === "MISSING") {
+      return "[error] related pages not available on this server (/docs/_related.tsv missing)"
+    }
+    const rows = raw.split("\\n").filter((l: string) => l !== "")
+    if (rows.length === 0) {
+      return \`[no related pages recorded for \${argPath}]\`
+    }
+    const printed = rows.slice(0, cap)
+    const titles = new Map<string, string>()
+    const targs = printed.map((r: string) => \`-e '\${sq(r)}'\`).join(" ")
+    const t = await ssh(\`rg -F --no-filename \${targs} /docs/_index.tsv 2>/dev/null\`)
+    const printedSet = new Set(printed)
+    for (const line of t.split("\\n")) {
+      const i = line.indexOf("\\t")
+      if (i === -1) continue
+      const key = line.slice(0, i)
+      if (printedSet.has(key)) {
+        const j = line.indexOf("\\t", i + 1)
+        titles.set(key, j === -1 ? line.slice(i + 1) : line.slice(i + 1, j))
+      }
+    }
+    const lineOf = (relPath: string): string =>
+      \`/docs/\${relPath}\${titles.has(relPath) ? \`\\t\${titles.get(relPath)}\` : ""}\`
+    const header =
+      rows.length > cap
+        ? \`related (\${rows.length}, showing \${cap}):\`
+        : \`related (\${rows.length}):\`
+    return \`[source] \${argPath}\\n\\n\${[header, ...printed.map(lineOf)].join("\\n")}\`
+  },
+}
+
 export const sources = {
   description: "List all available documentation sources and their file counts.",
   args: {
@@ -547,5 +598,6 @@ export const EXPECTED_EXPORTS = [
   "grep",
   "summary",
   "links",
+  "related",
   "sources",
 ] as const;
