@@ -97,6 +97,40 @@ const URL_ONLY_FM = /^(?:URL|url):\s*(\S+)\s*$/;
 /** `URL: <url>` in the first lines after a page heading (deno). */
 const URL_LINE = /^URL: (https?:\/\/\S+)\s*$/;
 
+const slugify = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+/**
+ * File name for a page whose title slug is already taken (docs-ssh#12).
+ * Prefer a name from the page URL: the slug plus the URL's path segments,
+ * minus a final segment that repeats the slug (/hyperdrive/platform/limits/
+ * for "Limits" -> limits-hyperdrive-platform.md). That name survives the
+ * vendor inserting pages earlier in the dump, which renamed every later
+ * position-suffixed page (cloudflare limits-3600.md -> limits-3603.md).
+ * Falls back to `<slug>-<fallback>.md` without a URL or when the URL name
+ * is taken too.
+ * simplify: the FIRST page with a title keeps the bare slug, so a new
+ * same-titled page inserted before it still swaps the two; suffixing every
+ * member of a duplicate group would fix that at the cost of renaming them.
+ */
+function duplicateName(
+  slug: string,
+  url: string | undefined,
+  taken: Map<string, string>,
+  fallback: number | string,
+): string {
+  if (url) {
+    try {
+      const segs = new URL(url).pathname.split("/").map(slugify).filter(Boolean);
+      if (segs.length && segs[segs.length - 1] === slug) segs.pop();
+      const name = [slug, ...segs].filter(Boolean).join("-");
+      if (segs.length && !taken.has(`${name}.md`)) return `${name}.md`;
+    } catch {
+      // not a URL: fall through
+    }
+  }
+  return slug ? `${slug}-${fallback}.md` : `page-${fallback}-dup.md`;
+}
+
 /**
  * Vercel format: pages separated by long-dash lines (80 dashes),
  * with title/source metadata between separators, then content after.
@@ -278,21 +312,14 @@ export function splitFrontmatterStyle(
 
     if (!pageContent || !title) continue;
 
-    const slug = title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-    let filePath = slug ? `${slug}.md` : `page-${idx}.md`;
-    // Deduplicate: if slug already exists, append the page's idx as a
-    // suffix. Using idx (stable across runs and unaffected by earlier
-    // skipped pages) instead of pages.size (which shifts as other
-    // pages are added or skipped) makes filenames deterministic.
-    if (pages.has(filePath)) {
-      filePath = slug ? `${slug}-${idx}.md` : `page-${idx}-dup.md`;
-    }
-    pages.set(filePath, pageContent);
+    const slug = slugify(title);
     const marker = fmPositions[idx].url ?? pageContent.slice(0, 2000).match(VIEW_AS_MARKDOWN)?.[1];
     const url = marker ? pageUrlFromMarker(marker, baseUrl) : undefined;
+    let filePath = slug ? `${slug}.md` : `page-${idx}.md`;
+    // Duplicate title: name from the URL, else the page's idx (stable
+    // against skipped blocks, unlike pages.size). See duplicateName.
+    if (pages.has(filePath)) filePath = duplicateName(slug, url, pages, idx);
+    pages.set(filePath, pageContent);
     if (url) origins?.set(filePath, url);
   }
 
@@ -321,18 +348,14 @@ export function splitHeadingStyle(
     const pageContent = currentLines.join("\n").trim();
     if (!pageContent) return;
 
-    const slug = currentTitle
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-    let filePath = slug ? `${slug}.md` : `page-${pages.size}.md`;
-
-    // Deduplicate: if slug already exists, append a suffix
-    if (pages.has(filePath)) filePath = `${slug}-${pages.size}.md`;
-    pages.set(filePath, `# ${currentTitle}\n\n${pageContent}`);
-
+    const slug = slugify(currentTitle);
     const marker = currentUrl ?? currentLines.slice(0, 8).map((l) => l.match(URL_LINE)?.[1]).find(Boolean);
     const url = marker ? pageUrlFromMarker(marker, baseUrl) : undefined;
+    let filePath = slug ? `${slug}.md` : `page-${pages.size}.md`;
+
+    // Duplicate title: name from the URL, else a size suffix (as before).
+    if (pages.has(filePath)) filePath = duplicateName(slug, url, pages, pages.size);
+    pages.set(filePath, `# ${currentTitle}\n\n${pageContent}`);
     if (url) origins?.set(filePath, url);
   }
 

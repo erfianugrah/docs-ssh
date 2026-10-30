@@ -562,3 +562,53 @@ describe("per-page origin URLs from llms-full markers", () => {
     expect(origins.get("page-3.md")).toBe("https://example.com/docs/p3");
   });
 });
+
+describe("duplicate titles take their name from the page URL (docs-ssh#12)", () => {
+  const fm = (title: string, url: string, body: string) =>
+    `---\ntitle: ${title}\nurl: ${url}\n---\n\n${body}\n\n`;
+
+  it("frontmatter style: a duplicate is named from its URL path, not its position", () => {
+    const content = [
+      fm("Limits", "https://developers.cloudflare.com/workers/platform/limits/", "Workers limits."),
+      fm("Overview", "https://developers.cloudflare.com/r2/", "R2."),
+      fm("Limits", "https://developers.cloudflare.com/hyperdrive/platform/limits/", "Hyperdrive limits."),
+    ].join("");
+    const pages = splitFrontmatterStyle(content, "https://developers.cloudflare.com/");
+    expect(pages.has("limits.md")).toBe(true);
+    expect(pages.get("limits-hyperdrive-platform.md")).toContain("Hyperdrive limits.");
+  });
+
+  it("frontmatter style: inserting an earlier page does not rename a later duplicate", () => {
+    const tail = fm("Limits", "https://developers.cloudflare.com/hyperdrive/platform/limits/", "Hyperdrive limits.");
+    const head = fm("Limits", "https://developers.cloudflare.com/workers/platform/limits/", "Workers limits.");
+    const before = splitFrontmatterStyle(head + tail, "https://developers.cloudflare.com/");
+    const after = splitFrontmatterStyle(
+      head + fm("New page", "https://developers.cloudflare.com/new/", "New.") + tail,
+      "https://developers.cloudflare.com/",
+    );
+    const name = (m: Map<string, string>) => [...m].find(([, v]) => v.includes("Hyperdrive limits."))?.[0];
+    expect(name(before)).toBe("limits-hyperdrive-platform.md");
+    expect(name(after)).toBe(name(before));
+  });
+
+  it("frontmatter style: falls back to the index when the URL gives no new name", () => {
+    const content = [
+      fm("Limits", "https://example.com/limits/", "One."),
+      fm("Limits", "https://example.com/limits/", "Two."),
+      "---\ntitle: Limits\n---\n\nThree.",
+    ].join("");
+    const pages = splitFrontmatterStyle(content, "https://example.com/");
+    expect([...pages.keys()].sort()).toEqual(["limits-1.md", "limits-2.md", "limits.md"]);
+  });
+
+  it("heading style: a duplicate with a URL line is named from it", () => {
+    const content = [
+      "# Install\n\nURL: https://docs.deno.com/runtime/install\n\nRuntime install.",
+      "# Other\n\nOther page.",
+      "# Install\n\nURL: https://docs.deno.com/deploy/install\n\nDeploy install.",
+    ].join("\n\n");
+    const pages = splitHeadingStyle(content, "https://docs.deno.com/");
+    expect(pages.has("install.md")).toBe(true);
+    expect(pages.get("install-deploy.md")).toContain("Deploy install.");
+  });
+});
