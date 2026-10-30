@@ -424,3 +424,13 @@ describe("links tool (tools.sh)", () => {
     }
   });
 });
+
+describe("related tool (tools.sh)", () => {
+  it("is exported with the shared output format", () => {
+    expect(EXPECTED_EXPORTS).toContain("related");
+    expect(REMAINING_TOOLS).toContain("export const related");
+    for (const s of ["/docs/_related.tsv", "related (", "[no related pages recorded for ", "related pages not available on this server"]) {
+      expect(REMAINING_TOOLS).toContain(s);
+    }
+  });
+});

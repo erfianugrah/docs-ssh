@@ -12,6 +12,7 @@ const stubService = {
   find: async (a: unknown) => `find:${JSON.stringify(a)}`,
   summary: async (a: unknown) => `summary:${JSON.stringify(a)}`,
   links: async (a: unknown) => `links:${JSON.stringify(a)}`,
+  related: async (a: unknown) => `related:${JSON.stringify(a)}`,
   sources: async (a: unknown) => `sources:${JSON.stringify(a)}`,
 } as unknown as DocsService;
 
@@ -35,13 +36,14 @@ function textOf(res: { content: unknown }): string {
 }
 
 describe("MCP server wiring", () => {
-  it("exposes exactly the seven docs tools", async () => {
+  it("exposes exactly the eight docs tools", async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       "docs_find",
       "docs_grep",
       "docs_links",
       "docs_read",
+      "docs_related",
       "docs_search",
       "docs_sources",
       "docs_summary",
@@ -71,6 +73,7 @@ describe("MCP server wiring", () => {
       ["docs_summary", "summary", { path: "/docs/x.md" }],
       ["docs_sources", "sources", {}],
       ["docs_links", "links", { path: "/docs/x.md", direction: "in", maxResults: 5 }],
+      ["docs_related", "related", { path: "/docs/x.md", maxResults: 3 }],
     ] as const) {
       const res = await client.callTool({ name, arguments: args });
       expect(textOf(res)).toBe(`${prefix}:${JSON.stringify(args)}`);

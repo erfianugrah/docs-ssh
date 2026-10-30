@@ -93,6 +93,15 @@ describe("tools-pi-template", () => {
     }
   });
 
+  it("ships docs_related with the shared output format", () => {
+    expect(PI_EXPECTED_TOOLS).toContain("docs_related");
+    expect(PI_STATIC_BODY).toContain('name: "docs_related"');
+    expect(PI_STATIC_BODY).toContain("pi.registerTool(relatedTool)");
+    for (const s of ["/docs/_related.tsv", "related (", "[no related pages recorded for ", "related pages not available on this server"]) {
+      expect(PI_STATIC_BODY).toContain(s);
+    }
+  });
+
   it("ships docs_links with the shared output format", () => {
     expect(PI_EXPECTED_TOOLS).toContain("docs_links");
     expect(PI_STATIC_BODY).toContain('name: "docs_links"');
