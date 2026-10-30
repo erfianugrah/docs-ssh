@@ -7,3 +7,4 @@ coverage/
 /tmp/
 .pi/*
 !.pi/harness.json
+__pycache__/

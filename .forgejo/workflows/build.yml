@@ -132,6 +132,7 @@ jobs:
 
       - name: Restore docs cache from volume
         run: |
+          echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
           docker volume create "$CACHE_VOLUME" >/dev/null
           c=$(docker create -v "$CACHE_VOLUME":/cache "$HELPER_IMAGE" true)
           echo "CACHE_HELPER=$c" >> "$GITHUB_ENV"
@@ -209,6 +210,21 @@ jobs:
       - name: Remove cache helper container
         if: always() && env.CACHE_HELPER != ''
         run: docker rm -f "$CACHE_HELPER" >/dev/null || true
+
+      # Embedding neighbours for docs_related (docs-ssh#5): incremental over
+      # the cache volume, so it runs whenever an image is built, not only
+      # after a fetch. Budget = whatever the 175-min job leaves after a 50-min
+      # reserve (neighbour pass, image build, push, deploy wait), capped at
+      # 60 min; leftover pages carry over to the next night. Never fails the
+      # build: ci-run.sh falls back to the previous _related.tsv.
+      - name: Embed pages, write related-page neighbours
+        if: steps.plan.outputs.build == 'true'
+        timeout-minutes: 80
+        run: |
+          left=$(( 175*60 - ($(date +%s) - JOB_START) - 50*60 ))
+          budget=$(( left < 3600 ? left : 3600 ))
+          echo "embed budget: ${budget}s"
+          sh embed/ci-run.sh docs/_related.tsv "$budget"
 
       # After the cache save (a failed gate keeps the fetch) and before the
       # build: never replace the live image with one missing a source, holding

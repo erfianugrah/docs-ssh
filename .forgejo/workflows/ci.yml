@@ -36,6 +36,20 @@ jobs:
       - name: Print coverage report
         run: cat coverage/lcov.info
 
+  embed:
+    name: Embedder tests (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # numpy + pytest only: the model is injected in tests (embed/test_embed.py)
+      - name: pytest
+        run: |
+          pip install -q "numpy==$(sed -n 's/^numpy==//p' embed/requirements.txt)" pytest
+          python -m pytest -q -p no:cacheprovider embed
+
   e2e:
     name: E2E (Docker)
     runs-on: ubuntu-latest
