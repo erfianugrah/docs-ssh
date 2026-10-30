@@ -4,6 +4,12 @@ name: Embed backfill
 # instead of an hour a night. Writes only the docs-ssh-cache volume
 # (/cache/embed); the next build.yml run ships the result. Shares build.yml's
 # concurrency group so the two never write the embedding state at once.
+#
+# To ship the result without anything else watching: dispatch build.yml right
+# after this one. The shared group with cancel-in-progress: false makes the
+# build wait (status "waiting") until the backfill ends, then run - checked
+# 2026-10-30 on Forgejo 16.0.6 (run 140 queued behind run 139 with 3 free
+# runner slots).
 on:
   workflow_dispatch:
     inputs:
