@@ -14,8 +14,10 @@
 # CPU: bge-small on the MS-01 (i9-13900H) measured 667 pages/min single-process
 # and no gain from fastembed data-parallel (705 at 8 workers, 519 at 4;
 # research/raw/2026-10-30-embeddings). The router is also the site gateway,
-# so the container is capped at 8 of 20 CPUs at nice 19 (12 ran it too hot
-# for hours on end).
+# so the container is capped at 4 of 20 CPUs at nice 19 (8 and 12 ran it too
+# hot for hours on end), with onnxruntime told the same thread count:
+# its default ignores the CPU quota and oversubscribes it, which cost ~40%
+# of the rate at 8 CPUs.
 #
 # A failed or skipped embed still copies the previous _related.tsv when one
 # exists, so the image never loses related pages because one night failed.
@@ -40,7 +42,8 @@ if [ -n "$old" ]; then
 fi
 if [ "$budget" -ge 300 ]; then
   docker volume create docs-ssh-embed-model >/dev/null
-  c=$(docker create --cpus 8 --label docs-ssh-embed \
+  cpus=4
+  c=$(docker create --cpus $cpus --label docs-ssh-embed -e EMBED_THREADS=$cpus \
     -v "$CACHE_VOLUME":/cache -v docs-ssh-embed-model:/model \
     -e EMBED_MODEL_DIR=/model -e PIP_ROOT_USER_ACTION=ignore -e PIP_DISABLE_PIP_VERSION_CHECK=1 \
     "$EMBED_IMAGE" sh -c "pip install -q -r /embed/requirements.txt && nice -n 19 python /embed/embed.py --docs /cache/docs --state /cache/embed --budget-s $budget")

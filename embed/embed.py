@@ -215,7 +215,13 @@ def main(argv):
     if pending_any:
         import fastembed  # lazy: heavy, absent in tests
 
-        model = fastembed.TextEmbedding("BAAI/bge-small-en-v1.5", cache_dir=os.environ.get("EMBED_MODEL_DIR"))
+        # EMBED_THREADS = the container's --cpus. onnxruntime's default thread
+        # count ignores the CPU quota and oversubscribes it: 316-362 vs
+        # 546-570 pages/min at --cpus 8 on the router (2026-10-31, docs-ssh#16).
+        threads = int(os.environ["EMBED_THREADS"]) if os.environ.get("EMBED_THREADS") else None
+        model = fastembed.TextEmbedding(
+            "BAAI/bge-small-en-v1.5", cache_dir=os.environ.get("EMBED_MODEL_DIR"), threads=threads
+        )
         embed_fn = lambda texts: np.array(list(model.embed(texts, batch_size=64)))  # noqa: E731
     else:
         embed_fn = lambda texts: np.zeros((len(texts), 0))  # noqa: E731 - never called
