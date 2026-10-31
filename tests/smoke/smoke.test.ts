@@ -419,18 +419,18 @@ describe("security", () => {
 
 describe("negotiated-markdown content shape", () => {
   /**
-   * Returns the first existing markdown file under a source dir, or
-   * null when the source has no .md files (or doesn't exist).
+   * Files under /docs/<name> with a line matching `pattern` (an awk ERE)
+   * outside code fences and inline code, capped at 5. Scans every .md file
+   * so the result does not depend on find order: a one-file sample flapped
+   * with the directory order of each refetch (build run 140, docs-ssh#14).
    */
-  function firstMdFile(sourcePath: string): string | null {
-    try {
-      const out = ssh(
-        `find ${sourcePath} -name '*.md' -size +500c -size -50k 2>/dev/null | head -1`,
-      );
-      return out || null;
-    } catch {
-      return null;
-    }
+  function unfencedHits(name: string, pattern: string): string[] {
+    const prog =
+      "FNR==1{f=0} /^[ \\t]*(```|~~~)/{f=!f; next} f{next} " +
+      "{gsub(/`[^`]*`/,\"\")} " +
+      `/${pattern}/{print FILENAME; nextfile}`;
+    const out = ssh(`find /docs/${name} -name '*.md' -exec awk '${prog}' {} + | head -5`);
+    return out ? out.split("\n") : [];
   }
 
   function sourceExists(name: string): boolean {
@@ -465,36 +465,24 @@ describe("negotiated-markdown content shape", () => {
     // Structural sanity check that works on both Turndown output and
     // content-negotiated markdown. HtmlNormaliser strips these tags
     // before Turndown runs; Cloudflare's Markdown for Agents strips
-    // them in its pre-processor.
+    // them in its pre-processor. An escaped `\<script>` in prose is text.
     const candidates = ["cloudflare-blog", "cloudflare-changelog", "ansible", "prisma"];
     for (const name of candidates) {
       if (!sourceExists(name)) continue;
-      const sample = firstMdFile(`/docs/${name}`);
-      if (!sample) continue;
-      const body = ssh(`head -50 ${sample}`);
-      expect(body, `${sample} should not contain raw <script> tags`).not.toMatch(/<script\b/i);
-      expect(body, `${sample} should not contain raw <style> tags`).not.toMatch(/<style\b/i);
-      expect(body, `${sample} should not contain raw <nav> tags`).not.toMatch(/<nav\b/i);
-      expect(body, `${sample} should not contain raw <footer> tags`).not.toMatch(/<footer\b/i);
+      const hits = unfencedHits(name, "(^|[^\\\\])<(script|style|nav|footer)[ \\t>]");
+      expect(hits, `${name}: raw <script>/<style>/<nav>/<footer> outside code`).toEqual([]);
     }
   });
 
   it("markdown bodies use markdown link syntax, not HTML <a> tags", () => {
-    // [text](url), not <a href="…">text</a>. Both Turndown and
-    // Cloudflare's converter produce the markdown form.
-    const candidates = ["ansible", "prisma", "cloudflare-changelog"];
+    // [text](url), not <a href="...">text</a>. Turndown produces the
+    // markdown form; MarkdownCleaner rewrites what upstream converters
+    // leave as raw HTML (ansible <dl> blocks, cloudflare-blog tag lists).
+    const candidates = ["ansible", "prisma", "cloudflare-changelog", "cloudflare-blog"];
     for (const name of candidates) {
       if (!sourceExists(name)) continue;
-      const sample = firstMdFile(`/docs/${name}`);
-      if (!sample) continue;
-      const body = ssh(`head -50 ${sample}`);
-      // We allow `<a>` inside fenced code blocks (rare), so look for
-      // unfenced occurrences only. Quick heuristic: any standalone
-      // <a href=…> outside the first code fence range.
-      const beforeFence = body.split("```")[0];
-      expect(beforeFence, `${sample} should not contain unfenced <a href>`).not.toMatch(
-        /<a\s+href=/i,
-      );
+      const hits = unfencedHits(name, "<a[ \\t]+href=");
+      expect(hits, `${name}: raw <a href> outside code`).toEqual([]);
     }
   });
 
@@ -504,16 +492,22 @@ describe("negotiated-markdown content shape", () => {
     // does NOT have frontmatter. Test passes either way: explicit
     // skip when frontmatter is absent (= pre-feature deployment).
     if (!sourceExists("cloudflare-changelog")) return;
-    const sample = firstMdFile("/docs/cloudflare-changelog");
-    if (!sample) return;
-    const head = ssh(`head -1 ${sample}`);
-    if (!head.startsWith("---")) {
-      // Pre-feature deployment — Turndown output, no frontmatter.
-      return;
-    }
-    // Post-feature deployment — verify frontmatter is well-formed.
-    const block = ssh(`head -8 ${sample}`);
-    expect(block).toMatch(/^---\s*$/m);
-    expect(block).toMatch(/^title:/m);
+    // Every file: count those opening with a frontmatter block, and list
+    // blocks that close without a title: line.
+    const prog =
+      "FNR==1{t=0; fm=($0 ~ /^---[ \\t]*$/); if (fm) m++} " +
+      "fm && /^title:/{t=1} " +
+      "fm && FNR>1 && /^---/{fm=0; if (!t) print FILENAME} " +
+      "END{print \"withFrontmatter=\" m+0}";
+    const out = ssh(`find /docs/cloudflare-changelog -name '*.md' -exec awk '${prog}' {} +`);
+    // find -exec + may run awk more than once: sum every count line.
+    const all = out.split("\n");
+    const withFm = all
+      .filter((l) => l.startsWith("withFrontmatter="))
+      .reduce((n, l) => n + Number(l.split("=")[1]), 0);
+    const lines = all.filter((l) => l && !l.startsWith("withFrontmatter="));
+    // Pre-feature deployment: Turndown output, no frontmatter anywhere.
+    if (withFm === 0) return;
+    expect(lines.slice(0, 5), "frontmatter blocks without title:").toEqual([]);
   });
 });
