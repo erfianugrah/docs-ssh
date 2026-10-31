@@ -213,16 +213,18 @@ jobs:
 
       # Embedding neighbours for docs_related (docs-ssh#5): incremental over
       # the cache volume, so it runs whenever an image is built, not only
-      # after a fetch. Budget = whatever the 175-min job leaves after a 50-min
-      # reserve (neighbour pass, image build, push, deploy wait), capped at
-      # 60 min; leftover pages carry over to the next night. Never fails the
-      # build: ci-run.sh falls back to the previous _related.tsv.
+      # after a fetch. Budget = whatever the 175-min job leaves after a 75-min
+      # reserve, capped at 40 min; leftover pages carry over to the next night.
+      # The budget covers embedding only: the neighbour pass runs after it and
+      # is quadratic (697 s at 114k pages on the router 2026-10-31, ~26 min
+      # expected at 170k), then image build, push and deploy take ~25 min.
+      # Never fails the build: ci-run.sh falls back to the previous _related.tsv.
       - name: Embed pages, write related-page neighbours
         if: steps.plan.outputs.build == 'true'
         timeout-minutes: 80
         run: |
-          left=$(( 175*60 - ($(date +%s) - JOB_START) - 50*60 ))
-          budget=$(( left < 3600 ? left : 3600 ))
+          left=$(( 175*60 - ($(date +%s) - JOB_START) - 75*60 ))
+          budget=$(( left < 2400 ? left : 2400 ))
           echo "embed budget: ${budget}s"
           sh embed/ci-run.sh docs/_related.tsv "$budget"
 

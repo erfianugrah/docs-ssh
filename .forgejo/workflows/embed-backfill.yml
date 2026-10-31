@@ -1,7 +1,11 @@
 name: Embed backfill
 
-# First pass (or a model change): embed the whole docs cache in one long run
-# instead of an hour a night. Writes only the docs-ssh-cache volume
+# First pass (or a model change): embed the docs cache in long runs instead of
+# 40 min a night. The runner kills any job at 3 h whatever timeout-minutes
+# says (run 139 asked for 340 min and was cancelled at 3h0m), so one run
+# embeds ~130 min worth (~85k pages at 667/min) and leaves ~30 min for the
+# neighbour pass (697 s at 114k pages, quadratic); dispatch it again until
+# the log shows pending=0. Writes only the docs-ssh-cache volume
 # (/cache/embed); the next build.yml run ships the result. Shares build.yml's
 # concurrency group so the two never write the embedding state at once.
 #
@@ -14,9 +18,9 @@ on:
   workflow_dispatch:
     inputs:
       budget_s:
-        description: "Embedding time budget in seconds (170k pages at ~667/min is ~4.3 h)"
+        description: "Embedding time budget in seconds (runner cap is 3 h; the neighbour pass needs ~30 min after it)"
         type: string
-        default: "18000"
+        default: "7800"
 
 concurrency:
   group: docker-push
@@ -29,7 +33,7 @@ env:
 jobs:
   embed:
     runs-on: ubuntu-latest
-    timeout-minutes: 340
+    timeout-minutes: 175
     steps:
       - uses: actions/checkout@v7
       - name: Embed

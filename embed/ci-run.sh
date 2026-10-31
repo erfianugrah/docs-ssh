@@ -24,15 +24,30 @@ budget="$2"
 : "${CACHE_VOLUME:?}" "${HELPER_IMAGE:?}"
 EMBED_IMAGE="${EMBED_IMAGE:-python:3.12-slim}"
 rc=0
+# The embed container runs on the host daemon, so a cancelled job does not
+# stop it: run 139's outlived its job by 2h15m and was still writing the cache
+# volume while the next build ran. Remove it on the way out, and remove any
+# leftover from a killed run before starting, so only one writer exists.
+c=
+cleanup() { [ -n "$c" ] && docker rm -f "$c" >/dev/null 2>&1; c=; }
+trap cleanup EXIT
+trap 'cleanup; exit 143' INT TERM HUP
+old=$(docker ps -aq --filter label=docs-ssh-embed)
+if [ -n "$old" ]; then
+  echo "::warning::removing leftover embed container(s): $old"
+  docker rm -f $old >/dev/null
+fi
 if [ "$budget" -ge 300 ]; then
   docker volume create docs-ssh-embed-model >/dev/null
-  c=$(docker create --cpus 12 \
+  c=$(docker create --cpus 12 --label docs-ssh-embed \
     -v "$CACHE_VOLUME":/cache -v docs-ssh-embed-model:/model \
     -e EMBED_MODEL_DIR=/model -e PIP_ROOT_USER_ACTION=ignore -e PIP_DISABLE_PIP_VERSION_CHECK=1 \
     "$EMBED_IMAGE" sh -c "pip install -q -r /embed/requirements.txt && nice -n 19 python /embed/embed.py --docs /cache/docs --state /cache/embed --budget-s $budget")
   docker cp embed/. "$c":/embed/
-  docker start -a "$c" || rc=$?
-  docker rm -f "$c" >/dev/null 2>&1 || true
+  # Background + wait: sh runs a trap only after a foreground command ends.
+  docker start -a "$c" &
+  wait $! || rc=$?
+  cleanup
   [ "$rc" -eq 0 ] || echo "::warning::embedding failed (exit $rc); keeping the previous _related.tsv if any"
 else
   echo "embed: skipped, budget ${budget}s < 300s"
