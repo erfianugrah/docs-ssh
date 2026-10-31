@@ -19,11 +19,12 @@ Contract
   is pending). embed_fn(list[str]) -> np.ndarray (n, dim) float; update
   L2-normalises. stats = {"kept", "embedded", "pending", "removed"}.
   Output order: sorted by path.
-- neighbours(paths, shas, vecs, k=8, block=4096) -> list[(path, [paths])]:
+- neighbours(paths, shas, vecs, k=8, block=4096, chunk=64) -> list[(path, [paths])]:
   for every row, the k rows with the highest dot product, highest first,
   ties broken by path, excluding itself and rows with the same sha (the
   dump repeats pages). Pages with fewer candidates get fewer neighbours.
-  Must give the same result for any block size.
+  Must give the same result for any block and chunk size (chunk only
+  tunes the candidate cut).
 - write_related(path, rows) writes "path\tn1\tn2..." lines sorted by path,
   atomically; rows with no neighbours are omitted.
 - empty_state() -> ([], [], np.zeros((0, 0), np.float16)).
@@ -151,6 +152,32 @@ def test_neighbours_k_and_block_invariance():
     a = E.neighbours(paths, shas, v, k=5, block=7)
     b = E.neighbours(paths, shas, v, k=5, block=4096)
     assert a == b and all(len(n) == 5 for _, n in a)
+
+
+def _reference_neighbours(paths, shas, v, k):
+    """Brute force straight from the contract: every pair, sorted."""
+    v = np.asarray(v, dtype=np.float32)
+    out = []
+    for i, p in enumerate(paths):
+        cand = [(-float(v[i] @ v[j]), paths[j]) for j in range(len(paths)) if shas[j] != shas[i]]
+        out.append((p, [q for _s, q in sorted(cand)[:k]]))
+    return sorted(out)
+
+
+def test_neighbours_match_brute_force_with_ties_and_duplicates():
+    # Coarse vectors give many equal scores at the k-th place, duplicate shas
+    # exercise the exclusion, and n < k on the tiny case exercises short rows.
+    rng = np.random.default_rng(1)
+    v = rng.integers(-1, 2, size=(120, 3)).astype(np.float32)
+    paths = [f"p{i:03d}.md" for i in rng.permutation(120)]
+    shas = [str(i % 100) for i in range(120)]
+    # chunk=64 leaves fewer chunks than k (no bound); small chunks exercise
+    # the k-th-largest-chunk-max cut, including q == k (chunk=15 -> 8 chunks).
+    for k, block, chunk in [(8, 7, 64), (8, 4096, 4), (8, 13, 15), (3, 32, 7), (3, 4096, 1)]:
+        got = E.neighbours(paths, shas, v, k=k, block=block, chunk=chunk)
+        assert got == _reference_neighbours(paths, shas, v, k), (k, block, chunk)
+    small = E.neighbours(paths[:4], shas[:4], v[:4], k=8)
+    assert small == _reference_neighbours(paths[:4], shas[:4], v[:4], 8)
 
 
 def test_write_related(tmp_path):

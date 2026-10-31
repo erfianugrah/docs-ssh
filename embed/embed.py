@@ -124,39 +124,69 @@ def update(state, scanned, embed_fn, budget_s, clock=time.monotonic, batch=64):
     return (new_paths, new_shas, new_vecs), stats
 
 
-def neighbours(paths, shas, vecs, k=8, block=4096):
-    """Top-k rows by dot product per row; ties by path; excludes self and same-sha rows."""
+def neighbours(paths, shas, vecs, k=8, block=4096, chunk=64):
+    """Top-k rows by dot product per row; ties by path; excludes self and same-sha rows.
+
+    Per block, without a full sort or partition of each score row (that
+    argpartition took most of the 697 s at 114k pages on the router,
+    docs-ssh#13): split every row into chunks of `chunk` columns and take
+    the k-th largest chunk maximum. Those k maxima are k distinct scores at
+    or above it, so it is a lower bound on the row's k-th score and every
+    score >= it is a candidate, ties at the cut included. Ranking the few
+    candidates (score desc, column = path asc) gives the exact answer.
+    """
     n = len(paths)
     if n == 0 or k <= 0:
         return [(p, []) for p in sorted(paths)] if k <= 0 else []
-    # Work in path order so a stable sort on -score breaks ties by path.
+    # Work in path order: column index order == path order breaks ties.
     order = sorted(range(n), key=lambda i: paths[i])
     sp = [paths[i] for i in order]
-    sha_ids = {}
-    ss = np.array([sha_ids.setdefault(shas[i], len(sha_ids)) for i in order], dtype=np.int64)
+    groups = {}
+    for col, i in enumerate(order):
+        groups.setdefault(shas[i], []).append(col)
+    dups = {}  # col -> every col sharing its sha (itself included), repeats only
+    for cols in groups.values():
+        if len(cols) > 1:
+            arr = np.array(cols)
+            for c in cols:
+                dups[c] = arr
     m = np.ascontiguousarray(np.asarray(vecs, dtype=np.float32)[order])
+    q = -(-n // chunk)  # chunks per row; the last one is padded with -inf
+    # One buffer for every block: the padding columns stay -inf, and the
+    # matmul rewrites the rest (self/duplicate -inf marks included) per block.
+    buf = np.full((min(block, n), q * chunk), -np.inf, dtype=np.float32)
+    offs = np.arange(chunk)
 
     result = []
     for lo in range(0, n, block):
         hi = min(lo + block, n)
-        scores = m[lo:hi] @ m.T  # (hi-lo, n) float32
-        scores[ss[lo:hi, None] == ss[None, :]] = -np.inf  # self and duplicates
-        for r in range(hi - lo):
-            s = scores[r]
-            avail = int(np.isfinite(s).sum())
-            kk = min(k, avail)
-            if kk == 0:
-                result.append((sp[lo + r], []))
-                continue
-            if kk < n:
-                top = np.argpartition(-s, kk - 1)[:kk]
-                thr = s[top].min()
-                # argpartition may drop equal-score rows at the cut; take them all.
-                cand = np.flatnonzero(s >= thr)
-            else:
-                cand = np.arange(n)
-            best = cand[np.argsort(-s[cand], kind="stable")][:kk]  # cand is in path order
-            result.append((sp[lo + r], [sp[j] for j in best]))
+        b = hi - lo
+        scores = buf[:b]
+        np.matmul(m[lo:hi], m.T, out=scores[:, :n])
+        scores[np.arange(b), np.arange(lo, hi)] = -np.inf  # self
+        for c in range(lo, hi):
+            if c in dups:
+                scores[c - lo, dups[c]] = -np.inf  # same text elsewhere in the dump
+        chunks = scores.reshape(b, q, chunk)
+        cmax = chunks.max(axis=2)  # (b, q)
+        if q >= k:
+            thr = np.partition(cmax, q - k, axis=1)[:, q - k]  # k-th largest chunk max
+        else:  # fewer chunks than k: no bound, every score is a candidate
+            thr = np.full(b, -np.inf, dtype=np.float32)
+        # Only chunks whose max reaches the bound can hold a candidate.
+        rc, qc = np.nonzero(cmax >= thr[:, None])
+        vals = chunks[rc, qc]  # (m, chunk)
+        keep = (vals >= thr[rc, None]) & np.isfinite(vals)
+        rows = np.broadcast_to(rc[:, None], vals.shape)[keep]
+        cols = (qc[:, None] * chunk + offs)[keep]
+        vals = vals[keep]
+        srt = np.lexsort((cols, -vals, rows))  # row, then score desc, then path asc
+        rows, cols = rows[srt], cols[srt]
+        starts = np.searchsorted(rows, np.arange(b))
+        ends = np.searchsorted(rows, np.arange(b), side="right")
+        for r in range(b):
+            e = min(ends[r], starts[r] + k)
+            result.append((sp[lo + r], [sp[j] for j in cols[starts[r]:e]]))
     return result
 
 
