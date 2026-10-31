@@ -221,4 +221,40 @@ Copy page`;
     expect(result.content).not.toContain("#another-leak");
     expect(result.content).toContain(".safe { padding: 10px; }");
   });
+
+  // ─── raw <a href> in negotiated markdown ───────────────────────────
+
+  const negotiated = (md: string) => new DocFile("page.md", md, { preNormalised: true });
+
+  it("rewrites raw <a href> in negotiated markdown to markdown links", async () => {
+    // Shapes seen 2026-10-30: ansible <dl> blocks, cloudflare-changelog lists.
+    const md = [
+      '<dl><dt>deprecate(*msg:<a href="https://docs.python.org/3/x.html#str" title="(in Python v3.15)">str</a>*)</dt>',
+      '- <a href="https://developers.cloudflare.com/a/">Changelog</a>',
+      'Raises <a href="#e"><code>TypeError</code></a>.',
+    ].join("\n");
+    const result = await cleaner.normalise(negotiated(md));
+    expect(result.content).toContain("*msg:[str](https://docs.python.org/3/x.html#str)*");
+    expect(result.content).toContain("- [Changelog](https://developers.cloudflare.com/a/)");
+    expect(result.content).toContain("Raises [`TypeError`](#e).");
+    expect(result.content).not.toMatch(/<a\s+href=/i);
+  });
+
+  it("keeps <a href> in fences, inline code, and anchors with nested markup", async () => {
+    const md = [
+      "Use `<a href=\"#x\">x</a>` here.",
+      '<a href="/img"><img src="b.png"></a>',
+      "```html",
+      '<a href="/y">y</a>',
+      "```",
+    ].join("\n");
+    const result = await cleaner.normalise(negotiated(md));
+    expect(result.content).toBe(md);
+  });
+
+  it("leaves <a href> alone in files that went through a converter", async () => {
+    const md = '<a href="/z">z</a>';
+    const result = await cleaner.normalise(new DocFile("page.md", md));
+    expect(result.content).toBe(md);
+  });
 });

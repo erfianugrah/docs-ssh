@@ -61,6 +61,12 @@ export class MarkdownCleaner implements DocNormaliser {
     // Must skip code fences to avoid stripping legitimate CSS examples
     content = stripCssOutsideFences(content);
 
+    // Upstream markdown converters keep HTML they have no markdown for
+    // (ansible <dl> blocks, some cloudflare-changelog lists) with raw
+    // <a href> inside; rewrite those so the link graph and readers see
+    // markdown links. Turndown output never has them.
+    if (file.preNormalised) content = anchorsToMarkdownOutsideCode(content);
+
     // MediaWiki footer boilerplate
     content = content.replace(/^Retrieved from "\[?https?:\/\/wiki\.[^"]*"?\]?\s*$/gm, "");
 
@@ -85,6 +91,44 @@ export class MarkdownCleaner implements DocNormaliser {
 
     return file.withContent(content);
   }
+}
+
+/**
+ * `<a href="u" ...>text</a>` -> `[text](u)` outside fences and inline code.
+ * `<a ...><code>x</code></a>` becomes `` [`x`](u) ``; anchors holding other
+ * markup (`<img>`, `<span>`) are left as they are.
+ */
+function anchorsToMarkdownOutsideCode(content: string): string {
+  if (!/<a\s/i.test(content)) return content;
+  let inFence = false;
+  return content
+    .split("\n")
+    .map((line) => {
+      const t = line.trimStart();
+      if (t.startsWith("```") || t.startsWith("~~~")) {
+        inFence = !inFence;
+        return line;
+      }
+      if (inFence) return line;
+      // Odd segments of a split on backticks are inline code spans.
+      return line
+        .split("`")
+        .map((seg, i) =>
+          i % 2
+            ? seg
+            : seg
+                .replace(
+                  /<a\s+href="([^"]*)"[^>]*>\s*<code>([^<`]*)<\/code>\s*<\/a>/gi,
+                  (_m, href: string, text: string) => `[\`${text.trim()}\`](${href})`,
+                )
+                .replace(
+                  /<a\s+href="([^"]*)"[^>]*>([^<]*)<\/a>/gi,
+                  (_m, href: string, text: string) => `[${text.trim()}](${href})`,
+                ),
+        )
+        .join("`");
+    })
+    .join("\n");
 }
 
 /** Strip CSS selectors/blocks only when NOT inside fenced code blocks. */
