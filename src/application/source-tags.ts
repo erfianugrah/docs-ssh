@@ -460,6 +460,20 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   fastapi: ["languages", "frontend"],
   "erfi-technical-blog": ["blogs"],
   "erfi-personal-blog": ["blogs"],
+
+  // ─── Hardware security / MCU / fault injection ─────────────────
+  "nuvoton-nusec": ["hardware", "security"],
+  "nuvoton-m480-bsp": ["hardware"],
+  "nuvoton-tech-articles": ["hardware", "security"],
+  "openmouse-protocol": ["hardware"],
+  "openmouse-docs": ["hardware"],
+  "mouse-fw-re": ["hardware"],
+  pyocd: ["hardware"],
+  "probe-rs": ["hardware"],
+  "fault-injection-library": ["hardware", "security"],
+  faultycat: ["hardware", "security"],
+  "hextree-faultier": ["hardware", "security"],
+  chipwhisperer: ["hardware", "security"],
 };
 
 /**
@@ -506,6 +520,7 @@ export const TAG_LABELS: Record<string, string> = {
   "object-storage": "Object storage (S3-compatible)",
   nas: "NAS & home server",
   hardware: "Hardware & SBCs",
+  security: "Hardware security & RE",
   gpu: "GPU & graphics",
   media: "Media servers & automation",
   smarthome: "Smart home & IoT",

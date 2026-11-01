@@ -120,7 +120,7 @@ Add a `new DocSource({...})` to `src/application/sources.ts`. Pick a discovery m
 
 **Source-type preference order** (most → least reliable; pick the highest one the upstream actually offers):
 
-1. **`type: "git"`** — clone+sparse-checkout the upstream's docs directory. Markdown direct from source. ~83 of 138 sources use this. Survives upstream HTML/JS/CSS rewrites; only breaks when the repo path changes.
+1. **`type: "git"`** - clone+sparse-checkout the upstream's docs directory. Markdown direct from source. ~83 of 138 sources use this. Survives upstream HTML/JS/CSS rewrites; only breaks when the repo path changes. Also supports `format: "html"` for repos shipping a checked-in Doxygen/tree of HTML (nuvoton-m480-bsp): GitIngestor walks `.html`, HtmlNormaliser converts and rewrites the path to `.md`.
 2. **`type: "http"` + `discovery: "tarball"`** — single bulk archive (e.g. Supabase's `docs.tar.gz`). One fetch, no rendering, durable.
 3. **`type: "http"` + `discovery: "llms-full"`** — single AI-targeted text dump from the upstream. Lighter than tarball, common pattern (Vercel, Cloudflare, Next.js, Bitwarden).
 4. **`type: "http"` + `discovery: "openapi"` / `"openapi-dir"`** — for API specs. Converted to per-tag markdown by `openapi-converter.ts`.

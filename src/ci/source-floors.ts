@@ -31,6 +31,20 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   flyio: 400,
   bunnycdn: 300,
   "ietf-rfc": 5000,
+  // Hardware security / MCU / fault injection (2026-11-01 batch).
+  // ~50% of the measured full-fetch counts.
+  "nuvoton-nusec": 8,
+  "nuvoton-m480-bsp": 300,
+  "nuvoton-tech-articles": 30,
+  "openmouse-protocol": 30,
+  "openmouse-docs": 4,
+  "mouse-fw-re": 6,
+  pyocd: 17,
+  "probe-rs": 9,
+  "fault-injection-library": 7,
+  faultycat: 6,
+  "hextree-faultier": 1,
+  chipwhisperer: 60,
 };
 
 /** API-spec sources whose converted tree must contain api/overview.md. */

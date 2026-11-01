@@ -4826,4 +4826,185 @@ export const SOURCES: readonly DocSource[] = [
     tags: ["standards", "networking"],
     description: "IETF RFCs (full corpus, all series)",
   }),
+
+  // ── Hardware security / MCU / fault injection ────────────────────
+  //
+  // Sources for the embedded-RE workflow: Nuvoton NuMicro MCUs,
+  // PixArt optical mouse sensors + mouse-firmware RE, SWD debug
+  // tooling, and voltage-glitching hardware. TRMs/datasheets are
+  // PDF-only upstream (not mirrorable) - the sets below are the
+  // markdown/HTML layers that ARE public. Research:
+  // docs/research/raw/2026-11-01-nuvoton-pixart-faultier/.
+
+  // NuSEC - Nuvoton's security system documentation (MkDocs):
+  // secure boot, TF-M, Key Store, lifecycle, and fault-injection
+  // countermeasures. The closest thing to a public Nuvoton security
+  // TRM.
+  new DocSource({
+    name: "nuvoton-nusec",
+    type: "git",
+    url: "https://github.com/OpenNuvoton/NuSEC_System_Document",
+    format: "markdown",
+    paths: ["docs"],
+    tags: ["hardware", "security"],
+    description: "Nuvoton security system docs (secure boot, Key Store, FI countermeasures)",
+  }),
+
+  // M480 BSP checked-in Doxygen tree: driver-level peripheral API
+  // reference for the M480 family (the M483SIDAE's chip family). The
+  // only machine-mirrorable Nuvoton API doc - nuvoton.com TRMs and
+  // datasheets are PDF-only. Doxygen pages carry heavy nav chrome;
+  // tiny JS-driven search pages are dropped by HtmlNormaliser's
+  // <1KB-and-<1% rule.
+  new DocSource({
+    name: "nuvoton-m480-bsp",
+    type: "git",
+    url: "https://github.com/OpenNuvoton/M480BSP",
+    format: "html",
+    paths: ["Document/html"],
+    rootPath: "Document/html",
+    tags: ["hardware"],
+    description: "Nuvoton M480 BSP Doxygen driver API reference",
+  }),
+
+  // Nuvoton technical articles (CMS HTML, ~160 articles over 16
+  // listing pages). toc depth 2 so the BFS also crawls the ?page=N
+  // listing links; urlPattern keeps only the article pages out of the
+  // doc set. Covers ISP programming, secure key storage, and
+  // fault-injection countermeasure writeups.
+  new DocSource({
+    name: "nuvoton-tech-articles",
+    type: "http",
+    url: "https://www.nuvoton.com/support/technical-support/technical-articles/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://www.nuvoton.com/support/technical-support/technical-articles/",
+    tocDepth: 2,
+    urlPattern: "technical-articles/TSNuvotonTechBlog-",
+    pageConcurrency: 6,
+    tags: ["hardware", "security"],
+    description: "Nuvoton technical articles (ISP, security, fault-injection countermeasures)",
+  }),
+
+  // OpenMouse mouse-protocol - community-documented HID config
+  // protocol for gaming mice (Endgame Gear OP1 8K v2, XM2w, etc.),
+  // built from captured feature-report traffic. AGPL-3.0.
+  new DocSource({
+    name: "openmouse-protocol",
+    type: "git",
+    url: "https://github.com/OpenMouse-Project/mouse-protocol",
+    format: "markdown",
+    paths: ["docs", "captures"],
+    tags: ["hardware"],
+    description: "OpenMouse gaming-mouse HID config protocol docs (per-device captures)",
+  }),
+
+  // OpenMouse docs site source - the "how to reverse-engineer a mouse
+  // config protocol" methodology guides (add-a-device, register-and-
+  // verify, write-a-driver). AGPL-3.0.
+  new DocSource({
+    name: "openmouse-docs",
+    type: "git",
+    url: "https://github.com/OpenMouse-Project/openmouse-docs",
+    format: "mdx",
+    paths: ["docs"],
+    tags: ["hardware"],
+    description: "OpenMouse docs: mouse config-protocol RE methodology",
+  }),
+
+  // Documentation-first wireless gaming-mouse firmware RE archive:
+  // motion-pipeline / sensor-tuning / performance-mode analyses for
+  // PAW3395- and PAW3950-based mice (VAXEE, NINJUTSO, CHAOS, CRDRAKO),
+  // EN + zh-CN + zh-TW. No upstream license file - same ARR status as
+  // vendor docs mirrored elsewhere; noted for takedown compliance.
+  new DocSource({
+    name: "mouse-fw-re",
+    type: "git",
+    url: "https://github.com/8e9nQxe/Wireless-mouse-firmware-reverse-engineering",
+    format: "markdown",
+    tags: ["hardware"],
+    description: "Wireless gaming-mouse firmware RE analyses (PAW3395/PAW3950 mice)",
+  }),
+
+  // pyOCD user + API docs: GDB setup, probe support (CMSIS-DAP,
+  // STLink, JLink), target bring-up, Python scripting API.
+  new DocSource({
+    name: "pyocd",
+    type: "git",
+    url: "https://github.com/pyocd/pyOCD",
+    format: "markdown",
+    paths: ["docs"],
+    tags: ["hardware"],
+    description: "pyOCD ARM Cortex-M debug probe docs",
+  }),
+
+  // probe-rs docs (Astro Starlight site source): SWD/JTAG debugging,
+  // CMSIS-Pack flashing, RTT, GDB/DAP servers, probe support.
+  new DocSource({
+    name: "probe-rs",
+    type: "git",
+    url: "https://github.com/probe-rs/webpage",
+    format: "mdx",
+    paths: ["src/content/docs"],
+    rootPath: "src/content/docs",
+    tags: ["hardware"],
+    description: "probe-rs embedded debug toolkit docs",
+  }),
+
+  // PicoGlitcher / findus fault-injection-library docs (MkDocs):
+  // crowbar voltage-glitch parameter tuning, pulse shaping, Schmitt
+  // triggers, multiplexing, genetic parameter search.
+  new DocSource({
+    name: "fault-injection-library",
+    type: "git",
+    url: "https://github.com/MKesenheimer/fault-injection-library",
+    format: "markdown",
+    paths: ["docs"],
+    tags: ["hardware", "security"],
+    description: "PicoGlitcher fault-injection library docs (voltage glitching)",
+  }),
+
+  // FaultyCat (Electronic Cats) firmware docs: EMFI + crowbar glitch
+  // architecture, SWD/JTAG/I2C scanner internals, logic analyzer,
+  // porting guide.
+  new DocSource({
+    name: "faultycat",
+    type: "git",
+    url: "https://github.com/ElectronicCats/faultycat-firmware",
+    format: "markdown",
+    paths: ["docs"],
+    tags: ["hardware", "security"],
+    description: "FaultyCat fault-injection tool firmware docs (EMFI + crowbar glitching)",
+  }),
+
+  // Hextree Faultier firmware repo. The hextree.io docs site is a
+  // Next.js SPA (no per-page URLs, not mirrorable) and
+  // faultier-python's docs are reStructuredText (no converter), so this
+  // repo's README + TROUBLESHOOTING are the mirrorable Faultier docs.
+  new DocSource({
+    name: "hextree-faultier",
+    type: "git",
+    url: "https://github.com/hextreeio/faultier",
+    format: "markdown",
+    tags: ["hardware", "security"],
+    description: "Hextree Faultier glitcher firmware docs (README + troubleshooting)",
+  }),
+
+  // ChipWhisperer docs (ReadTheDocs Sphinx HTML). The git source
+  // tree is RST + Jupyter (no RST converter), so mirror the rendered
+  // site instead: the /en/latest/ landing embeds the full global
+  // toctree (~134 pages), scraped with toc depth 1. genindex/search
+  // excluded via urlExclude.
+  new DocSource({
+    name: "chipwhisperer",
+    type: "http",
+    url: "https://chipwhisperer.readthedocs.io/en/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://chipwhisperer.readthedocs.io/en/latest/",
+    tocDepth: 1,
+    urlExclude: "genindex|search\\.html",
+    tags: ["hardware", "security"],
+    description: "ChipWhisperer side-channel analysis + fault injection docs",
+  }),
 ];

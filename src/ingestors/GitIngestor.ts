@@ -22,6 +22,10 @@ const GO_EXTENSIONS = new Set(["go"]);
 // parity), .h for the NVAPI SDK headers, .py/.cpp for PenguinBurner's
 // hidden-NVAPI reference code (DocFile path keeps its extension).
 const TXT_EXTENSIONS = new Set(["txt", "h", "py", "cpp"]);
+// html-format git sources (nuvoton-m480-bsp): checked-in Doxygen HTML
+// trees, walked as .html and converted by HtmlNormaliser in pass 1 (which
+// also rewrites the path suffix .html -> .md).
+const HTML_EXTENSIONS = new Set(["html"]);
 const OPENAPI_FILENAMES = new Set(["openapi.yaml", "openapi.json", "swagger.yaml", "swagger.json"]);
 
 /**
@@ -227,14 +231,18 @@ export class GitIngestor implements DocIngestor {
 
     // godoc sources walk .go files (excluding tests and generated
     // code); txt sources walk code/text files for fenced serving;
-    // everything else walks markdown.
+    // html sources walk checked-in .html (Doxygen trees); everything
+    // else walks markdown.
     const isGodoc = source.format === "godoc";
     const isTxt = source.format === "txt";
+    const isHtml = source.format === "html";
     const walkExtensions = isGodoc
       ? GO_EXTENSIONS
       : isTxt
         ? TXT_EXTENSIONS
-        : MARKDOWN_EXTENSIONS;
+        : isHtml
+          ? HTML_EXTENSIONS
+          : MARKDOWN_EXTENSIONS;
     const walkSkipFile = isGodoc ? shouldSkipGoFile : undefined;
 
     for (const root of scanRoots) {
