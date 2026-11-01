@@ -1,6 +1,6 @@
 # docs-ssh
 
-Self-hosted SSH docs server for AI agents. Serves 200+ documentation sources — including Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, PostgreSQL, Terraform, MDN, Pi, and more — plus blogs, changelogs, and OpenAPI specs as a searchable markdown filesystem over SSH. See `src/application/sources.ts` for the full list.
+Self-hosted SSH docs server for AI agents. Serves 378 documentation sources — including Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, PostgreSQL, Terraform, MDN, Pi, and more — plus blogs, changelogs, and OpenAPI specs as a searchable markdown filesystem over SSH. See `src/application/sources.ts` for the full list.
 
 ## Get started
 
@@ -61,7 +61,7 @@ Chat LLMs that can't open an SSH connection - Claude.ai custom connectors, ChatG
 https://docs.erfi.io/mcp
 ```
 
-It exposes the same seven tools (`docs_search`, `docs_read`, `docs_grep`, `docs_find`, `docs_summary`, `docs_sources`, `docs_links`) as the SSH path, running against the in-container docs tree - so it keeps the same search -> summary -> targeted-read token efficiency, **not** the full-page dumps typical of documentation MCP servers. Stateless (no session state, sits behind a CDN cleanly), read-only, and open (public documentation). Origin/Host allowlists guard against DNS-rebinding.
+It exposes the same eight tools (`docs_search`, `docs_read`, `docs_grep`, `docs_find`, `docs_summary`, `docs_sources`, `docs_links`, `docs_related`) as the SSH path, running against the in-container docs tree - so it keeps the same search -> summary -> targeted-read token efficiency, **not** the full-page dumps typical of documentation MCP servers. Stateless (no session state, sits behind a CDN cleanly), read-only, and open (public documentation). Origin/Host allowlists guard against DNS-rebinding.
 
 Every `docs_read` / `docs_summary` result starts with a `[source] /docs/<source>/<path>.md` line and, when the mirror knows it, a `[url] https://...` line with the file's original public URL (the fetched page for web sources, the forge file view or the published site for git sources). `docs_search` rows carry the same URL as a 4th tab-separated column. Cite the `[url]`; the `[source]` path is the fallback.
 
@@ -105,7 +105,7 @@ ssh -p 2222 docs@localhost "rg --json 'auth' /docs/supabase/"
 
 ## What `tools` and `tools pi` generate
 
-Both commands output a **TypeScript file you save locally** — no code is executed during the install. The file implements the docs tools (docs_search, docs_read, docs_grep, docs_find, docs_summary, docs_sources, docs_links) as thin wrappers around SSH commands to the docs server.
+Both commands output a **TypeScript file you save locally** — no code is executed during the install. The file implements the docs tools (docs_search, docs_read, docs_grep, docs_find, docs_summary, docs_sources, docs_links, docs_related) as thin wrappers around SSH commands to the docs server.
 
 - `tools` → OpenCode custom tools format (Zod schemas, `.opencode/tools/docs.ts`)
 - `tools pi` → Pi extension format (TypeBox, `~/.pi/agent/extensions/docs.ts`)
@@ -134,7 +134,7 @@ The [remote MCP endpoint](#remote-mcp-claude--chatgpt-connectors) exposes these 
 
 ## Doc sources
 
-200+ sources covering programming languages, frameworks, databases, cloud platforms, and developer tooling. Full canonical list lives in [`src/application/sources.ts`](src/application/sources.ts); the live server reports counts via:
+378 sources covering programming languages, frameworks, databases, cloud platforms, and developer tooling. Full canonical list lives in [`src/application/sources.ts`](src/application/sources.ts); the live server reports counts via:
 
 ```bash
 ssh -p 2222 docs@docs.erfi.io sources
