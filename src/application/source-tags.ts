@@ -474,6 +474,15 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   faultycat: ["hardware", "security"],
   "hextree-faultier": ["hardware", "security"],
   chipwhisperer: ["hardware", "security"],
+
+  // ─── PCB design / fabrication ──────────────────────────────────
+  kicad: ["hardware", "pcb"],
+  "kicad-dev-docs": ["hardware", "pcb"],
+  "kicad-python": ["hardware", "pcb"],
+  freerouting: ["hardware", "pcb"],
+  jlcpcb: ["hardware", "pcb"],
+  libhmk: ["hardware", "pcb"],
+  "libhmk-src": ["hardware", "pcb"],
 };
 
 /**
@@ -521,6 +530,7 @@ export const TAG_LABELS: Record<string, string> = {
   nas: "NAS & home server",
   hardware: "Hardware & SBCs",
   security: "Hardware security & RE",
+  pcb: "PCB design & fabrication",
   gpu: "GPU & graphics",
   media: "Media servers & automation",
   smarthome: "Smart home & IoT",

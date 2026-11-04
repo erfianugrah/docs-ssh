@@ -45,6 +45,15 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   faultycat: 6,
   "hextree-faultier": 1,
   chipwhisperer: 60,
+  // PCB design / fabrication (docs-ssh#18, 2026-11-04). ~50% of the
+  // measured full-fetch counts.
+  kicad: 4,
+  "kicad-dev-docs": 27,
+  "kicad-python": 2,
+  freerouting: 14,
+  jlcpcb: 120,
+  libhmk: 2,
+  "libhmk-src": 12,
 };
 
 /** API-spec sources whose converted tree must contain api/overview.md. */

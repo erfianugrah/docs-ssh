@@ -5007,4 +5007,129 @@ export const SOURCES: readonly DocSource[] = [
     tags: ["hardware", "security"],
     description: "ChipWhisperer side-channel analysis + fault injection docs",
   }),
+
+  // ── PCB design / fabrication (KiCad, Freerouting, JLCPCB, libhmk) ──
+  //
+  // Tooling for a KiCad 10 keyboard PCB (docs-ssh#18). docs.kicad.org
+  // and dev-docs.kicad.org answer `Accept: text/markdown` (verified
+  // 2026-11-04); only dev-docs keeps a title in it, so the two
+  // docs.kicad.org sources opt out of negotiation.
+
+  // KiCad 10.0 user manuals. The kicad-doc repo has no 10.0 branch
+  // (stable is cut from tags, e.g. 10.0.8, not on master) and its
+  // AsciiDoc is not Antora-shaped, so mirror the rendered site: the
+  // landing page links one single-page HTML manual per tool (9 pages;
+  // pcbnew alone is ~735 KB of markdown - use docs_summary + offsets).
+  new DocSource({
+    name: "kicad",
+    type: "http",
+    url: "https://docs.kicad.org/10.0/en/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.kicad.org/10.0/en/",
+    urlPattern: "docs\\.kicad\\.org/10\\.0/en/[^/]+/[^/]+\\.html$",
+    // The negotiated markdown drops the manual's H1 (index title would
+    // read "Table of Contents"); the HTML path titles it from <title>.
+    skipMarkdownNegotiation: true,
+    tags: ["hardware", "pcb"],
+    description: "KiCad 10.0 user manuals (schematic, PCB editor, kicad-cli, gerbview)",
+  }),
+
+  // KiCad developer docs (Hugo + AsciiDoc; negotiated markdown keeps a
+  // frontmatter title, so it is used as-is): s-expression file formats
+  // (.kicad_sch/.kicad_pcb/.kicad_mod/.kicad_sym), IPC API, build, code
+  // policy. The root sitemap is an index with relative <loc>s; the
+  // English child lists ~59 pages.
+  new DocSource({
+    name: "kicad-dev-docs",
+    type: "http",
+    url: "https://dev-docs.kicad.org/en/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://dev-docs.kicad.org/en/sitemap.xml",
+    urlPattern: "dev-docs\\.kicad\\.org/en/.+/index\\.html$",
+    urlExclude: "/en/(tags|categories)/",
+    tags: ["hardware", "pcb"],
+    description: "KiCad developer docs: s-expression file formats, IPC API, build",
+  }),
+
+  // kicad-python (kipy), the IPC API client for the live KiCad GUI.
+  // The repo's docs are Sphinx automodule stubs (content lives in
+  // docstrings), so mirror the rendered API reference instead.
+  new DocSource({
+    name: "kicad-python",
+    type: "http",
+    url: "https://docs.kicad.org/kicad-python-main/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.kicad.org/kicad-python-main/index.html",
+    urlPattern: "kicad-python-main/[a-z_]+\\.html$",
+    urlExclude: "(genindex|search|index)\\.html$",
+    // Negotiated markdown keeps the Furo sidebar and has no H1; the HTML
+    // path selects <article>.
+    skipMarkdownNegotiation: true,
+    tags: ["hardware", "pcb"],
+    description: "kicad-python (kipy) IPC API reference: board, schematic, project",
+  }),
+
+  // Freerouting autorouter: CLI arguments, settings, scoring, API/MCP,
+  // and a markdown copy of the Cadence SPECCTRA DSN reference.
+  new DocSource({
+    name: "freerouting",
+    type: "git",
+    url: "https://github.com/freerouting/freerouting",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+    tags: ["hardware", "pcb"],
+    description: "Freerouting autorouter docs: CLI, settings, API, SPECCTRA DSN reference",
+  }),
+
+  // JLCPCB help center articles + capability tables (PCB, PCBA, flex):
+  // Economic vs Standard PCBA limits, CPL/BOM rules, fees. Server-side
+  // rendered; the English sitemap lists ~240 help articles. Changes
+  // often; the daily build refreshes it. Gentle concurrency: a
+  // commercial site, not a docs host.
+  new DocSource({
+    name: "jlcpcb",
+    type: "http",
+    url: "https://jlcpcb.com/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://jlcpcb.com/sitemap-en.xml",
+    urlPattern: "jlcpcb\\.com/(help/article/|capabilities/)",
+    // Help articles: body in div.rich-preview-wrap; the catalog sidebar
+    // sits inside the same <main>. Capability pages lack the class and
+    // take the normal cascade.
+    htmlContentClass: "rich-preview-wrap",
+    // 4 drew HTTP 429s (retried fine) on the first full fetch 2026-11-04.
+    pageConcurrency: 2,
+    tags: ["hardware", "pcb"],
+    description: "JLCPCB help center + PCB/PCBA manufacturing capabilities",
+  }),
+
+  // libhmk hall-effect keyboard firmware: README (build, porting, new
+  // keyboard) + per-keyboard READMEs. Its keyboard.json schema and
+  // command protocol live in code: see libhmk-src.
+  new DocSource({
+    name: "libhmk",
+    type: "git",
+    url: "https://github.com/peppapighs/libhmk",
+    format: "markdown",
+    tags: ["hardware", "pcb"],
+    description: "libhmk hall-effect keyboard firmware docs (build, porting)",
+  }),
+
+  // libhmk headers (commands.h raw-HID protocol, keycodes, eeconfig,
+  // hardware driver APIs) and the keyboard.json schema
+  // (scripts/schema/keyboard.py), served as fenced text.
+  new DocSource({
+    name: "libhmk-src",
+    type: "git",
+    url: "https://github.com/peppapighs/libhmk",
+    format: "txt",
+    paths: ["include", "scripts/schema"],
+    tags: ["hardware", "pcb"],
+    description: "libhmk headers (command protocol, keycodes) + keyboard.json schema",
+  }),
 ];

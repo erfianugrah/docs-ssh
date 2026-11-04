@@ -1,6 +1,6 @@
 # docs-ssh
 
-Self-hosted SSH docs server for AI agents. Serves 378 documentation sources — including Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, PostgreSQL, Terraform, MDN, Pi, and more — plus blogs, changelogs, and OpenAPI specs as a searchable markdown filesystem over SSH. See `src/application/sources.ts` for the full list.
+Self-hosted SSH docs server for AI agents. Serves 385 documentation sources — including Supabase, Cloudflare, Vercel, AWS, Docker, Kubernetes, Next.js, React, PostgreSQL, Terraform, MDN, Pi, and more — plus blogs, changelogs, and OpenAPI specs as a searchable markdown filesystem over SSH. See `src/application/sources.ts` for the full list.
 
 ## Get started
 
@@ -134,7 +134,7 @@ The [remote MCP endpoint](#remote-mcp-claude--chatgpt-connectors) exposes these 
 
 ## Doc sources
 
-378 sources covering programming languages, frameworks, databases, cloud platforms, and developer tooling. Full canonical list lives in [`src/application/sources.ts`](src/application/sources.ts); the live server reports counts via:
+385 sources covering programming languages, frameworks, databases, cloud platforms, and developer tooling. Full canonical list lives in [`src/application/sources.ts`](src/application/sources.ts); the live server reports counts via:
 
 ```bash
 ssh -p 2222 docs@docs.erfi.io sources
