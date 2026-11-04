@@ -75,10 +75,26 @@ answer.
 - The set describes one user's agents over eight days: Supabase,
   Cloudflare, NVAPI, Jellyfin and Home Assistant dominate.
 
+## Phase 2 result: neighbours vs the fixed rows (2026-11-04)
+
+Phase 2 shipped 2026-10-30 (embeddings on the router CPU, `_related.tsv`
+live; backfill done 2026-11-03, 168,793 pages). `neighbours.py` asks, for
+each fixed row, whether the right page is among the top-8 `docs_related`
+neighbours of the page the agent wrongly opened (path match, or a unique
+origin-URL match as in `baseline.py`). Result: 0 of 14
+(`neighbours.tsv`).
+
+The wrongly opened page is usually off-topic ("pg_net" ->
+`platform/compute-and-disk.md`, "HX711 load cell" -> the LD2410 sensor
+page), so its neighbours sit in the wrong topic too. Neighbours serve
+adjacency from a right page; they do not repair a wrong search. The fixed
+group needs query-to-page ranking: phase 3, docs-ssh#19.
+
 ## Next
 
-1. Re-run `extract.py` as the log grows; rows naming private hosts are
-   dropped before commit (the repo is mirrored publicly).
-2. Phase 2 (embedding neighbours) is measured against this set. Its open
-   question stands: where the embedding pass runs (the CI runner on the
-   router has no GPU; the dev-box GPU is shared with llmc).
+1. Re-run `extract.py` as the log grows (about two more weeks of traffic
+   since this set); rows naming private hosts are dropped before commit
+   (the repo is mirrored publicly).
+2. Phase 3 (semantic or hybrid `docs_search`, docs-ssh#19) is scored on
+   this set, fixed group first, and ships only if it beats the keyword
+   baseline there without losing Y rows.
