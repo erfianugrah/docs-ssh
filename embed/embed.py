@@ -230,13 +230,19 @@ def main(argv):
     save_state(args.state, state)
     # block=1024: 1024 x 170k float32 scores = ~0.7 GB per block; the
     # function default (4096) would allocate ~2.8 GB on the CI host.
+    t1 = time.monotonic()
     rows = neighbours(*state, k=args.k, block=1024)
+    nsecs = round(time.monotonic() - t1)
     write_related(os.path.join(args.state, "_related.tsv"), rows)
     related = sum(1 for _p, ns in rows if ns)
     print(
         "embed: kept={kept} embedded={embedded} pending={pending} removed={removed} "
-        "pages={pages} related={related} secs={secs}".format(
-            pages=len(state[0]), related=related, secs=round(time.monotonic() - t0), **stats
+        "pages={pages} related={related} neighbour_secs={nsecs} secs={secs}".format(
+            pages=len(state[0]),
+            related=related,
+            nsecs=nsecs,
+            secs=round(time.monotonic() - t0),
+            **stats,
         )
     )
     return 0
