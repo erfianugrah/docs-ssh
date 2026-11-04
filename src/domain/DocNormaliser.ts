@@ -1,5 +1,5 @@
 import type { DocFile } from "./DocFile.js";
-import type { DocFormat } from "./DocSource.js";
+import type { DocFormat, DocSource } from "./DocSource.js";
 
 /**
  * Port for transforming a raw DocFile into clean markdown.
@@ -22,6 +22,9 @@ export interface DocNormaliser {
    * the corpus (e.g. an SPA app-shell HTML page that Turndown reduces
    * to near-nothing - keeping it as raw .html breaks the invariant that
    * markdown-capable sources contain only .md files).
+   * `source` carries per-source conversion options (e.g.
+   * `htmlContentClass`); format converters receive it, cleanup passes
+   * do not need it.
    */
-  normalise(file: DocFile): Promise<DocFile | null>;
+  normalise(file: DocFile, source?: DocSource): Promise<DocFile | null>;
 }

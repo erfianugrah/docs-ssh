@@ -257,4 +257,20 @@ Copy page`;
     const result = await cleaner.normalise(new DocFile("page.md", md));
     expect(result.content).toBe(md);
   });
+
+  it("strips Sphinx/MkDocs heading permalink anchors", async () => {
+    const md = [
+      '# Board[\u00b6](#module-kipy.board "Link to this heading")',
+      '## zpoolprops.7[](#zpoolprops-7 "Link to this heading")',
+      'add\\_files(x)[\u00b6](#kipy.board.Board.add "Link to this definition")',
+      '### Old[\u00b6](#old "Permalink to this headline")',
+      'Keep [this link](#anchor "Link to this heading elsewhere") and [\u00b6](#x).',
+    ].join("\n");
+    const out = (await cleaner.normalise(new DocFile("p.md", md))).content.split("\n");
+    expect(out[0]).toBe("# Board");
+    expect(out[1]).toBe("## zpoolprops.7");
+    expect(out[2]).toBe("add\\_files(x)");
+    expect(out[3]).toBe("### Old");
+    expect(out[4]).toBe('Keep [this link](#anchor "Link to this heading elsewhere") and [\u00b6](#x).');
+  });
 });

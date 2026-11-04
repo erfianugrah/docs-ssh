@@ -67,6 +67,15 @@ export class MarkdownCleaner implements DocNormaliser {
     // markdown links. Turndown output never has them.
     if (file.preNormalised) content = anchorsToMarkdownOutsideCode(content);
 
+    // Sphinx / MkDocs heading permalinks: `[\u00b6](#id "Link to this
+    // heading")` (empty text on some themes) after every heading and API
+    // definition. They leaked into index titles (openzfs-man, pfsense,
+    // kicad-python). Matched on the exact title attribute only.
+    content = content.replace(
+      /\[(?:\u00b6|#)?\]\(#[^\s)]*\s+"(?:Link|Permalink) to this (?:heading|headline|definition)"\)/g,
+      "",
+    );
+
     // MediaWiki footer boilerplate
     content = content.replace(/^Retrieved from "\[?https?:\/\/wiki\.[^"]*"?\]?\s*$/gm, "");
 

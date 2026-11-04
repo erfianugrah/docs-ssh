@@ -153,6 +153,14 @@ export interface DocSourceConfig {
    * "redirects to <host>" warning; fetching is unaffected.
    */
   readonly expectRedirects?: boolean;
+  /**
+   * HTML sources whose pages carry heavy in-page chrome with no
+   * <article>/<main> separation (jlcpcb.com help articles: a ~60-line
+   * catalog sidebar inside <main>). HtmlNormaliser converts only the first
+   * element whose class list contains this class, titled from <title>;
+   * pages without it go through the normal article/main cascade.
+   */
+  readonly htmlContentClass?: string;
 }
 
 /**
@@ -183,6 +191,7 @@ export class DocSource {
   readonly userAgent: string | undefined;
   readonly tocDepth: number | undefined;
   readonly expectRedirects: boolean;
+  readonly htmlContentClass: string | undefined;
   readonly resolveTrashGuides: boolean;
   readonly publicUrl: ((repoRelPath: string) => string | undefined) | undefined;
 
@@ -216,6 +225,7 @@ export class DocSource {
     this.userAgent = config.userAgent;
     this.tocDepth = config.tocDepth;
     this.expectRedirects = config.expectRedirects ?? false;
+    this.htmlContentClass = config.htmlContentClass;
     this.resolveTrashGuides = config.resolveTrashGuides ?? false;
     this.publicUrl = config.publicUrl;
   }

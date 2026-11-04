@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { HtmlNormaliser } from "../../../src/normaliser/HtmlNormaliser.js";
 import { DocFile } from "../../../src/domain/DocFile.js";
+import { DocSource } from "../../../src/domain/DocSource.js";
 
 describe("HtmlNormaliser", () => {
   const normaliser = new HtmlNormaliser();
@@ -243,5 +244,60 @@ describe("HtmlNormaliser", () => {
     expect(result.content).toContain("After.");
     expect(result.content).not.toContain("console.log");
     expect(result.content).not.toContain("const s");
+  });
+
+  it("decodes entities in the <title> fallback H1", async () => {
+    const r = await normaliser.normalise(
+      new DocFile("a.html", "<html><head><title>PCB &amp; PCBA &#39;FAQ&#39; | Site</title></head><body><p>x</p></body></html>"),
+    );
+    expect(r!.content).toMatch(/^# PCB & PCBA 'FAQ'\n/);
+  });
+
+  describe("htmlContentClass (per-source content selection)", () => {
+    const src = (cls?: string) =>
+      new DocSource({
+        name: "x",
+        type: "http",
+        format: "html",
+        url: "https://example.com/",
+        discovery: "sitemap",
+        htmlContentClass: cls,
+      });
+    const sidebar = "<ul>" + "<li>Sidebar link</li>".repeat(80) + "</ul>";
+    const page =
+      `<html><head><title>Article Title | Site</title></head><body><main>` +
+      `<div class="catalog">${sidebar}</div>` +
+      `<div class="x-wrap"><div class="body rich-preview-wrap" style="a">` +
+      `<p>Body text.</p><div><p>Nested div.</p></div></div>` +
+      `<div class="related"><p>Related junk.</p></div></div>` +
+      `</main></body></html>`;
+
+    it("converts only the element carrying the class, titled from <title>", async () => {
+      const r = await normaliser.normalise(new DocFile("a.html", page), src("rich-preview-wrap"));
+      expect(r!.content).toMatch(/^# Article Title\n/);
+      expect(r!.content).toContain("Body text.");
+      expect(r!.content).toContain("Nested div.");
+      expect(r!.content).not.toContain("Sidebar link");
+      expect(r!.content).not.toContain("Related junk.");
+    });
+
+    it("falls back to the normal cascade when the class is absent", async () => {
+      const r = await normaliser.normalise(new DocFile("a.html", page), src("no-such-class"));
+      expect(r!.content).toContain("Sidebar link");
+      expect(r!.content).toContain("Body text.");
+    });
+
+    it("keeps a short class-selected page from a large document (not an app shell)", async () => {
+      const big = page.replace("<p>Body text.</p>", "<p>Body text.</p>" + "<script>x</script>".repeat(5000));
+      const r = await normaliser.normalise(new DocFile("a.html", big), src("rich-preview-wrap"));
+      expect(r).not.toBeNull();
+      expect(r!.content).toContain("Body text.");
+    });
+
+    it("ignores a class that only appears as a substring of another class", async () => {
+      const html = page.replace("body rich-preview-wrap", "body rich-preview-wrapper");
+      const r = await normaliser.normalise(new DocFile("a.html", html), src("rich-preview-wrap"));
+      expect(r!.content).toContain("Sidebar link");
+    });
   });
 });

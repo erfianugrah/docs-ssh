@@ -634,7 +634,7 @@ export class UpdateDocSets {
         n.supportsFormat(set.source.format),
       );
       if (formatNormaliser && !current.preNormalised) {
-        current = await formatNormaliser.normalise(current);
+        current = await formatNormaliser.normalise(current, set.source);
       }
 
       // Pass 2: extension-based fallback for format converters only.
@@ -651,7 +651,7 @@ export class UpdateDocSets {
           (n) => isFormatConverter(n) && n.supports(current as DocFile),
         );
         if (extNormaliser) {
-          current = await extNormaliser.normalise(current);
+          current = await extNormaliser.normalise(current, set.source);
         }
       }
 
