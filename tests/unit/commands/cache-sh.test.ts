@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -29,10 +29,7 @@ beforeEach(() => {
   cacheDir = join(dir, "cache");
   mkdirSync(cacheDir);
 });
-afterEach(() => {
-  chmodSync(cacheDir, 0o755);
-  rmSync(dir, { recursive: true, force: true });
-});
+afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("exec_and_cache", () => {
   it("caches a normal result and serves it on the next call", () => {
@@ -50,11 +47,12 @@ describe("exec_and_cache", () => {
   });
 
   it("still returns the real output when the capture files cannot be written", () => {
-    chmodSync(cacheDir, 0o555);
-    const r = sh(`exec_and_cache "echo hello"`);
+    // Under a regular file, so creation fails with ENOTDIR even as root
+    // (CI runs as root; a 0555 dir would not stop it).
+    writeFileSync(join(dir, "afile"), "");
+    const r = sh(`exec_and_cache "echo hello"`, { CACHE_DIR: join(dir, "afile", "cache") });
     expect(r.out).toBe("hello\n");
     expect(r.code).toBe(0);
-    chmodSync(cacheDir, 0o755);
     expect(cached()).toHaveLength(0);
   });
 
