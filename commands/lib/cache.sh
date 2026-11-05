@@ -13,9 +13,33 @@
 # Limits:
 #   - Commands with side effects (echo, touch, rm, ...) are never cached
 #   - Results > 1 MB are not stored (prevents filling tmpfs)
-#   - Cache lives in tmpfs — cleared on container restart
+#   - Cache lives in tmpfs - cleared on container restart
+#   - Over CACHE_MAX_KB (default 8 MB, half the prod 16M tmpfs) the whole
+#     cache is wiped before the next write
+#   - A capture that could not be written, or that ran with the filesystem
+#     full, is discarded and the command re-runs uncached.  2026-11-05: the
+#     tmpfs filled (no eviction), captures came out 0 bytes, and the empty
+#     result was cached as the answer for every new query.
 
 MAX_CACHE_BYTES=1048576  # 1 MB
+CACHE_MAX_KB="${CACHE_MAX_KB:-8192}"
+
+# Free KB on the cache filesystem (overridable in tests).
+_cache_free_kb() {
+  df -kP "$CACHE_DIR" 2>/dev/null | awk 'NR==2 {print $4}'
+}
+
+# simplify: wipe-all eviction, not LRU; queries are cheap to recompute.
+_cache_evict() {
+  _used=$(du -sk "$CACHE_DIR" 2>/dev/null | cut -f1)
+  if [ "${_used:-0}" -gt "$CACHE_MAX_KB" ]; then
+    rm -f "$CACHE_DIR"/* 2>/dev/null
+  fi
+}
+
+_run_uncached() {
+  timeout "${CMD_TIMEOUT:-60}" /bin/bash -c "$1"
+}
 
 # Returns 0 (true) if the command is safe to cache.
 should_cache() {
@@ -54,12 +78,29 @@ exec_and_cache() {
   _base="$CACHE_DIR/$_key"
   _timeout="${CMD_TIMEOUT:-60}"
 
+  _cache_evict
+  mkdir -p "$CACHE_DIR" 2>/dev/null
+  # Subshell: a failed redirect on the special builtin `:` would otherwise
+  # exit the whole (non-interactive POSIX) shell.
+  if ! ( : >"${_base}.out.tmp" && : >"${_base}.err.tmp" ) 2>/dev/null; then
+    rm -f "${_base}.out.tmp" "${_base}.err.tmp" 2>/dev/null
+    _run_uncached "$1"
+    return $?
+  fi
+
   # Run command, capture stdout and stderr to temp files.
   # We can't tee and stream simultaneously in POSIX sh without process
   # substitution, so we capture first then replay.  For docs queries
   # this adds negligible latency (output is typically <100KB).
   timeout "$_timeout" /bin/bash -c "$1" >"${_base}.out.tmp" 2>"${_base}.err.tmp"
   _exit=$?
+
+  # Filesystem full after the run: the capture may be truncated.
+  if [ "$(_cache_free_kb)" = "0" ]; then
+    rm -f "${_base}.out.tmp" "${_base}.err.tmp" 2>/dev/null
+    _run_uncached "$1"
+    return $?
+  fi
 
   # Stream captured output to the client
   cat "${_base}.out.tmp"
