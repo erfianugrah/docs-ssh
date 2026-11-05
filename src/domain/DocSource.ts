@@ -4,7 +4,8 @@ export type DocSourceType = "git" | "http" | "rsync";
 /**
  * How to discover/fetch pages for an HTTP source:
  * - "none":          uses explicit source.urls list
- * - "tarball":       downloads a .tar.gz and extracts markdown files
+ * - "tarball":       downloads a .tar.gz or .tar.zst and extracts markdown (or,
+ *                    format html, .html) files, under rootPath when set
  * - "texinfo":       downloads a GNU info .zip (texinfo manual) and splits into per-node markdown
  * - "llms-full":     downloads a single llms-full.txt and splits into per-page files
  * - "sitemap":       parses a single XML sitemap for <loc> entries
@@ -140,9 +141,10 @@ export interface DocSourceConfig {
    */
   readonly resolveTrashGuides?: boolean;
   /**
-   * Git sources only. Map an ORIGINAL repo-relative path (as checked out,
-   * before `.mdx` -> `.md` rewriting or rootPath stripping) to the file's
-   * real public URL. Returning `undefined` falls back to the generic
+   * Git sources and http `tarball` sources. Map an ORIGINAL repo-relative
+   * path (as checked out, before `.mdx` -> `.md` rewriting; for a tarball,
+   * relative to `rootPath` inside the archive) to the file's real public
+   * URL. For a tarball, `urlExclude` then filters on that URL. Returning `undefined` falls back to the generic
    * forge browse URL derived from `url` (see shared/origin-url.ts). Use
    * when the published site does not mirror the repo layout.
    */
@@ -158,8 +160,10 @@ export interface DocSourceConfig {
   readonly tocDepth?: number;
   /**
    * Page URLs redirect to other hosts by design (planet-postgres RSS items
-   * are postgr.es shortlinks to member blogs). Silences the source checker's
-   * "redirects to <host>" warning; fetching is unaffected.
+   * are postgr.es shortlinks to member blogs; archwiki's package /download/
+   * URL 302s to a mirror). Silences the source checker's "redirects to
+   * <host>" warning for sample pages and bulk downloads; fetching is
+   * unaffected.
    */
   readonly expectRedirects?: boolean;
   /**

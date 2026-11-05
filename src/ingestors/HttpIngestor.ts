@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { zstdDecompressSync } from "node:zlib";
 import { DocFile } from "../domain/DocFile.js";
 import { DocSet, type NegotiationStats } from "../domain/DocSet.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
@@ -31,6 +32,7 @@ import {
 import { discover } from "./discovery/index.js";
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx"]);
+const HTML_EXTENSIONS = new Set(["html"]);
 
 /**
  * Accept header for page fetches. Per RFC 7231 §5.3.2, the q-value
@@ -449,11 +451,14 @@ export class HttpIngestor implements DocIngestor {
     console.log(`  [${source.name}] downloading tarball…`);
     // Download to a temp file first, then extract — avoids shell injection
     // from interpolating URLs into a shell pipeline.
-    const tarballPath = path.join(workDir, `${source.name}.tar.gz`);
     const buffer = await fetchBufferWithRetry(source.discoveryUrl!, BULK_RETRIES, BULK_TIMEOUT, signal);
-    await fs.writeFile(tarballPath, buffer);
+    // zstd (Arch .pkg.tar.zst) is decompressed in-process: Node 22's zlib
+    // has it, so the runner needs no zstd binary. Anything else is gzip.
+    const isZstd = buffer.length >= 4 && buffer.readUInt32LE(0) === 0xfd2fb528;
+    const tarballPath = path.join(workDir, `${source.name}.tar${isZstd ? "" : ".gz"}`);
+    await fs.writeFile(tarballPath, isZstd ? zstdDecompressSync(buffer) : buffer);
 
-    execFileSync("tar", ["-xzf", tarballPath, "-C", extractDir], {
+    execFileSync("tar", [isZstd ? "-xf" : "-xzf", tarballPath, "-C", extractDir], {
       stdio: "pipe",
       timeout: 120_000,
     });
@@ -462,13 +467,26 @@ export class HttpIngestor implements DocIngestor {
     await fs.rm(tarballPath, { force: true });
 
     const files = new Map<string, DocFile>();
-    // Bulk sources ship every page in one artifact, so the best URL we
-    // know per file is the source's own site. Sub-path joining is not
-    // attempted: the archive layout does not match the site's URL scheme.
-    await walkDir(extractDir, extractDir, files, {
-      extensions: MARKDOWN_EXTENSIONS,
-      originUrl: () => bulkOrigin(source),
+    // Bulk sources ship every page in one artifact. Without `publicUrl`
+    // the best URL per file is the source's own site; a source whose
+    // archive mirrors its URL scheme (arch-wiki-docs) maps each path.
+    const root = source.rootPath ? path.join(extractDir, source.rootPath) : extractDir;
+    await walkDir(root, root, files, {
+      extensions: source.format === "html" ? HTML_EXTENSIONS : MARKDOWN_EXTENSIONS,
+      originUrl: (rel) => source.publicUrl?.(rel) ?? bulkOrigin(source),
     });
+    if (source.urlExclude) {
+      const exclude = new RegExp(source.urlExclude);
+      for (const [key, file] of files) {
+        if (file.originUrl && exclude.test(file.originUrl)) files.delete(key);
+      }
+    }
+    if (source.publicUrl && source.format === "html") {
+      for (const [key, file] of files) {
+        const content = rewriteArchiveLinks(file.content, key, source.rootPath ?? "", source.publicUrl);
+        if (content !== file.content) files.set(key, file.withContent(content));
+      }
+    }
 
     console.log(`  [${source.name}] extracted ${files.size} files from tarball`);
     return new DocSet(source, files, new Date());
@@ -718,6 +736,38 @@ export class HttpIngestor implements DocIngestor {
  * for these sources (discoveryUrl is the archive/spec endpoint, less
  * useful to a reader).
  */
+/**
+ * Rewrite archive-relative links between pages of an HTML dump to public
+ * URLs. Inside the archive a page at `<rootPath>/QEMU.html` links
+ * `../en/Libvirt.html`, which means nothing to a reader and which the link
+ * graph cannot resolve (it climbs above the source root). Only `.html`
+ * targets that land inside `rootPath` are rewritten; absolute, fragment-only
+ * and asset links are left alone.
+ */
+export function rewriteArchiveLinks(
+  html: string,
+  relPath: string,
+  rootPath: string,
+  publicUrl: (rel: string) => string | undefined,
+): string {
+  const root = rootPath.replace(/\/+$/, "");
+  const dir = path.posix.dirname(path.posix.join(root, relPath));
+  return html.replace(/href="([^"]*)"/g, (whole, href: string) => {
+    if (href === "" || href.startsWith("#") || href.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(href)) {
+      return whole;
+    }
+    const hash = href.indexOf("#");
+    const target = hash === -1 ? href : href.slice(0, hash);
+    const fragment = hash === -1 ? "" : href.slice(hash);
+    if (!target.endsWith(".html")) return whole;
+    const resolved = path.posix.normalize(path.posix.join(dir, target));
+    const prefix = root === "" ? "" : `${root}/`;
+    if (!resolved.startsWith(prefix) || resolved.startsWith("../")) return whole;
+    const url = publicUrl(resolved.slice(prefix.length));
+    return url ? `href="${url}${fragment}"` : whole;
+  });
+}
+
 function bulkOrigin(source: DocSource): string | undefined {
   const url = (source.url || source.discoveryUrl || "").trim();
   return url === "" ? undefined : url;

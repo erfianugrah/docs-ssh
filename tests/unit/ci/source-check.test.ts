@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { filterUrls, hostOf, isTransientStatus, isUncounted, pickSamples, probeTimeoutMs, samplesStatus } from "../../../src/ci/source-check.js";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { checkSource, filterUrls, hostOf, isTransientStatus, isUncounted, pickSamples, probeTimeoutMs, samplesStatus } from "../../../src/ci/source-check.js";
 import { DocSource } from "../../../src/domain/DocSource.js";
 
 describe("filterUrls", () => {
@@ -108,5 +108,44 @@ describe("probeTimeoutMs", () => {
 
   it("never shortens the CLI default", () => {
     expect(probeTimeoutMs(new DocSource({ ...base, deadlineMs: 60_000 }), 300_000)).toBe(300_000);
+  });
+});
+
+describe("checkSource bulk redirects", () => {
+  const tarball = (expectRedirects: boolean) =>
+    new DocSource({
+      name: "pkg",
+      type: "http",
+      format: "html",
+      url: "https://wiki.example.com/title/",
+      discovery: "tarball",
+      discoveryUrl: "https://pkgs.example.com/pkg/download/",
+      expectRedirects,
+    });
+
+  function stubRedirectedArchive() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        const res = new Response("zstd-bytes", { status: 200, headers: { "content-type": "application/zstd" } });
+        Object.defineProperty(res, "url", { value: "https://mirror.example.net/pkg.tar.zst" });
+        return res;
+      }),
+    );
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("warns when a bulk download redirects to another host", async () => {
+    stubRedirectedArchive();
+    const r = await checkSource(tarball(false));
+    expect(r.status).toBe("warn");
+    expect(r.detail).toContain("redirects to mirror.example.net");
+  });
+
+  it("is ok when the source expects redirects (mirror download URLs)", async () => {
+    stubRedirectedArchive();
+    const r = await checkSource(tarball(true));
+    expect(r.status).toBe("ok");
   });
 });

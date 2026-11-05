@@ -1052,6 +1052,71 @@ describe("HttpIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("ingests an HTML dump from a .tar.zst package under rootPath with per-page origins", async () => {
+    // Shape of Arch's arch-wiki-docs package: zstd tarball, pages under
+    // usr/share/doc/arch-wiki/html/en/, other languages and assets beside it.
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-http-"));
+    const pkg = path.join(tmpDir, "pkg");
+    const en = path.join(pkg, "usr/share/doc/arch-wiki/html/en");
+    await fs.mkdir(path.join(en, "QEMU"), { recursive: true });
+    await fs.mkdir(path.join(pkg, "usr/share/doc/arch-wiki/html/de"), { recursive: true });
+    await fs.writeFile(
+      path.join(en, "QEMU.html"),
+      '<h1>QEMU</h1><a href="../en/QEMU/Advanced_networking.html#Tap">net</a> <a href="https://qemu.org/x.html">ext</a> <a href="#Top">top</a> <link href="../ArchWikiOffline.css">',
+    );
+    await fs.writeFile(
+      path.join(en, "QEMU", "Advanced_networking.html"),
+      '<h1>Net</h1><a href="../../en/QEMU.html">back</a>',
+    );
+    await fs.writeFile(path.join(en, "01973e61502a6abccee11d2419aae5e4.html"), "<h1>Main page (Latviesu)</h1>");
+    await fs.writeFile(path.join(en, "style.css"), "body{}");
+    await fs.writeFile(path.join(pkg, "usr/share/doc/arch-wiki/html/de", "QEMU.html"), "<h1>DE</h1>");
+
+    const { execFileSync } = await import("node:child_process");
+    const { zstdCompressSync } = await import("node:zlib");
+    const tarPath = path.join(tmpDir, "pkg.tar");
+    execFileSync("tar", ["-cf", tarPath, "-C", pkg, "."], { stdio: "pipe" });
+    const zst = zstdCompressSync(await fs.readFile(tarPath));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => zst.buffer.slice(zst.byteOffset, zst.byteOffset + zst.byteLength),
+      }),
+    );
+
+    const src = new DocSource({
+      name: "archpkg-test",
+      type: "http",
+      format: "html",
+      url: "https://wiki.archlinux.org/title/",
+      discovery: "tarball",
+      discoveryUrl: "https://archlinux.org/packages/extra/any/arch-wiki-docs/download/",
+      rootPath: "usr/share/doc/arch-wiki/html/en",
+      urlExclude: "/title/[0-9a-f]{32}$",
+      publicUrl: (rel) => `https://wiki.archlinux.org/title/${rel.replace(/\.html$/, "")}`,
+    });
+
+    const set = await ingestor.ingest(src, tmpDir);
+    const byPath = new Map([...set.files.values()].map((f) => [f.path, f.originUrl]));
+    expect([...byPath.keys()].sort()).toEqual(["QEMU.html", "QEMU/Advanced_networking.html"]);
+    expect(byPath.get("QEMU/Advanced_networking.html")).toBe(
+      "https://wiki.archlinux.org/title/QEMU/Advanced_networking",
+    );
+    // Archive-relative page links become public URLs; others are untouched.
+    const qemu = set.files.get("QEMU.html")!.content;
+    expect(qemu).toContain('href="https://wiki.archlinux.org/title/QEMU/Advanced_networking#Tap"');
+    expect(qemu).toContain('href="https://qemu.org/x.html"');
+    expect(qemu).toContain('href="#Top"');
+    expect(qemu).toContain('href="../ArchWikiOffline.css"');
+    expect(set.files.get("QEMU/Advanced_networking.html")!.content).toContain(
+      'href="https://wiki.archlinux.org/title/QEMU"',
+    );
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   // ─── Discovery: texinfo with fallback mirror ───────────────────────
 
   it("falls back to fallbackDiscoveryUrl when the primary 403s", async () => {

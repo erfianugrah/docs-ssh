@@ -76,8 +76,8 @@ export const API_OVERVIEW_SOURCES: readonly string[] = [
  * once unblocked; remove the entry then. Each entry needs a reason + date.
  */
 export const TOLERATED_MISSING: Readonly<Record<string, string>> = {
-  // akamai was here until 2026-10-19; its Bot Manager 403s came and went and
-  // its 9.7k pages never fit a deadline, so the source was removed.
-  archwiki:
-    "wiki.archlinux.org resets TLS from our WAN IP since 2026-11-04 05:40Z after two full scrapes ~26h apart (Fly egress unaffected); now floored to 7d at concurrency 1 (docs-ssh#20)",
+  // (empty) akamai was here until 2026-10-19; its Bot Manager 403s came and
+  // went and its 9.7k pages never fit a deadline, so the source was removed.
+  // archwiki was here 2026-11-05 (wiki IP block) until it moved to the
+  // arch-wiki-docs package the same day (docs-ssh#21).
 };

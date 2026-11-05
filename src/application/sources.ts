@@ -3364,28 +3364,30 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Arch Wiki ─────────────────────────────────────────────────
 
-  // MediaWiki - English pages of wiki.archlinux.org. allpages returns
-  // ns0 including translations ("Page (Language)" title suffixes).
-  // urlExclude drops them two ways: any parens group containing a
-  // URL-encoded byte (every non-ASCII language name, verified zero
-  // collateral across all ns0 parens titles), plus the pure-ASCII
-  // language names. English hardware pages like "Dell XPS 13 (9360)"
-  // survive both arms. Concurrency 4 - 8 tripped HTTP 429s.
+  // Arch's own offline HTML dump of the wiki, the extra/arch-wiki-docs
+  // package (~20 MB .pkg.tar.zst, rebuilt roughly monthly), downloaded from
+  // an Arch mirror via the package page's /download/ redirect: zero load on
+  // wiki.archlinux.org. Until 2026-11-05 this scraped ~2.2k pages from the
+  // wiki itself, and after two full scrapes ~26h apart the wiki refused our
+  // WAN IP at the TLS handshake (docs-ssh#20/#21).
+  // The en/ tree holds ns0 pages plus Category:/Help:/ArchWiki: pages and
+  // md5-named translated pages; urlExclude keeps ns0 English, as the scrape
+  // did: a parens group with a URL-encoded byte (non-ASCII language names)
+  // or a pure-ASCII language name. "Dell XPS 13 (9360)" survives.
   new DocSource({
     name: "archwiki",
     type: "http",
     url: "https://wiki.archlinux.org/title/",
     format: "html",
-    discovery: "mediawiki",
-    discoveryUrl: "https://wiki.archlinux.org/api.php",
-    urlPattern: "^https://wiki\\.archlinux\\.org/title/",
+    discovery: "tarball",
+    discoveryUrl: "https://archlinux.org/packages/extra/any/arch-wiki-docs/download/",
+    // /download/ 302s to whichever mirror serves the current package file.
+    expectRedirects: true,
+    rootPath: "usr/share/doc/arch-wiki/html/en",
+    publicUrl: (rel) =>
+      `https://wiki.archlinux.org/title/${rel.replace(/\.html$/, "").split("/").map(encodeURIComponent).join("/")}`,
     urlExclude:
-      "\\([^)]*%|\\((Magyar|Polski|Italiano|Suomi|Bosanski|Bahasa_Indonesia|Svenska|Dansk|Nederlands|Hrvatski|Qhichwa|Esperanto)",
-    // One page at a time, at most weekly: after two full 4-wide scrapes ~26h
-    // apart (2026-11-03/04) the wiki refused our WAN IP at the TLS handshake.
-    pageConcurrency: 1,
-    deadlineMs: 7_200_000,
-    minRefetchSeconds: 7 * 86_400,
+      "/title/(Category|Help|ArchWiki)%3A|/title/[0-9a-f]{32}$|\\([^)]*%|\\((Magyar|Polski|Italiano|Suomi|Bosanski|Bahasa_Indonesia|Svenska|Dansk|Nederlands|Hrvatski|Qhichwa|Esperanto)",
   }),
 
   // --- NixOS Wiki -------------------------------------------------

@@ -207,7 +207,7 @@ async function checkBulk(source: DocSource, method: string): Promise<Omit<CheckR
     }
     return { method, status: "fail", detail: `HTTP ${res.status} for ${url}` };
   }
-  const note = redirectNote(url, res);
+  const note = source.expectRedirects ? "" : redirectNote(url, res);
   const ctype = res.headers.get("content-type") ?? "";
   if (source.discovery === "llms-full") {
     const pages = splitLlmsFull(await res.text(), source.url);
