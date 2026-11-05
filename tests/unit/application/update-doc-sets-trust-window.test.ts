@@ -258,3 +258,63 @@ describe("freshness trust window", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 });
+
+/**
+ * Refetch floor: a source with minRefetchSeconds is never re-scraped
+ * more often than that, even on maxAge=0 builds (fetcher change, manual
+ * refresh). archwiki blocked the runner IP at the TLS layer after two
+ * full 2169-page scrapes ~26h apart (2026-11-03/04).
+ */
+describe("per-source refetch floor (minRefetchSeconds)", () => {
+  const makeFloored = (name: string, floorH: number) =>
+    new DocSource({
+      name,
+      type: "http",
+      format: "markdown",
+      url: "https://example.com/",
+      minRefetchSeconds: floorH * 3600,
+    });
+
+  async function runFloored(source: DocSource, stampAgeH?: number) {
+    const { tmpDir, outDir, workDir } = await makeTmp();
+    if (stampAgeH !== undefined) {
+      await writeStamp(outDir, source.name, {
+        fetchedAt: new Date(Date.now() - stampAgeH * HOUR_MS).toISOString(),
+      });
+    }
+    stubHead({ etag: '"changed"' });
+    const ingestor = countingIngestor(docSetFor(source));
+    const updater = new UpdateDocSets({
+      sources: [source],
+      ingestors: [ingestor],
+      normalisers: [noopNormaliser],
+      outDir,
+      workDir,
+      maxAge: 0, // fetcher-changed / manual-refresh build
+    });
+    const out = await runCapturingLogs(updater);
+    await fs.rm(tmpDir, { recursive: true });
+    return { ...out, ingestor };
+  }
+
+  it("skips a source refetched within its floor even when maxAge is 0", async () => {
+    const { results, logs, ingestor } = await runFloored(makeFloored("floored-recent", 168), 26);
+    expect(results[0].status).toBe("skipped");
+    expect(ingestor.ingest).not.toHaveBeenCalled();
+    expect(
+      logs.some((l) => /\[floored-recent\] refetch floor: cached 26h ago \(floor 168h\)/.test(l)),
+    ).toBe(true);
+  });
+
+  it("refetches a floored source once its stamp is older than the floor", async () => {
+    const { results, ingestor } = await runFloored(makeFloored("floored-old", 168), 169);
+    expect(results[0].status).toBe("ok");
+    expect(ingestor.ingest).toHaveBeenCalledTimes(1);
+  });
+
+  it("fetches a floored source with no previous stamp", async () => {
+    const { results, ingestor } = await runFloored(makeFloored("floored-new", 168));
+    expect(results[0].status).toBe("ok");
+    expect(ingestor.ingest).toHaveBeenCalledTimes(1);
+  });
+});

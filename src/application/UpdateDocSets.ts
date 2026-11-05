@@ -374,6 +374,18 @@ export class UpdateDocSets {
     // re-read here was masking the data flow between the two phases.
     const prevStamp = await this.readStamp(source.name);
 
+    // ─── Refetch floor (per source, ignores maxAge) ───────────────
+    if (source.minRefetchSeconds && prevStamp) {
+      const ageMs = Date.now() - new Date(prevStamp.fetchedAt).getTime();
+      if (ageMs < source.minRefetchSeconds * 1000) {
+        const ageH = Math.round(ageMs / 3_600_000);
+        const floorH = Math.round(source.minRefetchSeconds / 3600);
+        console.log(`[${source.name}] refetch floor: cached ${ageH}h ago (floor ${floorH}h)`);
+        progress.done(source.name, `cached (floor, ${ageH}h ago)`);
+        return { source: source.name, status: "skipped" };
+      }
+    }
+
     // ─── Freshness check ──────────────────────────────────────────
     try {
       if (this.maxAge > 0 && prevStamp) {

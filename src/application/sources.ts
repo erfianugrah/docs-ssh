@@ -3381,8 +3381,11 @@ export const SOURCES: readonly DocSource[] = [
     urlPattern: "^https://wiki\\.archlinux\\.org/title/",
     urlExclude:
       "\\([^)]*%|\\((Magyar|Polski|Italiano|Suomi|Bosanski|Bahasa_Indonesia|Svenska|Dansk|Nederlands|Hrvatski|Qhichwa|Esperanto)",
-    pageConcurrency: 4,
-    deadlineMs: 1_800_000,
+    // One page at a time, at most weekly: after two full 4-wide scrapes ~26h
+    // apart (2026-11-03/04) the wiki refused our WAN IP at the TLS handshake.
+    pageConcurrency: 1,
+    deadlineMs: 7_200_000,
+    minRefetchSeconds: 7 * 86_400,
   }),
 
   // --- NixOS Wiki -------------------------------------------------

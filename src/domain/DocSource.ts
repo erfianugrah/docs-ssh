@@ -100,6 +100,15 @@ export interface DocSourceConfig {
    */
   readonly deadlineMs?: number;
   /**
+   * Minimum seconds between full fetches of this source, applied even on
+   * maxAge=0 builds (fetcher change, manual refresh). For large
+   * validator-less scrapes of hosts that ban aggressive clients: archwiki
+   * refused the runner IP at the TLS layer after two full 2169-page
+   * scrapes ~26h apart (2026-11-03/04). To force one anyway, delete the
+   * source's `.stamp.json` from the docs cache.
+   */
+  readonly minRefetchSeconds?: number;
+  /**
    * Override the global per-page request timeout (milliseconds). Raise it
    * for sources behind Cloudflare's Markdown-for-Agents: the on-the-fly
    * HTML->markdown conversion is synchronous and can exceed the default
@@ -186,6 +195,7 @@ export class DocSource {
   readonly resolvePartials: boolean;
   readonly pageConcurrency: number | undefined;
   readonly deadlineMs: number | undefined;
+  readonly minRefetchSeconds: number | undefined;
   readonly requestTimeoutMs: number | undefined;
   readonly skipMarkdownNegotiation: boolean | undefined;
   readonly userAgent: string | undefined;
@@ -220,6 +230,7 @@ export class DocSource {
     this.resolvePartials = config.resolvePartials ?? false;
     this.pageConcurrency = config.pageConcurrency;
     this.deadlineMs = config.deadlineMs;
+    this.minRefetchSeconds = config.minRefetchSeconds;
     this.requestTimeoutMs = config.requestTimeoutMs;
     this.skipMarkdownNegotiation = config.skipMarkdownNegotiation;
     this.userAgent = config.userAgent;
