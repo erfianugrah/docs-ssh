@@ -494,6 +494,19 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   // -- end batch w25-win32 --
 
   // -- batch w26-batch2 (2026-11-07; insert this batch's entries below) --
+
+  immich: ["media", "nas"],
+  darktable: ["media"],
+  anthropic: ["apis"],
+  openai: ["apis"],
+  "openai-api": ["api-specs"],
+  "open-webui": ["apis"],
+  "llama-cpp": ["apis", "languages"],
+  atuin: ["terminal"],
+  huma: ["languages", "apis"],
+  vikunja: ["git-forges"],
+  "vikunja-api": ["api-specs"],
+
   // -- end batch w26-batch2 --
 
   // -- batch w27-svd (2026-11-07; insert this batch's entries below) --
