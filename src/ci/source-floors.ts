@@ -74,7 +74,8 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   "claude-code": 140,
   frigate: 50,
   "jellyfin-api": 28,
-  vector: 320,
+  // vector: 214 pages under content/en/docs (component content is vector-reference)
+  vector: 140,
   "vector-reference": 230,
   qmk: 120,
   "pid-codes": 600,
@@ -136,7 +137,7 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   // -- batch w17-rst (2026-11-07; insert this batch's entries below) --
   suricata: 150,          // ~230 RST files (probe: 361 with _static etc.)
   mpv: 11,                 // 20 man-page RST files
-  "faultier-python": 5,   // 7 docs/*.rst
+  "faultier-python": 2,   // 3 docs/source/*.rst upstream (2026-11-07)
   greatfet: 10,            // 17 .rst files
   // -- end batch w17-rst --
 
