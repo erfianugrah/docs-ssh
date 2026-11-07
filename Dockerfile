@@ -42,6 +42,8 @@ COPY mcp-builder.package.json ./package.json
 RUN bun install --no-save
 COPY tsconfig.json ./
 COPY src/mcp/ ./src/mcp/
+# docs-service imports the source-name matcher (docs-ssh#29).
+COPY src/shared/source-suggest.ts ./src/shared/
 # No --target: compiles for the build platform's arch (musl on alpine),
 # which matches the runtime stage under a consistent buildx --platform.
 RUN bun build --compile src/mcp/main.ts --outfile /docs-mcp
