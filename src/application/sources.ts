@@ -5154,6 +5154,56 @@ export const SOURCES: readonly DocSource[] = [
   // -- end batch w27-svd --
 
   // -- batch w28-pdf (2026-11-07; insert this batch's entries below) --
+
+  // WCH CH32FV2x_V3x Reference Manual (English). The PDF is committed in
+  // wuxx/nanoCH32V203; wch-ic.com's download pages are JS SPAs with no
+  // direct PDF URLs to fetch. Datasheet is NOT included (not on GitHub).
+  new DocSource({
+    name: "wch-ch32v30x",
+    type: "http",
+    url: "https://github.com/wuxx/nanoCH32V203",
+    format: "pdf",
+    discovery: "pdf",
+    discoveryUrl:
+      "https://raw.githubusercontent.com/wuxx/nanoCH32V203/master/doc/CH32FV2x_V3xRM_en.PDF",
+    description: "WCH CH32FV2x_V3x Reference Manual (English)",
+    tags: ["hardware"],
+  }),
+
+  // USB-IF HID Usage Tables 1.5 + Device Class Definition for HID 1.11.
+  // Direct PDF links from usb.org/document-library. Publicly available;
+  // USB-IF permits redistribution of specifications for implementation.
+  new DocSource({
+    name: "usb-hid-usage-tables",
+    type: "http",
+    url: "https://www.usb.org/",
+    format: "pdf",
+    discovery: "pdf",
+    discoveryUrl:
+      "https://www.usb.org/sites/default/files/hut1_5.pdf https://www.usb.org/sites/default/files/hid1_11.pdf",
+    description: "USB-IF HID Usage Tables + HID Device Class Definition",
+    tags: ["hardware", "standards"],
+  }),
+
+  // Artery AT32F405 Datasheet + OTGHS Application Note (English + Chinese).
+  // Reference Manual and other ANs (AN0034 USB ESD, AN0290 magnetic
+  // keyboard) are not at discoverable URLs on arterytek.com as of
+  // 2026-11-07; their download pages are dynamic. Add when URLs are found.
+  new DocSource({
+    name: "at32f405",
+    type: "http",
+    url: "https://www.arterytek.com/",
+    format: "pdf",
+    discovery: "pdf",
+    discoveryUrl:
+      "https://www.arterytek.com/download/DS/DS_AT32F405_402_V2.01_EN.pdf" +
+      " https://www.arterytek.com/download/APNOTE/AN0185_AT32_MCU_OTGHS_Application_Note_EN_V2.0.0.pdf" +
+      " https://www.arterytek.com/download/APNOTE/AN0185_AT32_MCU_OTGHS_Application_Note_ZH_V2.0.0.pdf",
+    description: "Artery AT32F405 Datasheet + OTGHS Application Note",
+    tags: ["hardware"],
+    userAgent: BROWSER_UA,
+  }),
+
   // -- end batch w28-pdf --
 
   // -- batch w17-rst (2026-11-07; insert this batch's entries below) --

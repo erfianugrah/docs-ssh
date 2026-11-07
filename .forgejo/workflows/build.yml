@@ -181,6 +181,12 @@ jobs:
         if: steps.plan.outputs.fetch == 'true'
         run: command -v rsync || { apt-get update -qq && apt-get install -y -qq rsync; }
 
+      # PDF sources use pdftotext (poppler-utils); without it the source
+      # fails with a clear message rather than dropping out of the image.
+      - name: Install pdftotext
+        if: steps.plan.outputs.fetch == 'true'
+        run: command -v pdftotext || { apt-get update -qq && apt-get install -y -qq poppler-utils; }
+
       - name: Fetch docs
         if: steps.plan.outputs.fetch == 'true'
         timeout-minutes: 160

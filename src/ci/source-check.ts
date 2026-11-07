@@ -259,6 +259,34 @@ export function samplesStatus(samples: number, failures: number, uncounted: numb
   return failures > 0 ? "warn" : "ok";
 }
 
+async function checkPdf(source: DocSource, method: string): Promise<Omit<CheckResult, "name" | "ms">> {
+  const urls = source.discoveryUrl!.split(/\s+/).filter(Boolean);
+  const failures: string[] = [];
+  const results: string[] = [];
+  await Promise.all(
+    urls.map(async (u) => {
+      try {
+        const res = await get(u, source, BULK_TIMEOUT);
+        await res.body?.cancel();
+        if (res.ok) {
+          results.push(`HTTP ${res.status} ${res.headers.get("content-type") ?? "?"}`);
+        } else {
+          failures.push(`HTTP ${res.status} ${u}`);
+        }
+      } catch (err) {
+        failures.push(`${err instanceof Error ? err.message : String(err)} ${u}`.slice(0, 160));
+      }
+    }),
+  );
+  if (failures.length === urls.length) {
+    return { method, status: "fail", count: urls.length, detail: `all ${urls.length} PDF(s) failed: ${failures[0]}` };
+  }
+  if (failures.length > 0) {
+    return { method, status: "warn", count: urls.length, detail: `${urls.length - failures.length}/${urls.length} reachable, ${failures.length} failed: ${failures[0]}` };
+  }
+  return { method, status: "ok", count: urls.length, detail: `${urls.length} PDF(s): ${results.join(", ")}` };
+}
+
 async function checkPages(source: DocSource, method: string, urls: string[]): Promise<Omit<CheckResult, "name" | "ms">> {
   const samples = pickSamples(urls, SAMPLE_PAGES);
   const failures: string[] = [];
@@ -293,7 +321,10 @@ async function checkPages(source: DocSource, method: string, urls: string[]): Pr
 
 async function checkHttp(source: DocSource): Promise<Omit<CheckResult, "name" | "ms">> {
   const method = `http:${source.discovery}`;
-  if (["llms-full", "openapi", "tarball", "texinfo"].includes(source.discovery) && source.discoveryUrl) {
+  if (["llms-full", "openapi", "tarball", "texinfo", "pdf"].includes(source.discovery) && source.discoveryUrl) {
+    if (source.discovery === "pdf") {
+      return checkPdf(source, method);
+    }
     return checkBulk(source, method);
   }
   if (source.discovery === "statuspage") {
