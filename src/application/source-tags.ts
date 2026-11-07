@@ -485,6 +485,14 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "libhmk-src": ["hardware", "pcb"],
 
   // -- batch w23-auspex (2026-11-07; insert this batch's entries below) --
+  build123d: ["hardware", "languages"],
+  trimesh: ["hardware", "languages"],
+  jlc3dp: ["hardware", "pcb"],
+  "ocp-vscode": ["hardware", "pcb"],
+  "kicad-druid": ["hardware", "pcb"],
+  platformio: ["hardware", "build-tools"],
+  ezdxf: ["hardware", "languages"],
+  "scikit-rf": ["hardware", "languages"],
   // -- end batch w23-auspex --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --

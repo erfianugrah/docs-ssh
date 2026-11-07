@@ -5139,6 +5139,162 @@ export const SOURCES: readonly DocSource[] = [
   }),
 
   // -- batch w23-auspex (2026-11-07; insert this batch's entries below) --
+
+  // ── CAD / geometry / meshing Python toolchain (docs-ssh#23, auspex) ──
+  //
+  // The auspex keyboard CAD/PCB work pulls on several Python geometry
+  // libraries. Their sources are Sphinx RST projects with no RST
+  // converter (that worker builds it in parallel), so each is mirrored
+  // from the rendered readthedocs/site HTML. The readthedocs
+  // sphinx_rtd_theme has no <article>/<main> split - the content sits in
+  // <div role="main" class="document"> - so htmlContentClass "document"
+  // selects it (the sidebar, which carries the full toctree on every
+  // page, lives in a sibling .wy-side-scroll div and must be dropped).
+
+  // build123d (most-used): parametric CAD in Python (OCP/OpenCascade
+  // bindings). The readthedocs landing sidebar lists the top-level
+  // toctree; projection/ and sheet_metal/ sub-sections need the second
+  // toc depth to reach their leaf pages.
+  new DocSource({
+    name: "build123d",
+    type: "http",
+    url: "https://build123d.readthedocs.io/en/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://build123d.readthedocs.io/en/latest/",
+    tocDepth: 2,
+    urlPattern: "build123d\\.readthedocs\\.io/en/latest/",
+    // ReadTheDocs answers Accept: text/markdown (clean fenced code); the
+    // HTML fallback selects <div class="document">. Drop Sphinx artifacts.
+    urlExclude: "(genindex|py-modindex|search)\\.html$|/_(static|modules|sources|downloads)/",
+    htmlContentClass: "document",
+    tags: ["hardware", "languages"],
+    description: "build123d parametric CAD (Python): builders, assemblies, sheet metal, projection, API reference",
+  }),
+
+  // PyVista (docs.pyvista.org) is NOT added: the sitemap.xml is stale
+  // (every <loc> is /en/0.49.2/... which 404s; the live site serves at
+  // root URLs) and the pydata-sphinx-theme renders nav hrefs with single
+  // quotes, which discoverFromToc's double-quote-only extractLinks cannot
+  // crawl. Blocked pending a sitemap fix upstream or single-quote href
+  // support in toc discovery (see final report).
+
+  // trimesh: mesh loading/repair/ray-casting/inertia. Sphinx site with
+  // a flat toctree on the landing page (all ~126 pages listed at root;
+  // <article> present so no htmlContentClass needed).
+  new DocSource({
+    name: "trimesh",
+    type: "http",
+    url: "https://trimesh.org/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://trimesh.org/",
+    urlPattern: "trimesh\\.org/",
+    urlExclude: "(genindex|search)\\.html",
+    tags: ["hardware", "languages"],
+    description: "trimesh mesh library: loading, repair, ray casting, inertia, voxels",
+  }),
+
+  // JLC3DP 3D-printing design guidelines + material pages (resins,
+  // nylons, plastics, metals). Same Nuxt SSR platform as jlcpcb: the
+  // English sitemap lists ~93 help articles, content in the
+  // div.rich-preview-wrap class. Commercial site - gentle concurrency.
+  new DocSource({
+    name: "jlc3dp",
+    type: "http",
+    url: "https://jlc3dp.com/",
+    format: "html",
+    discovery: "sitemap",
+    discoveryUrl: "https://jlc3dp.com/sitemap-en.xml",
+    urlPattern: "jlc3dp\\.com/help/article/",
+    htmlContentClass: "rich-preview-wrap",
+    pageConcurrency: 2,
+    tags: ["hardware", "pcb"],
+    description: "JLC3DP 3D-printing design guidelines + material pages (resins, nylons, metals)",
+  }),
+
+  // OCP CAD Viewer: VS Code extension for build123d/CadQuery live CAD
+  // viewing. Docs are the repo's README + CHANGELOG (mkdocs.yml points
+  // at docs/*.md files that are not committed).
+  new DocSource({
+    name: "ocp-vscode",
+    type: "git",
+    url: "https://github.com/bernhard-42/vscode-ocp-cad-viewer",
+    format: "markdown",
+    tags: ["hardware", "pcb"],
+    description: "OCP CAD Viewer VS Code extension docs (README + changelog)",
+  }),
+
+  // kicad-druid (Cimos/kicad-druid, MIT): KiCad custom design rules
+  // (.kicad_dru) matching JLCPCB + PCBWay capabilities. Serves the
+  // markdown docs (README, COMPARISON rule values, DESIGN rationale).
+  // The .kicad_dru rule files themselves are generated from
+  // capabilities/*.toml and would need "kicad_dru" added to
+  // TXT_EXTENSIONS (GitIngestor.ts) to serve as txt - see open
+  // decisions.
+  new DocSource({
+    name: "kicad-druid",
+    type: "git",
+    url: "https://github.com/Cimos/kicad-druid",
+    format: "markdown",
+    tags: ["hardware", "pcb"],
+    description: "kicad-druid: JLCPCB/PCBWay KiCad custom design rules (README + rule values)",
+  }),
+
+  // PlatformIO: embedded build system for the keyboard firmware.
+  // Sphinx sphinx_rtd_theme; deep projectconf (platformio.ini options)
+  // and core/userguide (pio CLI) trees need tocDepth 3. Restrict to the
+  // userguide, the projectconf reference, the ststm32 + nordicnrf52
+  // platforms and the nrf52 boards (there is no at32/artery platform in
+  // the official docs). The full site is ~5k pages; this keeps ~200.
+  new DocSource({
+    name: "platformio",
+    type: "http",
+    url: "https://docs.platformio.org/en/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.platformio.org/en/latest/",
+    tocDepth: 3,
+    urlPattern: "docs\\.platformio\\.org/en/latest/(core/|projectconf/|platforms/(ststm32|nordicnrf52)\\.html|boards/nordicnrf52/)",
+    urlExclude: "(genindex|search)\\.html",
+    htmlContentClass: "document",
+    tags: ["hardware", "build-tools"],
+    description: "PlatformIO userguide + platformio.ini reference + ststm32/nrf52 platforms and boards",
+  }),
+
+  // ezdxf: DXF read/write library (readthedocs sphinx_rtd_theme). The
+  // landing sidebar lists the full toctree (~172 pages, one level of
+  // subdirs) so a single toc depth reaches everything.
+  new DocSource({
+    name: "ezdxf",
+    type: "http",
+    url: "https://ezdxf.readthedocs.io/en/stable/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://ezdxf.readthedocs.io/en/stable/",
+    urlPattern: "ezdxf\\.readthedocs\\.io/en/stable/",
+    urlExclude: "(genindex|py-modindex|search)\\.html$|/_(static|modules|sources|downloads)/",
+    htmlContentClass: "document",
+    tags: ["hardware", "languages"],
+    description: "ezdxf DXF read/write library: tutorials, addons, entity/render APIs",
+  }),
+
+  // scikit-rf: RF/microwave engineering (readthedocs sphinx_rtd_theme).
+  // Landing sidebar lists the full toctree (~45 pages: tutorials + API).
+  new DocSource({
+    name: "scikit-rf",
+    type: "http",
+    url: "https://scikit-rf.readthedocs.io/en/latest/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://scikit-rf.readthedocs.io/en/latest/",
+    urlPattern: "scikit-rf\\.readthedocs\\.io/en/latest/",
+    urlExclude: "(genindex|py-modindex|search)\\.html$|/_(static|modules|sources|downloads)/",
+    htmlContentClass: "document",
+    tags: ["hardware", "languages"],
+    description: "scikit-rf RF engineering: tutorials, network/VNA/calibration APIs",
+  }),
+
   // -- end batch w23-auspex --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --

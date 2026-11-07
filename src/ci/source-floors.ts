@@ -55,6 +55,15 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   libhmk: 2,
   "libhmk-src": 12,
   // -- batch w23-auspex (2026-11-07; insert this batch's entries below) --
+  // ~65% of the measured full-fetch counts (see final report).
+  build123d: 45,
+  trimesh: 85,
+  jlc3dp: 60,
+  "ocp-vscode": 2,
+  "kicad-druid": 4,
+  platformio: 155,
+  ezdxf: 110,
+  "scikit-rf": 30,
   // -- end batch w23-auspex --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --
