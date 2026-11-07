@@ -13,6 +13,7 @@ import { retryWithBackoff, type RetryOptions } from "../shared/retry.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { convertAsciiDocTree } from "./asciidoc-converter.js";
 import { convertTrashGuides } from "./trash-guides-converter.js";
+import { convertSvdToMarkdown } from "./svd-converter.js";
 import { repoBrowseUrl } from "../shared/origin-url.js";
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx", "markdown"]);
@@ -199,6 +200,11 @@ export class GitIngestor implements DocIngestor {
       return this.ingestAsciiDoc(source, cloneDir, version);
     }
 
+    // ─── svd: CMSIS register-map files → per-peripheral markdown ────
+    if (source.format === "svd") {
+      return this.ingestSvd(source, cloneDir, version, branch);
+    }
+
     // ─── trash-guides: resolve MkDocs jinja/snippet/macro directives ──
     if (source.resolveTrashGuides) {
       return this.ingestTrashGuides(source, cloneDir, version);
@@ -309,6 +315,57 @@ export class GitIngestor implements DocIngestor {
       files.set(cf.path, new DocFile(cf.path, cf.content));
     }
     console.log(`  [${source.name}] resolved ${files.size} markdown pages`);
+    return new DocSet(source, files, new Date(), version);
+  }
+
+  // ─── SVD (CMSIS System View Description) ingestion ──────────────
+
+  /**
+   * Convert one or more checked-out `.svd` register-map files into
+   * per-peripheral markdown plus a per-device `index.md`. One `.svd`
+   * describes a whole device, so output paths are prefixed with the
+   * device name (from the SVD `<name>`) to keep multiple devices in a
+   * single source separate. See `svd-converter.ts` for why this is an
+   * ingestor-side structural transform rather than a normaliser.
+   */
+  private async ingestSvd(
+    source: DocSource,
+    cloneDir: string,
+    version: string | undefined,
+    branch: string | undefined,
+  ): Promise<DocSet> {
+    const roots =
+      source.paths.length > 0 ? source.paths.map((p) => path.join(cloneDir, p)) : [cloneDir];
+    const svdFiles: Array<{ repoRelPath: string; content: string }> = [];
+    for (const root of roots) {
+      await collectSvd(root, cloneDir, svdFiles);
+    }
+    if (svdFiles.length === 0) {
+      throw new Error(
+        `GitIngestor: no .svd files under ${source.paths.join(", ") || cloneDir} for ${source.name}`,
+      );
+    }
+
+    const files = new Map<string, DocFile>();
+    for (const { repoRelPath, content } of svdFiles) {
+      const fallbackName = path.basename(repoRelPath, ".svd");
+      const origin = source.publicUrl?.(repoRelPath) ?? repoBrowseUrl(source.url, repoRelPath, branch);
+      let converted;
+      try {
+        converted = convertSvdToMarkdown(content, fallbackName);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`  [${source.name}] failed to convert ${repoRelPath}: ${msg}`);
+        continue;
+      }
+      for (const cf of converted) {
+        files.set(cf.path, new DocFile(cf.path, cf.content, { originUrl: origin }));
+      }
+    }
+    if (files.size === 0) {
+      throw new Error(`GitIngestor: SVD conversion produced 0 pages for ${source.name}`);
+    }
+    console.log(`  [${source.name}] converted ${svdFiles.length} SVD file(s) → ${files.size} pages`);
     return new DocSet(source, files, new Date(), version);
   }
 
@@ -423,5 +480,44 @@ async function exists(p: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Collect `.svd` files under `root` (which may itself be a single `.svd`
+ * file, so sparse-checkout of a lone file path works too). Records the
+ * repo-relative path (for origin URLs) and the raw XML content.
+ */
+async function collectSvd(
+  root: string,
+  cloneDir: string,
+  out: Array<{ repoRelPath: string; content: string }>,
+): Promise<void> {
+  let st;
+  try {
+    st = await fs.stat(root);
+  } catch {
+    return; // path not materialised by sparse checkout
+  }
+  if (st.isFile()) {
+    if (root.endsWith(".svd")) {
+      out.push({
+        repoRelPath: path.relative(cloneDir, root),
+        content: await fs.readFile(root, "utf-8"),
+      });
+    }
+    return;
+  }
+  if (!st.isDirectory()) return;
+  for (const entry of await fs.readdir(root, { withFileTypes: true })) {
+    const full = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      await collectSvd(full, cloneDir, out);
+    } else if (entry.isFile() && entry.name.endsWith(".svd")) {
+      out.push({
+        repoRelPath: path.relative(cloneDir, full),
+        content: await fs.readFile(full, "utf-8"),
+      });
+    }
   }
 }

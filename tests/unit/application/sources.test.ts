@@ -115,11 +115,11 @@ describe("SOURCES configuration", () => {
     }
   });
 
-  it("git sources use markdown, mdx, openapi, godoc, adoc, txt, or html format", () => {
+  it("git sources use markdown, mdx, openapi, godoc, adoc, txt, svd, or html format", () => {
     const gitSources = SOURCES.filter((s) => s.type === "git");
     expect(gitSources.length).toBeGreaterThan(0);
     for (const source of gitSources) {
-      expect(["markdown", "mdx", "openapi", "godoc", "adoc", "txt", "html"]).toContain(source.format);
+      expect(["markdown", "mdx", "openapi", "godoc", "adoc", "txt", "svd", "html"]).toContain(source.format);
     }
   });
 

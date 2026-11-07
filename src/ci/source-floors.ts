@@ -67,6 +67,9 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   // -- end batch w26-batch2 --
 
   // -- batch w27-svd (2026-11-07; insert this batch's entries below) --
+  "nordic-nrf52840": 40,
+  "nordic-nrf52820": 25,
+  "artery-at32f405": 30,
   // -- end batch w27-svd --
 
   // -- batch w28-pdf (2026-11-07; insert this batch's entries below) --
