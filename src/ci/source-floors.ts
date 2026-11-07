@@ -78,6 +78,30 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   // -- end batch w25-win32 --
 
   // -- batch w26-batch2 (2026-11-07; insert this batch's entries below) --
+
+  // immich: 87 Docusaurus MDX pages (not 253 - most tree entries were images/JSON)
+  immich: 50,
+  // darktable: 310 Hugo markdown pages → floor ~60%
+  darktable: 185,
+  // anthropic: 886 pages from llms-full → floor ~60%
+  anthropic: 530,
+  // openai: 577 pages from llms-full → floor ~60%
+  openai: 350,
+  // openai-api: 48 markdown files from openapi spec
+  "openai-api": 30,
+  // open-webui: blocked by ENAMETOOLONG in splitter; floor TBD after fix
+  "open-webui": 1,
+  // llama-cpp: 53 markdown files (docs/ subdirs only)
+  "llama-cpp": 30,
+  // atuin: 53 MkDocs markdown pages → floor ~60%
+  atuin: 30,
+  // huma: 43 Docusaurus markdown pages → floor ~60%
+  huma: 25,
+  // vikunja: Astro MDX docs, ~50 pages → floor ~60%
+  vikunja: 30,
+  // vikunja-api: Swagger 2.0 spec from live instance
+  "vikunja-api": 1,
+
   // -- end batch w26-batch2 --
 
   // -- batch w27-svd (2026-11-07; insert this batch's entries below) --
@@ -104,6 +128,8 @@ export const API_OVERVIEW_SOURCES: readonly string[] = [
   "keycloak-api",
   "openaq-api",
   "jellyfin-api",
+  "openai-api",
+  "vikunja-api",
 ];
 
 /**

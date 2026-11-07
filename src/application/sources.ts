@@ -5359,6 +5359,124 @@ export const SOURCES: readonly DocSource[] = [
   // -- end batch w25-win32 --
 
   // -- batch w26-batch2 (2026-11-07; insert this batch's entries below) --
+
+
+  // Immich -- Docusaurus MDX from immich-app/immich (AGPL-3.0). ~253 pgs.
+  // Docusaurus import partials not resolved; JSX imports stripped.
+  new DocSource({
+    name: "immich",
+    url: "https://github.com/immich-app/immich",
+    type: "git",
+    format: "mdx",
+    paths: ["docs/docs"],
+    rootPath: "docs/docs",
+  }),
+
+  // darktable -- Hugo markdown from darktable-org/dtdocs (GPL-3.0).
+  // ~300-400 pgs. Multilingual; ingest English only via content/en/.
+  new DocSource({
+    name: "darktable",
+    type: "git",
+    url: "https://github.com/darktable-org/dtdocs",
+    format: "markdown",
+    paths: ["content"],
+    rootPath: "content",
+  }),
+
+  // Anthropic -- llms-full.txt (50 MB, 886 English pgs).
+  // Each page: "## title" then YAML frontmatter with url:.
+  // Frontmatter splitter leaves trailing ## headings; cosmetic.
+  new DocSource({
+    name: "anthropic",
+    type: "http",
+    url: "https://platform.claude.com/docs",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://platform.claude.com/llms-full.txt",
+  }),
+
+  // OpenAI -- llms-full.txt (~5.7 MB, 667 pgs). Plain-heading split.
+  new DocSource({
+    name: "openai",
+    type: "http",
+    url: "https://developers.openai.com/api/docs",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://developers.openai.com/api/docs/llms-full.txt",
+  }),
+
+  // OpenAI API -- raw openapi.json from openai/openai-openapi (MIT).
+  // Use HTTP discovery (openapi-dir expects per-service directories).
+  new DocSource({
+    name: "openai-api",
+    type: "http",
+    url: "https://github.com/openai/openai-openapi",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://raw.githubusercontent.com/openai/openai-openapi/main/openapi.json",
+  }),
+
+  // Open WebUI -- llms-full.txt (~4.4 MB, 431 pgs). Mintlify Source:.
+  new DocSource({
+    name: "open-webui",
+    type: "http",
+    url: "https://docs.openwebui.com",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://docs.openwebui.com/llms-full.txt",
+  }),
+
+  // llama.cpp -- git markdown from ggml-org/llama.cpp (MIT). docs/ +
+  // tools/server/README.md for server API flags.
+  new DocSource({
+    name: "llama-cpp",
+    type: "git",
+    url: "https://github.com/ggml-org/llama.cpp",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // Atuin -- MkDocs markdown from atuinsh/atuin (MIT). 53 pgs.
+  new DocSource({
+    name: "atuin",
+    type: "git",
+    url: "https://github.com/atuinsh/atuin",
+    format: "markdown",
+    paths: ["docs/docs"],
+    rootPath: "docs/docs",
+  }),
+
+  // Huma -- Docusaurus markdown from danielgtaylor/huma (MIT). 43 pgs.
+  new DocSource({
+    name: "huma",
+    type: "git",
+    url: "https://github.com/danielgtaylor/huma",
+    format: "markdown",
+    paths: ["docs/docs"],
+    rootPath: "docs/docs",
+  }),
+
+  // Vikunja -- Astro MDX from go-vikunja/website (AGPL-3.0).
+  new DocSource({
+    name: "vikunja",
+    type: "git",
+    url: "https://github.com/go-vikunja/website",
+    format: "mdx",
+    paths: ["src/content/docs"],
+    rootPath: "src/content/docs",
+  }),
+
+  // Vikunja API -- Swagger 2.0 JSON from public demo. Live-only.
+  new DocSource({
+    name: "vikunja-api",
+    type: "http",
+    url: "https://try.vikunja.io",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl: "https://try.vikunja.io/api/v1/docs.json",
+  }),
+
   // -- end batch w26-batch2 --
 
   // -- batch w27-svd (2026-11-07; insert this batch's entries below) --
