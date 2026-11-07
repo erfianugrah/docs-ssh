@@ -120,6 +120,14 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   // -- end batch w27-svd --
 
   // -- batch w28-pdf (2026-11-07; insert this batch's entries below) --
+
+  // CH32FV2x_V3xRM_en.PDF: ~1,000-page RM split into per-section .md.
+  "wch-ch32v30x": 60,
+  // HUT 1.5 (~200 pages) + HID 1.11 (~100 pages). ~50 sections each.
+  "usb-hid-usage-tables": 60,
+  // DS (~84 pages) + AN0185 EN + ZH. ~30 sections across all three.
+  "at32f405": 20,
+
   // -- end batch w28-pdf --
 
   // -- batch w17-rst (2026-11-07; insert this batch's entries below) --

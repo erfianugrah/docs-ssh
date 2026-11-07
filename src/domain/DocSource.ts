@@ -1,4 +1,14 @@
-export type DocFormat = "markdown" | "mdx" | "html" | "openapi" | "godoc" | "adoc" | "txt" | "svd";
+export type DocFormat =
+  | "markdown"
+  | "mdx"
+  | "html"
+  | "openapi"
+  | "godoc"
+  | "adoc"
+  | "txt"
+  | "svd"
+  | "pdf"
+  | "rst";
 export type DocSourceType = "git" | "http" | "rsync";
 
 /**
@@ -7,6 +17,8 @@ export type DocSourceType = "git" | "http" | "rsync";
  * - "tarball":       downloads a .tar.gz or .tar.zst and extracts markdown (or,
  *                    format html, .html) files, under rootPath when set
  * - "texinfo":       downloads a GNU info .zip (texinfo manual) and splits into per-node markdown
+ * - "pdf":           downloads one or more PDFs (space-separated discoveryUrl) and splits each
+ *                     into per-section markdown pages via pdftotext (poppler-utils)
  * - "llms-full":     downloads a single llms-full.txt and splits into per-page files
  * - "sitemap":       parses a single XML sitemap for <loc> entries
  * - "sitemap-index": parses a sitemap index, then fetches child sitemaps
@@ -42,7 +54,8 @@ export type DiscoveryMethod =
   | "mediawiki"
   | "statuspage"
   | "incidentio"
-  | "mslearn";
+  | "mslearn"
+  | "pdf";
 
 export interface DocSourceConfig {
   readonly name: string;

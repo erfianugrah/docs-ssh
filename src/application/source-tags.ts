@@ -536,6 +536,11 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   // -- end batch w27-svd --
 
   // -- batch w28-pdf (2026-11-07; insert this batch's entries below) --
+
+  "wch-ch32v30x": ["hardware"],
+  "usb-hid-usage-tables": ["hardware", "standards"],
+  "at32f405": ["hardware"],
+
   // -- end batch w28-pdf --
 
   // -- batch w17-rst (2026-11-07; insert this batch's entries below) --

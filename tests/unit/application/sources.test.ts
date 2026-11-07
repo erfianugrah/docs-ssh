@@ -34,7 +34,7 @@ describe("SOURCES configuration", () => {
     const validMethods = new Set([
       "none", "tarball", "texinfo", "llms-full", "sitemap",
       "sitemap-index", "toc", "llms-index", "llms-txt", "rss", "openapi", "openapi-dir", "mediawiki",
-      "dokuwiki", "statuspage", "incidentio", "mslearn",
+      "dokuwiki", "statuspage", "incidentio", "mslearn", "pdf",
     ]);
     for (const source of SOURCES) {
       expect(validMethods.has(source.discovery)).toBe(true);

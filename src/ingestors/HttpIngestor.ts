@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -10,6 +11,7 @@ import type { DocSource } from "../domain/DocSource.js";
 import { unzipSync } from "fflate";
 import { splitLlmsFull } from "./llms-splitter.js";
 import { splitTexinfo } from "./info-splitter.js";
+import { headingToSlug, pdftotextLayout, sectionToMarkdown, splitPdfText } from "./pdf-splitter.js";
 import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { collectIncidentCodes, incidentToMarkdown } from "./statuspage-converter.js";
 import {
@@ -278,6 +280,9 @@ export class HttpIngestor implements DocIngestor {
     if (source.discovery === "texinfo" && source.discoveryUrl) {
       return this.ingestFromTexinfo(source, signal);
     }
+    if (source.discovery === "pdf" && source.discoveryUrl) {
+      return this.ingestFromPdf(source, signal);
+    }
     if (source.discovery === "llms-full" && source.discoveryUrl) {
       return this.ingestFromLlmsFull(source, signal);
     }
@@ -540,6 +545,74 @@ export class HttpIngestor implements DocIngestor {
     }
 
     console.log(`  [${source.name}] split into ${files.size} pages`);
+    return new DocSet(source, files, new Date());
+  }
+
+  // ─── PDF ──────────────────────────────────────────────────────────
+
+  /**
+   * Download one or more PDFs (space-separated discoveryUrl), extract
+   * text via pdftotext -layout, split into per-section markdown pages.
+   * Graceful fallback: if pdftotext is missing, fail with a clear message.
+   */
+  private async ingestFromPdf(source: DocSource, signal?: AbortSignal): Promise<DocSet> {
+    // Verify pdftotext is available
+    try {
+      execFileSync("pdftotext", ["-v"], { timeout: 5000 });
+    } catch {
+      throw new Error(
+        "pdftotext (poppler-utils) not found on PATH - install poppler-utils to fetch PDF sources",
+      );
+    }
+
+    const urls = source.discoveryUrl!.split(/\s+/).filter(Boolean);
+    console.log(`  [${source.name}] downloading ${urls.length} PDF(s)...`);
+
+    const files = new Map<string, DocFile>();
+    let totalPages = 0;
+
+    for (const pdfUrl of urls) {
+      console.log(`  [${source.name}]   fetching ${pdfUrl}`);
+      const buffer = await fetchBufferWithRetry(pdfUrl, BULK_RETRIES, BULK_TIMEOUT, signal);
+
+      // Write to temp file - pdftotext needs a file path, not stdin
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "pdf-"));
+      const tmpPdf = path.join(tmpDir, "input.pdf");
+      try {
+        await fs.writeFile(tmpPdf, buffer);
+        const { text, pageCount } = pdftotextLayout(tmpPdf);
+        console.log(
+          `  [${source.name}]   ${(text.length / 1024).toFixed(0)} KB text, ${pageCount} pages`,
+        );
+        totalPages += pageCount;
+
+        // Title from the PDF URL or source name
+        const pdfBasename = decodeURIComponent(
+          pdfUrl.split("/").pop()?.replace(/\.pdf$/i, "") ?? source.name,
+        );
+        const title = `${source.description ?? pdfBasename}`;
+
+        const sections = splitPdfText(text, title, pdfUrl);
+        console.log(`  [${source.name}]   ${sections.length} sections`);
+
+        let secIdx = 0;
+        for (const section of sections) {
+          const slug = headingToSlug(section.heading) || `section-${String(secIdx).padStart(3, "0")}`;
+          const filePath = `${pdfBasename}/${slug}.md`;
+          if (source.urlPattern && !new RegExp(source.urlPattern).test(filePath)) continue;
+          if (source.urlExclude && new RegExp(source.urlExclude).test(filePath)) continue;
+          const md = sectionToMarkdown(section, title, pdfUrl);
+          files.set(filePath, new DocFile(filePath, md, { originUrl: pdfUrl }));
+          secIdx++;
+        }
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    }
+
+    console.log(
+      `  [${source.name}] ${files.size} markdown files from ${urls.length} PDF(s), ${totalPages} pages`,
+    );
     return new DocSet(source, files, new Date());
   }
 
