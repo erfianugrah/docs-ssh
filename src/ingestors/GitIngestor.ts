@@ -14,6 +14,7 @@ import { convertOpenApiToMarkdown } from "./openapi-converter.js";
 import { convertAsciiDocTree } from "./asciidoc-converter.js";
 import { convertTrashGuides } from "./trash-guides-converter.js";
 import { convertSvdToMarkdown } from "./svd-converter.js";
+import { convertRstTree } from "./rst-converter.js";
 import { repoBrowseUrl } from "../shared/origin-url.js";
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "mdx", "markdown"]);
@@ -210,6 +211,11 @@ export class GitIngestor implements DocIngestor {
       return this.ingestTrashGuides(source, cloneDir, version);
     }
 
+    // ─── rst: reStructuredText → markdown via Python/docutils ────────
+    if (source.format === "rst") {
+      return this.ingestRstDocs(source, cloneDir, version);
+    }
+
     // Determine which directories to scan
     const scanRoots =
       source.paths.length > 0
@@ -262,6 +268,39 @@ export class GitIngestor implements DocIngestor {
       });
     }
 
+    return new DocSet(source, files, new Date(), version);
+  }
+
+  // ─── RST (reStructuredText) ingestion ────────────────────
+
+  /**
+   * Batch-convert a tree of .rst files to markdown via Python/docutils.
+   * The source's `paths` already restrict the sparse checkout to the
+   * docs directory; `rootPath` determines which subtree within the
+   * checkout maps to corpus paths. See rst-converter.ts.
+   */
+  private async ingestRstDocs(
+    source: DocSource,
+    cloneDir: string,
+    version: string | undefined,
+  ): Promise<DocSet> {
+    const rstDir = source.rootPath
+      ? path.join(cloneDir, source.rootPath)
+      : cloneDir;
+
+    const converted = await convertRstTree(rstDir);
+    if (converted.length === 0) {
+      throw new Error(
+        `GitIngestor: rst conversion produced 0 pages for ${source.name}`,
+      );
+    }
+    const files = new Map<string, DocFile>();
+    for (const cf of converted) {
+      files.set(cf.path, new DocFile(cf.path, cf.content));
+    }
+    console.log(
+      `  [${source.name}] converted ${files.size} RST pages`,
+    );
     return new DocSet(source, files, new Date(), version);
   }
 
