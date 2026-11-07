@@ -612,3 +612,37 @@ describe("duplicate titles take their name from the page URL (docs-ssh#12)", () 
     expect(pages.get("install-deploy.md")).toContain("Deploy install.");
   });
 });
+
+describe("2026-11-07 splitter fixes", () => {
+  it("Mintlify: caps an over-long URL segment under the filesystem name limit (open-webui)", () => {
+    const long = "a".repeat(300);
+    const doc = `# Long\nSource: https://docs.example.com/x/${long}\n\nBody.\n\n# Short\nSource: https://docs.example.com/y\n\nOther.\n`;
+    const keys = [...splitSourceLineStyle(doc, "https://docs.example.com/").keys()];
+    const seg = keys[0].split("/")[1];
+    expect(Buffer.byteLength(seg)).toBeLessThanOrEqual(200);
+    expect(seg).toMatch(/^a{180}-[0-9a-f]{8}\.md$/);
+    expect(keys[1]).toBe("y.md");
+  });
+
+  it("frontmatter: drops the next page's `## title` line and adds an H1 (anthropic)", () => {
+    const doc =
+      "## First\n\n---\ntitle: First\nurl: https://p.example.com/docs/en/first\n---\n\nBody one.\n\n## Second\n\n" +
+      "---\ntitle: Second\nurl: https://p.example.com/docs/en/second\n---\n\nBody two.\n";
+    const pages = splitFrontmatterStyle(doc, "https://p.example.com/");
+    expect(pages.get("first.md")).toBe("# First\n\nBody one.");
+    expect(pages.get("second.md")).toBe("# Second\n\nBody two.");
+  });
+});
+
+describe("Mintlify variant with a blank line before Source (open-webui)", () => {
+  it("splits on `# Title`, blank line, `Source:`", () => {
+    const page = (t: string, u: string) => `# ${t}\n\nSource: ${u}\n\nBody of ${t}.\n\n---\n\n`;
+    let doc = "# Corpus\n\nEvery page.\n\n---\n\n";
+    for (let i = 0; i < 25; i++) doc += page(`P${i}`, `https://docs.openwebui.com/p/${i}/`);
+    const origins = new Map<string, string>();
+    const pages = splitLlmsFull(doc, "https://docs.openwebui.com", origins);
+    expect(pages.size).toBe(25);
+    expect(pages.get("p/3.md")).toMatch(/^# P3\n\nBody of P3\./);
+    expect(origins.get("p/3.md")).toBe("https://docs.openwebui.com/p/3/");
+  });
+});

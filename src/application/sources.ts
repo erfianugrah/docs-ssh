@@ -5173,12 +5173,27 @@ export const SOURCES: readonly DocSource[] = [
     description: "build123d parametric CAD (Python): builders, assemblies, sheet metal, projection, API reference",
   }),
 
-  // PyVista (docs.pyvista.org) is NOT added: the sitemap.xml is stale
-  // (every <loc> is /en/0.49.2/... which 404s; the live site serves at
-  // root URLs) and the pydata-sphinx-theme renders nav hrefs with single
-  // quotes, which discoverFromToc's double-quote-only extractLinks cannot
-  // crawl. Blocked pending a sitemap fix upstream or single-quote href
-  // support in toc discovery (see final report).
+  // PyVista: the sitemap.xml is stale (every <loc> is /en/0.49.2/...,
+  // which 404s), so crawl the toc; pydata-sphinx-theme quotes its hrefs
+  // with single quotes (toc extractLinks accepts both). Only the user
+  // guide and the plotting/core API: the full gallery is thousands of
+  // pages.
+  new DocSource({
+    name: "pyvista",
+    type: "http",
+    url: "https://docs.pyvista.org/",
+    format: "html",
+    discovery: "toc",
+    discoveryUrl: "https://docs.pyvista.org/user-guide/index.html https://docs.pyvista.org/api/plotting/index.html https://docs.pyvista.org/api/core/index.html",
+    // Depth 1: the three index pages already list every autosummary
+    // page (~970); depth 2 re-crawls those and blew a 10-min deadline.
+    tocDepth: 1,
+    deadlineMs: 1_800_000,
+    urlPattern: "docs\\.pyvista\\.org/(user-guide|api/(plotting|core))/",
+    urlExclude: "(genindex|py-modindex|search)\\.html$|/_(static|modules|sources|downloads|images)/",
+    tags: ["hardware", "languages"],
+    description: "PyVista 3D plotting/meshing (Python): user guide, plotting and core API",
+  }),
 
   // trimesh: mesh loading/repair/ray-casting/inertia. Sphinx site with
   // a flat toctree on the landing page (all ~126 pages listed at root;
@@ -5240,6 +5255,18 @@ export const SOURCES: readonly DocSource[] = [
     format: "markdown",
     tags: ["hardware", "pcb"],
     description: "kicad-druid: JLCPCB/PCBWay KiCad custom design rules (README + rule values)",
+  }),
+
+  // kicad-druid rule files (.kicad_dru per fab and stackup) and the
+  // capability tables they are generated from, served as fenced text.
+  new DocSource({
+    name: "kicad-druid-src",
+    type: "git",
+    url: "https://github.com/Cimos/kicad-druid",
+    format: "txt",
+    paths: ["Generic", "JLCPCB", "PCBWay", "capabilities"],
+    tags: ["hardware", "pcb"],
+    description: "kicad-druid .kicad_dru rule files (JLCPCB, PCBWay, generic) + capability TOML",
   }),
 
   // PlatformIO: embedded build system for the keyboard firmware.
@@ -5340,18 +5367,29 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── Vector ──────────────────────────────────────────────────
 
-  // Hugo md docs from the vectordotdev/vector repo. Note: ~250 of
-  // ~540 files are auto-generated component reference shells
-  // (reference/configuration/{sources,sinks,transforms}/*.md) that
-  // carry only frontmatter + CUE shortcodes; the remaining ~290
-  // guides/architecture/reference pages have real content.
+  // Hugo md docs from the vectordotdev/vector repo (214 pages). The
+  // component pages under reference/configuration/{sources,sinks,
+  // transforms}/ are shells (frontmatter + a CUE shortcode); their
+  // content is vector-reference below.
   new DocSource({
     name: "vector",
     type: "git",
     url: "https://github.com/vectordotdev/vector",
     format: "markdown",
-    paths: ["website"],
+    paths: ["website/content/en/docs"],
     rootPath: "website/content/en/docs",
+  }),
+
+  // The component reference those shells render: per-component CUE
+  // (options, defaults, enums, descriptions; generated/*.cue is the
+  // option schema), served as fenced text.
+  new DocSource({
+    name: "vector-reference",
+    type: "git",
+    url: "https://github.com/vectordotdev/vector",
+    format: "txt",
+    paths: ["website/cue/reference/components"],
+    rootPath: "website/cue/reference/components",
   }),
 
   // ─── QMK ─────────────────────────────────────────────────────
@@ -5589,7 +5627,9 @@ export const SOURCES: readonly DocSource[] = [
     type: "git",
     url: "https://github.com/ggml-org/llama.cpp",
     format: "markdown",
-    paths: ["docs"],
+    // tools/server holds the server README (flags, HTTP API); the dir's
+    // other .md is README-dev. Its paths keep the tools/server/ prefix.
+    paths: ["docs", "tools/server"],
     rootPath: "docs",
   }),
 

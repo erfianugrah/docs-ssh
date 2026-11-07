@@ -66,6 +66,8 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   platformio: 155,
   ezdxf: 110,
   "scikit-rf": 30,
+  pyvista: 600,
+  "kicad-druid-src": 10,
   // -- end batch w23-auspex --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --
@@ -73,6 +75,7 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   frigate: 50,
   "jellyfin-api": 28,
   vector: 320,
+  "vector-reference": 230,
   qmk: 120,
   "pid-codes": 600,
   ghidra: 120,
@@ -98,18 +101,18 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   openai: 350,
   // openai-api: 48 markdown files from openapi spec
   "openai-api": 30,
-  // open-webui: blocked by ENAMETOOLONG in splitter; floor TBD after fix
-  "open-webui": 1,
-  // llama-cpp: 53 markdown files (docs/ subdirs only)
-  "llama-cpp": 30,
+  // open-webui: 431 Mintlify pages (blank line before Source:)
+  "open-webui": 280,
+  // llama-cpp: 58 markdown files (docs/ + tools/server READMEs)
+  "llama-cpp": 35,
   // atuin: 53 MkDocs markdown pages → floor ~60%
   atuin: 30,
   // huma: 43 Docusaurus markdown pages → floor ~60%
   huma: 25,
   // vikunja: Astro MDX docs, ~50 pages → floor ~60%
   vikunja: 30,
-  // vikunja-api: Swagger 2.0 spec from live instance
-  "vikunja-api": 1,
+  // vikunja-api: Swagger 2.0 spec, 17 tag files
+  "vikunja-api": 10,
 
   // -- end batch w26-batch2 --
 

@@ -493,6 +493,8 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   platformio: ["hardware", "build-tools"],
   ezdxf: ["hardware", "languages"],
   "scikit-rf": ["hardware", "languages"],
+  pyvista: ["hardware", "languages"],
+  "kicad-druid-src": ["hardware", "pcb"],
   // -- end batch w23-auspex --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --
@@ -500,6 +502,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   frigate: ["media", "smarthome"],
   "jellyfin-api": ["api-specs", "media"],
   vector: ["infrastructure", "monitoring"],
+  "vector-reference": ["infrastructure", "monitoring"],
   qmk: ["hardware"],
   "pid-codes": ["hardware"],
   ghidra: ["security"],

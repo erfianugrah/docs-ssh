@@ -23,7 +23,9 @@ const GO_EXTENSIONS = new Set(["go"]);
 // files served as fenced text via TxtNormaliser. .txt first (ietf-rfc
 // parity), .h for the NVAPI SDK headers, .py/.cpp for PenguinBurner's
 // hidden-NVAPI reference code (DocFile path keeps its extension).
-const TXT_EXTENSIONS = new Set(["txt", "h", "py", "cpp"]);
+// kicad_dru/toml: KiCad custom design-rule files and their capability
+// tables (kicad-druid-src); cue: Vector component reference.
+const TXT_EXTENSIONS = new Set(["txt", "h", "py", "cpp", "kicad_dru", "toml", "cue"]);
 // html-format git sources (nuvoton-m480-bsp): checked-in Doxygen HTML
 // trees, walked as .html and converted by HtmlNormaliser in pass 1 (which
 // also rewrites the path suffix .html -> .md).

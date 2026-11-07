@@ -223,3 +223,14 @@ describe("TxtNormaliser", () => {
     expect(out!.content).toContain("line three");
   });
 });
+
+describe("TxtNormaliser: KiCad rule files (kicad-druid-src)", () => {
+  it("serves .kicad_dru as .md with the file stem as title", async () => {
+    const n = new TxtNormaliser();
+    const f = new DocFile("JLCPCB/JLCPCB-2L-1oz.kicad_dru", "(version 1)\n(rule \"Track width\")\n");
+    expect(n.supports(f)).toBe(true);
+    const out = await n.normalise(f);
+    expect(out?.path).toBe("JLCPCB/JLCPCB-2L-1oz.md");
+    expect(out?.content).toMatch(/^# JLCPCB-2L-1oz\n/);
+  });
+});

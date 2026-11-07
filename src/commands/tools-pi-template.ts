@@ -17,6 +17,8 @@
  *   ssh -p 2222 docs@HOST tools pi > .pi/extensions/docs.ts
  */
 
+import { sourceGuardShell } from "../shared/source-suggest.js";
+
 // --- Dynamic constants (injected by shell at runtime) ---
 
 export const PI_DYNAMIC_HEADER = `\
@@ -210,27 +212,11 @@ const ORIGIN_JOIN =
 
 // Shell pipeline: suggest closest source names. Single \`ls /docs | awk\`,
 // implements prefix / suffix / hyphen-segment / substring matching.
-const SUGGEST_SOURCE = "ls /docs | awk -v s=\"$(printf '%s' '$SRC' | tr '[:upper:]' '[:lower:]')\" -v src='$SRC' '" +
-  "function lower(x){return tolower(x)}" +
-  " function hyphens(a,b){split(a,x,\"-\");split(b,y,\"-\");for(i in x)for(j in y)if(x[i]==y[j]&&x[i]!=\"\")return 1;return 0}" +
-  " {l=lower($0);if(l==s)next;if(index(l,s)==1){score[++n]=1;c[n]=$0;next}" +
-  " if(match(l,s\"$\")){score[++n]=2;c[n]=$0;next}" +
-  " if(hyphens(l,s)){score[++n]=3;c[n]=$0;next}" +
-  " if(index(l,s)||index(s,l)){score[++n]=4;c[n]=$0}" +
-  "}" +
-  " END{if(!n)exit 0" +
-  " for(i=1;i<=n;i++)for(j=i+1;j<=n;j++)if(score[j]<score[i]||(score[j]==score[i]&&c[j]<c[i])){ts=score[i];tc=c[i];score[i]=score[j];c[i]=c[j];score[j]=ts;c[j]=tc}" +
-  " printf \"[unknown source \\\"%s\\\" - did you mean:\",src" +
-  " lim=n>6?6:n;for(i=1;i<=lim;i++)printf\" %s%s\",c[i],i<lim?\",\":\"]\";printf \"\\n\"}'"
-function sourceGuard(source?: string, srcVar = "SRC"): string {
+const SOURCE_GUARD_SH = ${JSON.stringify(sourceGuardShell())}
+// Unknown source -> "did you mean" list instead of empty output.
+function sourceGuard(source?: string): string {
   if (!source) return ""
-  // Pre-check: source dir exists? If not, run suggestion pipeline and exit 0.
-  const s = sq(source)
-  return (srcVar + "=" + s + "; " +
-    "if [ -n "$" + srcVar + "" ] && [ ! -d "/docs/$" + srcVar + "" ]; then " +
-    "sg=$(" + SUGGEST_SOURCE + "); " +
-    "if [ -n "$sg" ]; then echo "$sg"; exit 0; fi; " +
-    "fi; true; ")
+  return "SRC='" + sq(source) + "'; " + SOURCE_GUARD_SH
 }
 
 function capOutput(text: string, path?: string): string {

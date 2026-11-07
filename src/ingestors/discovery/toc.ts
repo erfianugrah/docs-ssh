@@ -12,12 +12,13 @@ import { BULK_RETRIES, fetchWithRetry } from "../http-client.js";
 const SKIP_EXTENSIONS = /\.(css|js|json|xml|png|jpe?g|gif|svg|ico|woff2?|ttf|eot|zip|tar|gz|pdf)$/i;
 const MAX_VISITED = 5000;
 
-function extractLinks(html: string, pageUrl: string): string[] {
-  const hrefRegex = /href="([^"\s]+)"/gi;
+export function extractLinks(html: string, pageUrl: string): string[] {
+  // pydata-sphinx-theme (pyvista) quotes hrefs with single quotes.
+  const hrefRegex = /href=(["'])([^"'\s]+)\1/gi;
   const urls: string[] = [];
   let match;
   while ((match = hrefRegex.exec(html)) !== null) {
-    let href = match[1].split("#")[0];
+    let href = match[2].split("#")[0];
     if (!href || SKIP_EXTENSIONS.test(href)) continue;
     if (!href.startsWith("http")) {
       try { href = new URL(href, pageUrl).href; } catch { continue; }

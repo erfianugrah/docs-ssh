@@ -27,8 +27,14 @@ export async function discover(source: DocSource): Promise<string[]> {
       return discoverFromSitemap(discoveryUrl, source.urlPattern);
     case "sitemap-index":
       return discoverFromSitemapIndex(discoveryUrl, source.urlPattern);
-    case "toc":
-      return discoverFromToc(discoveryUrl, baseUrl, source.tocDepth);
+    case "toc": {
+      // Space-separated toc pages are crawled one after another (pyvista).
+      const found = new Set<string>();
+      for (const tocUrl of discoveryUrl.split(/\s+/).filter(Boolean)) {
+        for (const u of await discoverFromToc(tocUrl, baseUrl, source.tocDepth)) found.add(u);
+      }
+      return [...found];
+    }
     case "mediawiki":
       return discoverFromMediaWiki(discoveryUrl, baseUrl);
     case "llms-index":

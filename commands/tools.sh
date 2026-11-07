@@ -177,28 +177,11 @@ const ORIGIN_JOIN =
 // Shell pipeline: suggest closest source names. Single `ls /docs | awk`,
 // implements prefix / suffix / hyphen-segment / substring matching.
 // Used inline in search/find/read/grep/summary command preambles.
-const SUGGEST_SOURCE = "ls /docs | awk -v s="$(printf '%s' '$SRC' | tr '[:upper:]' '[:lower:]')" -v src='$SRC' '" +
-  "function lower(x){return tolower(x)}" +
-  " function hyphens(a,b){split(a,x,"-");split(b,y,"-");for(i in x)for(j in y)if(x[i]==y[j]&&x[i]!="")return 1;return 0}" +
-  " {l=lower($0);if(l==s)next;if(index(l,s)==1){score[++n]=1;c[n]=$0;next}" +
-  " if(match(l,s"$")){score[++n]=2;c[n]=$0;next}" +
-  " if(hyphens(l,s)){score[++n]=3;c[n]=$0;next}" +
-  " if(index(l,s)||index(s,l)){score[++n]=4;c[n]=$0}" +
-  "}" +
-  " END{if(!n)exit 0" +
-  " for(i=1;i<=n;i++)for(j=i+1;j<=n;j++)if(score[j]<score[i]||(score[j]==score[i]&&c[j]<c[i])){ts=score[i];tc=c[i];score[i]=score[j];c[i]=c[j];score[j]=ts;c[j]=tc}" +
-  " printf "[unknown source \"%s\" - did you mean:",src" +
-  " lim=n>6?6:n;for(i=1;i<=lim;i++)printf" %s%s",c[i],i<lim?",":"]";printf "\n"}'"
-function sourceGuard(source?: string, srcVar = "SRC"): string {
+const SOURCE_GUARD_SH = "if [ ! -d \"/docs/$SRC\" ]; then sg=$(ls -p /docs | sed -n 's#/$##p' | awk -v s=\"$SRC\" 'BEGIN{s=tolower(s)} {l=tolower($0); r=0; if(index(l,s)==1)r=1; else if(length(l)>length(s)&&substr(l,length(l)-length(s)+1)==s)r=2; else if(index(l,s)||index(s,l))r=3; if(r)print r\" \"$0}' | sort -k1,1n -k2,2 | head -6 | awk '{printf \"%s%s\",(NR>1?\", \":\"\"),$2}'); if [ -n \"$sg\" ]; then echo \"[unknown source \\\"$SRC\\\" - did you mean: $sg]\"; exit 0; fi; fi; "
+// Unknown source -> "did you mean" list instead of empty output.
+function sourceGuard(source?: string): string {
   if (!source) return ""
-  // Pre-check: source dir exists? If not, run suggestion pipeline and exit 0.
-  const s = sq(source)
-  return (srcVar + "=" + s + "; " +
-    "if [ -n "$" + srcVar + "" ] && [ ! -d "/docs/$" + srcVar + "" ]; then " +
-    "sg=$(" + SUGGEST_SOURCE + "); " +
-    "if [ -n "$sg" ]; then echo "$sg"; exit 0; fi; " +
-    "fi; true; ")
-}
+  return "SRC='" + sq(source) + "'; " + SOURCE_GUARD_SH
 }
 
 async function ssh(command: string): Promise<string> {

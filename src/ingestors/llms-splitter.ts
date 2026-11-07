@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 /**
  * Splits an llms-full.txt file into per-page [path, content] entries.
  *
@@ -135,8 +136,11 @@ function duplicateName(
  * Vercel format: pages separated by long-dash lines (80 dashes),
  * with title/source metadata between separators, then content after.
  */
-/** `# Title` immediately followed by `Source: <url>` (Mintlify llms-full). */
-const SOURCE_LINE_PAIR = /^# (.+)\nSource: (https?:\/\/\S+)[ \t]*$/m;
+/**
+ * `# Title` then `Source: <url>` on the next line (Mintlify llms-full) or
+ * after one blank line (docs.openwebui.com).
+ */
+const SOURCE_LINE_PAIR = /^# (.+)\n(?:[ \t]*\n)?Source: (https?:\/\/\S+)[ \t]*$/m;
 const SOURCE_LINE_PAIR_G = new RegExp(SOURCE_LINE_PAIR.source, "gm");
 
 /** Page path from its public URL: relative to baseUrl, else the URL path. */
@@ -153,6 +157,12 @@ function urlToPagePath(url: string, baseUrl: string): string {
   }
   filePath = filePath.replace(/[?#].*$/, "").replace(/^\/+/, "").replace(/\/$/, "");
   if (!filePath) filePath = "index";
+  // Filesystems cap a name at 255 bytes; some Mintlify URLs carry longer
+  // slugs (open-webui). Cut such a segment and keep it unique with a hash.
+  filePath = filePath
+    .split("/")
+    .map((seg) => (Buffer.byteLength(seg) > 200 ? `${seg.slice(0, 180)}-${createHash("sha1").update(seg).digest("hex").slice(0, 8)}` : seg))
+    .join("/");
   if (!filePath.endsWith(".md")) filePath += ".md";
   return filePath;
 }
@@ -307,8 +317,18 @@ export function splitFrontmatterStyle(
       ? fmPositions[idx + 1].start
       : content.length;
 
-    const pageContent = content.slice(contentStart, contentEnd).trim();
+    let pageContent = content.slice(contentStart, contentEnd).trim();
     const title = fmPositions[idx].title;
+    // Anthropic's dump puts a `## <title>` line before each frontmatter
+    // block: drop it from the previous page's tail.
+    const nextTitle = fmPositions[idx + 1]?.title;
+    if (nextTitle) {
+      const tail = `## ${nextTitle}`;
+      if (pageContent.endsWith(tail)) pageContent = pageContent.slice(0, -tail.length).trimEnd();
+    }
+    // Pages without their own H1 get the frontmatter title, so the index
+    // has a real title row.
+    if (pageContent && title && !/^# /.test(pageContent)) pageContent = `# ${title}\n\n${pageContent}`;
 
     if (!pageContent || !title) continue;
 

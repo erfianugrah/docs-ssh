@@ -140,75 +140,14 @@ export function suggestSource(
 }
 
 /**
- * Shell fragment that checks whether a source dir exists under /docs and,
- * when it does NOT, prints `[unknown source "<name>" - did you mean: ...]`
- * to stderr and returns the empty-string source guard for the pipeline.
- *
- * Usage in an SSH command:
- * ```
- * SRC="lidarr"; sg=$(sourceSuggestShell "$SRC"); if [ -n "$sg" ]; then echo "$sg"; exit 0; fi
- * ```
- *
- * The fragment is a single `ls /docs | awk ...` pipeline - cheap, single
- * subprocess, no temporary files. It implements the same prefix / suffix /
- * hyphen-segment / substring rules as suggestSource() (no DL distance,
- * which would be a second heavyweight awk). Aliases are an optional extra
- * table passed as a `case` before the awk.
- *
- * @param srcVar - shell variable name holding the source to check
- * @param aliasArgs - optional shell case-alias arm, e.g.
- *   `'lidarr) echo "servarr" ;;'`
- * @returns shell pipeline string
+ * Shell fragment for the SSH tool templates (and the dotfiles docs-core.ts
+ * port): with SRC set to the requested source, prints
+ * `[unknown source "X" - did you mean: a, b]` and exits 0 when /docs/X is
+ * missing and some source dir name starts with, ends with, or overlaps X
+ * (prefix > suffix > substring, alphabetical within a rank, at most 6).
+ * Otherwise falls through to the real command. Busybox ls/sed/awk/sort
+ * only. The MCP service uses suggestSource() instead (adds edit distance).
  */
-export function buildSourceCheckShell(
-  srcVar = "SRC",
-  aliasCase = "",
-): string {
-  // The awk script: for each source dir name, score by match type and
-  // collect. After END, sort by score (lower is better), cap at 6, print.
-  // Match type scores: prefix=1, suffix=2, hyphen-seg=3, substring=4.
-  // No match = no output row.
-  const awkScript = `
-function lower(x) { return tolower(x) }
-function hyphens(a, b,  i, j) {
-  # a and b are the hyphen-split arrays; do any segments match?
-  for (i=1; i<=split(a,x,"-"); i++)
-    for (j=1; j<=split(b,y,"-"); j++)
-      if (x[i]==y[j] && x[i]!="") return 1
-  return 0
-}
-{
-  name=$0; l=lower(name)
-  if (l==s) next
-  # 1: prefix
-  if (index(l,s)==1)  { score[++n]=1; cand[n]=name; next }
-  # 2: suffix
-  if (match(l, s"$")) { score[++n]=2; cand[n]=name; next }
-  # 3: hyphen-segment
-  if (hyphens(l,s))   { score[++n]=3; cand[n]=name; next }
-  # 4: substring (either direction)
-  if (index(l,s) || index(s,l)) { score[++n]=4; cand[n]=name; next }
-}
-END {
-  if (!n) exit 0
-  for (i=1; i<=n; i++) {
-    for (j=i+1; j<=n; j++) {
-      if (score[j]<score[i] || (score[j]==score[i] && cand[j]<cand[i])) {
-        ts=score[i]; tc=cand[i]; score[i]=score[j]; cand[i]=cand[j]; score[j]=ts; cand[j]=tc
-      }
-    }
-  }
-  lim=n>6?6:n
-  printf "[unknown source \"%s\" - did you mean:", src
-  for (i=1; i<=lim; i++) printf " %s%s", cand[i], i<lim?"," : "]"
-  printf "\\n"
-}`;
-
-  let check = `ls /docs | awk -v s="$(printf '%s' "$SRC" | tr '[:upper:]' '[:lower:]')" -v src="$SRC" '${awkScript.replace(/\n/g, " ").replace(/'/g, "'\\''")}'`;
-
-  if (aliasCase) {
-    check = `case "$SRC" in ${aliasCase} ;; *) ${check} ;; esac`;
-  }
-
-  return check;
+export function sourceGuardShell(): string {
+  return String.raw`if [ ! -d "/docs/$SRC" ]; then sg=$(ls -p /docs | sed -n 's#/$##p' | awk -v s="$SRC" 'BEGIN{s=tolower(s)} {l=tolower($0); r=0; if(index(l,s)==1)r=1; else if(length(l)>length(s)&&substr(l,length(l)-length(s)+1)==s)r=2; else if(index(l,s)||index(s,l))r=3; if(r)print r" "$0}' | sort -k1,1n -k2,2 | head -6 | awk '{printf "%s%s",(NR>1?", ":""),$2}'); if [ -n "$sg" ]; then echo "[unknown source \"$SRC\" - did you mean: $sg]"; exit 0; fi; fi; `;
 }
