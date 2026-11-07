@@ -5281,7 +5281,10 @@ export const SOURCES: readonly DocSource[] = [
     url: "https://docs.platformio.org/en/latest/",
     format: "html",
     discovery: "toc",
-    discoveryUrl: "https://docs.platformio.org/en/latest/",
+    // Only pages matching urlPattern are crawled deeper, so the nrf52
+    // boards (linked from platforms/nordicnrf52.html, reached from the
+    // root via platforms/index.html) need their platform page as a seed.
+    discoveryUrl: "https://docs.platformio.org/en/latest/ https://docs.platformio.org/en/latest/platforms/nordicnrf52.html",
     tocDepth: 3,
     urlPattern: "docs\\.platformio\\.org/en/latest/(core/|projectconf/|platforms/(ststm32|nordicnrf52)\\.html|boards/nordicnrf52/)",
     urlExclude: "(genindex|search)\\.html",

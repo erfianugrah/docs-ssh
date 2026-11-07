@@ -2,12 +2,24 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 import { convertRstTree, type ConvertedFile } from "../../../src/ingestors/rst-converter.js";
+
+// The converter shells out to python3 + docutils; skip where absent.
+const hasDocutils = (() => {
+  try {
+    execFileSync("python3", ["-c", "import docutils"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 let root: string;
 let byPath: Record<string, string>;
 
 beforeAll(async () => {
+  if (!hasDocutils) return;
   root = fs.mkdtempSync(path.join(os.tmpdir(), "rst-test-"));
 
   // ── index.rst - document title, headings, inline markup ──────────
@@ -134,7 +146,7 @@ afterAll(() => {
   if (root) fs.rmSync(root, { recursive: true, force: true });
 });
 
-describe("rst-converter", () => {
+describe.skipIf(!hasDocutils)("rst-converter", () => {
   it("converts all .rst files", () => {
     expect(Object.keys(byPath).sort()).toEqual([
       "api/index.md",

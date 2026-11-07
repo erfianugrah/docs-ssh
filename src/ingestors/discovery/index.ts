@@ -30,8 +30,9 @@ export async function discover(source: DocSource): Promise<string[]> {
     case "toc": {
       // Space-separated toc pages are crawled one after another (pyvista).
       const found = new Set<string>();
+      const expand = source.urlPattern ? new RegExp(source.urlPattern) : undefined;
       for (const tocUrl of discoveryUrl.split(/\s+/).filter(Boolean)) {
-        for (const u of await discoverFromToc(tocUrl, baseUrl, source.tocDepth)) found.add(u);
+        for (const u of await discoverFromToc(tocUrl, baseUrl, source.tocDepth, expand)) found.add(u);
       }
       return [...found];
     }

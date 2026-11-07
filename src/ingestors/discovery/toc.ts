@@ -28,7 +28,13 @@ export function extractLinks(html: string, pageUrl: string): string[] {
   return urls;
 }
 
-export async function discoverFromToc(tocUrl: string, baseUrl: string, depth = 1): Promise<string[]> {
+/**
+ * Breadth-first crawl of a toc page up to `depth` levels. With `expand`,
+ * only matching pages are crawled further (every link found is still
+ * returned): a deep crawl of one corner of a big site (platformio) then
+ * stops fetching the whole sidebar at each level.
+ */
+export async function discoverFromToc(tocUrl: string, baseUrl: string, depth = 1, expand?: RegExp): Promise<string[]> {
   const found = new Set<string>();
   const visited = new Set<string>();
   let frontier = [tocUrl];
@@ -48,7 +54,7 @@ export async function discoverFromToc(tocUrl: string, baseUrl: string, depth = 1
       for (const u of extractLinks(html, page)) {
         if (!u.startsWith(baseUrl) || found.has(u)) continue;
         found.add(u);
-        next.push(u);
+        if (!expand || expand.test(u)) next.push(u);
       }
     }
     frontier = next;
