@@ -54,10 +54,20 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   jlcpcb: 120,
   libhmk: 2,
   "libhmk-src": 12,
+  // Renamed from jellyseerr; no prior floor entry.
+  seerr: 26,
   // -- batch w23-auspex (2026-11-07; insert this batch's entries below) --
   // -- end batch w23-auspex --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --
+  "claude-code": 140,
+  frigate: 50,
+  "jellyfin-api": 28,
+  vector: 320,
+  qmk: 120,
+  "pid-codes": 600,
+  ghidra: 120,
+  "discord-api": 110,
   // -- end batch w24-batch1 --
 
   // -- batch w25-win32 (2026-11-07; insert this batch's entries below) --
@@ -89,6 +99,7 @@ export const API_OVERVIEW_SOURCES: readonly string[] = [
   "authentik-api",
   "keycloak-api",
   "openaq-api",
+  "jellyfin-api",
 ];
 
 /**

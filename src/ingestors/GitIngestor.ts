@@ -25,7 +25,7 @@ const TXT_EXTENSIONS = new Set(["txt", "h", "py", "cpp"]);
 // html-format git sources (nuvoton-m480-bsp): checked-in Doxygen HTML
 // trees, walked as .html and converted by HtmlNormaliser in pass 1 (which
 // also rewrites the path suffix .html -> .md).
-const HTML_EXTENSIONS = new Set(["html"]);
+const HTML_EXTENSIONS = new Set(["html", "htm"]);
 const OPENAPI_FILENAMES = new Set(["openapi.yaml", "openapi.json", "swagger.yaml", "swagger.json"]);
 
 /**
