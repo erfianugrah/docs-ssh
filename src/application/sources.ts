@@ -5137,4 +5137,26 @@ export const SOURCES: readonly DocSource[] = [
     tags: ["hardware", "pcb"],
     description: "libhmk headers (command protocol, keycodes) + keyboard.json schema",
   }),
+
+  // -- batch w23-auspex (2026-11-07; insert this batch's entries below) --
+  // -- end batch w23-auspex --
+
+  // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --
+  // -- end batch w24-batch1 --
+
+  // -- batch w25-win32 (2026-11-07; insert this batch's entries below) --
+  // -- end batch w25-win32 --
+
+  // -- batch w26-batch2 (2026-11-07; insert this batch's entries below) --
+  // -- end batch w26-batch2 --
+
+  // -- batch w27-svd (2026-11-07; insert this batch's entries below) --
+  // -- end batch w27-svd --
+
+  // -- batch w28-pdf (2026-11-07; insert this batch's entries below) --
+  // -- end batch w28-pdf --
+
+  // -- batch w17-rst (2026-11-07; insert this batch's entries below) --
+  // -- end batch w17-rst --
+
 ];
