@@ -427,7 +427,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   bazarr: ["media"],
   jellyfin: ["media"],
   overseerr: ["media"],
-  jellyseerr: ["media"],
+  seerr: ["media"],
   qbittorrent: ["media"],
   sabnzbd: ["media"],
   slskd: ["media"],
@@ -488,6 +488,14 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   // -- end batch w23-auspex --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --
+  "claude-code": ["cli-tools"],
+  frigate: ["media", "smarthome"],
+  "jellyfin-api": ["api-specs", "media"],
+  vector: ["infrastructure", "monitoring"],
+  qmk: ["hardware"],
+  "pid-codes": ["hardware"],
+  ghidra: ["security"],
+  "discord-api": ["apis", "api-specs"],
   // -- end batch w24-batch1 --
 
   // -- batch w25-win32 (2026-11-07; insert this batch's entries below) --

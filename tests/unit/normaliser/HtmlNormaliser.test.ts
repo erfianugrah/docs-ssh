@@ -10,6 +10,10 @@ describe("HtmlNormaliser", () => {
     expect(normaliser.supports(new DocFile("foo.html", ""))).toBe(true);
   });
 
+  it("supports .htm files", () => {
+    expect(normaliser.supports(new DocFile("foo.htm", ""))).toBe(true);
+  });
+
   it("does not support .md files", () => {
     expect(normaliser.supports(new DocFile("foo.md", ""))).toBe(false);
   });
@@ -37,6 +41,12 @@ describe("HtmlNormaliser", () => {
     const file = new DocFile("reference/indexes.html", "<h1>Indexes</h1>");
     const result = await normaliser.normalise(file);
     expect(result.path).toBe("reference/indexes.md");
+  });
+
+  it("changes extension from .htm to .md", async () => {
+    const file = new DocFile("help/topic.htm", "<h1>Topic</h1>");
+    const result = await normaliser.normalise(file);
+    expect(result.path).toBe("help/topic.md");
   });
 
   it("strips nav and script elements", async () => {

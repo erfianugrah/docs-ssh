@@ -3866,13 +3866,14 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs",
   }),
 
-  // ─── Jellyseerr ────────────────────────────────────────────────
+  // ─── Seerr ────────────────────────────────────────────────
 
-  // Jellyfin/Emby-native Overseerr fork; in-tree docs/ mixes .mdx + .md.
+  // Jellyfin/Emby-native Overseerr fork (renamed from jellyseerr in 2025);
+  // in-tree docs/ mixes .mdx + .md.
   new DocSource({
-    name: "jellyseerr",
+    name: "seerr",
     type: "git",
-    url: "https://github.com/fallenbagel/jellyseerr",
+    url: "https://github.com/seerr-team/seerr",
     format: "mdx",
     paths: ["docs"],
     rootPath: "docs",
@@ -5142,6 +5143,125 @@ export const SOURCES: readonly DocSource[] = [
   // -- end batch w23-auspex --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --
+
+  // ─── Claude Code ──────────────────────────────────────────────────
+
+  // Mintlify llms-full.txt with `# Title` + `Source:` per page (~231
+  // pages), split by splitSourceLineStyle.
+  new DocSource({
+    name: "claude-code",
+    type: "http",
+    url: "https://code.claude.com/docs/en",
+    format: "markdown",
+    discovery: "llms-full",
+    discoveryUrl: "https://code.claude.com/docs/llms-full.txt",
+  }),
+
+  // ─── Frigate ──────────────────────────────────────────────────
+
+  // Docusaurus md docs from the main frigate repo.
+  new DocSource({
+    name: "frigate",
+    type: "git",
+    url: "https://github.com/blakeblackshear/frigate",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs/docs",
+  }),
+
+  // ─── Jellyfin API ─────────────────────────────────────────────
+
+  // OpenAPI 3.0 JSON, auto-generated from the Jellyfin server.
+  new DocSource({
+    name: "jellyfin-api",
+    type: "http",
+    url: "https://api.jellyfin.org/",
+    format: "openapi",
+    discovery: "openapi",
+    discoveryUrl:
+      "https://api.jellyfin.org/openapi/jellyfin-openapi-stable.json",
+  }),
+
+  // ─── Vector ──────────────────────────────────────────────────
+
+  // Hugo md docs from the vectordotdev/vector repo. Note: ~250 of
+  // ~540 files are auto-generated component reference shells
+  // (reference/configuration/{sources,sinks,transforms}/*.md) that
+  // carry only frontmatter + CUE shortcodes; the remaining ~290
+  // guides/architecture/reference pages have real content.
+  new DocSource({
+    name: "vector",
+    type: "git",
+    url: "https://github.com/vectordotdev/vector",
+    format: "markdown",
+    paths: ["website"],
+    rootPath: "website/content/en/docs",
+  }),
+
+  // ─── QMK ─────────────────────────────────────────────────────
+
+  // QMK Firmware docs/ directory (md, some with frontmatter).
+  new DocSource({
+    name: "qmk",
+    type: "git",
+    url: "https://github.com/qmk/qmk_firmware",
+    format: "markdown",
+    paths: ["docs"],
+    rootPath: "docs",
+  }),
+
+  // ─── PID Codes ───────────────────────────────────────────────
+
+  // Jekyll md; keep the per-PID pages under 1209/, drop site chrome.
+  new DocSource({
+    name: "pid-codes",
+    type: "git",
+    url: "https://github.com/pidcodes/pidcodes.github.com",
+    format: "markdown",
+    paths: ["1209"],
+    rootPath: "1209",
+  }),
+
+  // ─── Ghidra ──────────────────────────────────────────────────
+
+  // JavaHelp topics as checked-in .htm (Doxygen-style, ~137 files).
+  // GhidraDocs md also included for the few human-written .md pages.
+  new DocSource({
+    name: "ghidra",
+    type: "git",
+    url: "https://github.com/NationalSecurityAgency/ghidra",
+    format: "html",
+    paths: [
+      "GhidraDocs",
+      "Ghidra/Features/Base/src/main/help/help/topics",
+      "Ghidra/Features/BytePatterns/src/main/help/help/topics",
+      "Ghidra/Features/ByteViewer/src/main/help/help/topics",
+      "Ghidra/Features/Decompiler/src/main/help/help/topics",
+      "Ghidra/Features/FunctionGraph/src/main/help/help/topics",
+      "Ghidra/Features/GhidraGo/src/main/help/help/topics",
+      "Ghidra/Features/GraphFunctionCalls/src/main/help/help/topics",
+      "Ghidra/Features/GraphServices/src/main/help/help/topics",
+      "Ghidra/Features/PDB/src/main/help/help/topics",
+      "Ghidra/Features/ProgramDiff/src/main/help/help/topics",
+      "Ghidra/Features/Sarif/src/main/help/help/topics",
+      "Ghidra/Features/VersionTracking/src/main/help/help/topics",
+    ],
+    rootPath: "GhidraDocs",
+  }),
+
+  // ─── Discord API ─────────────────────────────────────────────
+
+  // Mintlify MDX docs from the discord-api-docs repo; content
+  // lives under developers/, not docs/.
+  new DocSource({
+    name: "discord-api",
+    type: "git",
+    url: "https://github.com/discord/discord-api-docs",
+    format: "mdx",
+    paths: ["developers"],
+    rootPath: "developers",
+  }),
+
   // -- end batch w24-batch1 --
 
   // -- batch w25-win32 (2026-11-07; insert this batch's entries below) --

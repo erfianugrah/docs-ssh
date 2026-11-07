@@ -49,7 +49,7 @@ export class HtmlNormaliser implements DocNormaliser {
   }
 
   supports(file: DocFile): boolean {
-    return file.extension === "html";
+    return file.extension === "html" || file.extension === "htm";
   }
 
   supportsFormat(format: DocFormat): boolean {
@@ -134,7 +134,7 @@ export class HtmlNormaliser implements DocNormaliser {
       return null;
     }
 
-    const newPath = file.path.replace(/\.html$/, ".md");
+    const newPath = file.path.replace(/\.html?$/, ".md");
     return file.withContent(markdown).withPath(newPath);
   }
 }
