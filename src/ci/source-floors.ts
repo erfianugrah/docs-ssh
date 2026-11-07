@@ -71,6 +71,10 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   // -- end batch w24-batch1 --
 
   // -- batch w25-win32 (2026-11-07; insert this batch's entries below) --
+  "win32-api": 1500,
+  "win32-docs": 350,
+  "windows-drivers": 470,
+  "windows-ddi": 125,
   // -- end batch w25-win32 --
 
   // -- batch w26-batch2 (2026-11-07; insert this batch's entries below) --

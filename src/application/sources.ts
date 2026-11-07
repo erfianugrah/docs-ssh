@@ -5265,6 +5265,97 @@ export const SOURCES: readonly DocSource[] = [
   // -- end batch w24-batch1 --
 
   // -- batch w25-win32 (2026-11-07; insert this batch's entries below) --
+
+  // Win32 API reference: device installation (setupapi/cfgmgr32), Core Audio
+  // (WASAPI/endpoint/session/topology), WinUSB, registry, services, PDH
+  // performance counters, system info, process threads, power management,
+  // device notifications, and winuser (display config + windowing + raw input).
+  // HID user-mode functions (HidD_*/HidP_*) are NOT in this repo - they live
+  // in windows-driver-docs-ddi (WDK DDI set, callable from user mode).
+  // Subset of sdk-api-src/content/ - the full repo has 53,900 files.
+  new DocSource({
+    name: "win32-api",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/sdk-api",
+    format: "markdown",
+    paths: [
+      "sdk-api-src/content/setupapi",
+      "sdk-api-src/content/cfgmgr32",
+      "sdk-api-src/content/winusb",
+      "sdk-api-src/content/winusbio",
+      "sdk-api-src/content/winreg",
+      "sdk-api-src/content/winsvc",
+      "sdk-api-src/content/pdh",
+      "sdk-api-src/content/audioclient",
+      "sdk-api-src/content/audiopolicy",
+      "sdk-api-src/content/mmdeviceapi",
+      "sdk-api-src/content/endpointvolume",
+      "sdk-api-src/content/audiosessiontypes",
+      "sdk-api-src/content/devicetopology",
+      "sdk-api-src/content/sysinfoapi",
+      "sdk-api-src/content/processthreadsapi",
+      "sdk-api-src/content/winternl",
+      "sdk-api-src/content/powerbase",
+      "sdk-api-src/content/powersetting",
+      "sdk-api-src/content/dbt",
+      "sdk-api-src/content/winuser",
+    ],
+    rootPath: "sdk-api-src/content",
+  }),
+
+  // Win32 conceptual docs: WASAPI architecture, service control manager,
+  // system information (registry, handles, time), performance counters
+  // design guide, HID concepts, raw input, and device I/O.
+  new DocSource({
+    name: "win32-docs",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/win32",
+    format: "markdown",
+    paths: [
+      "desktop-src/CoreAudio",
+      "desktop-src/Services",
+      "desktop-src/SysInfo",
+      "desktop-src/PerfCtrs",
+      "desktop-src/hidpi",
+      "desktop-src/inputdev",
+      "desktop-src/DevIO",
+    ],
+    rootPath: "desktop-src",
+  }),
+
+  // Windows driver docs: WDM audio architecture (miniport, port class,
+  // APO, USB/Bluetooth audio) and HID transport, minidrivers, collections.
+  new DocSource({
+    name: "windows-drivers",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/windows-driver-docs",
+    format: "markdown",
+    paths: [
+      "windows-driver-docs-pr/audio",
+      "windows-driver-docs-pr/hid",
+    ],
+    rootPath: "windows-driver-docs-pr",
+  }),
+
+  // Windows Driver DDI reference: HID function refs (HidD_*, HidP_*),
+  // HID class driver IOCTLs, HID miniport interfaces, and ACX audio
+  // class extensions. Fills the sdk-api gap - HidD_*/HidP_* pages are
+  // WDK DDI, not Win32 SDK, but callable from user mode via hidsdi.h.
+  new DocSource({
+    name: "windows-ddi",
+    type: "git",
+    url: "https://github.com/MicrosoftDocs/windows-driver-docs-ddi",
+    format: "markdown",
+    paths: [
+      "wdk-ddi-src/content/hidsdi",
+      "wdk-ddi-src/content/hidpi",
+      "wdk-ddi-src/content/hidclass",
+      "wdk-ddi-src/content/hidport",
+      "wdk-ddi-src/content/acxelements",
+    ],
+    rootPath: "wdk-ddi-src/content",
+  }),
+
   // -- end batch w25-win32 --
 
   // -- batch w26-batch2 (2026-11-07; insert this batch's entries below) --
