@@ -39,6 +39,7 @@
   "dependencies": {
     "@asciidoctor/core": "^4.1.1",
     "@modelcontextprotocol/sdk": "^1.32.2",
+    "fast-xml-parser": "^5.12.0",
     "fflate": "^0.8.3",
     "js-yaml": "^4.3.2",
     "turndown": "^7.2.4",

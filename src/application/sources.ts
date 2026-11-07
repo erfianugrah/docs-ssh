@@ -5636,6 +5636,46 @@ export const SOURCES: readonly DocSource[] = [
   // -- end batch w26-batch2 --
 
   // -- batch w27-svd (2026-11-07; insert this batch's entries below) --
+
+  // CMSIS-SVD register maps, converted to per-peripheral markdown by
+  // svd-converter.ts (one .svd → index.md + one page per peripheral).
+  // `format: "svd"` tells GitIngestor to walk the checked-out `.svd`
+  // file(s) through the converter; `paths` is a single .svd file (cone
+  // sparse-checkout handles lone files) or a directory of them.
+
+  // Nordic nRF52840 register map (BSD-3-Clause, licenseText in the SVD).
+  new DocSource({
+    name: "nordic-nrf52840",
+    type: "git",
+    url: "https://github.com/NordicSemiconductor/nrfx",
+    format: "svd",
+    paths: ["bsp/stable/mdk/nrf52/nrf52840/nrf52840.svd"],
+    tags: ["hardware"],
+    description: "Nordic nRF52840 CMSIS-SVD register map (peripheral, register and field descriptions)",
+  }),
+
+  // Nordic nRF52820 register map (BSD-3-Clause).
+  new DocSource({
+    name: "nordic-nrf52820",
+    type: "git",
+    url: "https://github.com/NordicSemiconductor/nrfx",
+    format: "svd",
+    paths: ["bsp/stable/mdk/nrf52/nrf52820/nrf52820.svd"],
+    tags: ["hardware"],
+    description: "Nordic nRF52820 CMSIS-SVD register map (peripheral, register and field descriptions)",
+  }),
+
+  // Artery AT32F405 register map (BSD-3-Clause, repo license).
+  new DocSource({
+    name: "artery-at32f405",
+    type: "git",
+    url: "https://github.com/ArteryTek/at32f402_405_firmware_library",
+    format: "svd",
+    paths: ["project/at_start_f405/templates/at32_ide/SVD/AT32F405xx_v2.svd"],
+    tags: ["hardware"],
+    description: "Artery AT32F405 CMSIS-SVD register map",
+  }),
+
   // -- end batch w27-svd --
 
   // -- batch w28-pdf (2026-11-07; insert this batch's entries below) --

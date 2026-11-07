@@ -530,6 +530,9 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   // -- end batch w26-batch2 --
 
   // -- batch w27-svd (2026-11-07; insert this batch's entries below) --
+  "nordic-nrf52840": ["hardware"],
+  "nordic-nrf52820": ["hardware"],
+  "artery-at32f405": ["hardware"],
   // -- end batch w27-svd --
 
   // -- batch w28-pdf (2026-11-07; insert this batch's entries below) --

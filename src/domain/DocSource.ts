@@ -1,4 +1,4 @@
-export type DocFormat = "markdown" | "mdx" | "html" | "openapi" | "godoc" | "adoc" | "txt";
+export type DocFormat = "markdown" | "mdx" | "html" | "openapi" | "godoc" | "adoc" | "txt" | "svd";
 export type DocSourceType = "git" | "http" | "rsync";
 
 /**
