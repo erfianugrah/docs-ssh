@@ -5157,6 +5157,46 @@ export const SOURCES: readonly DocSource[] = [
   // -- end batch w28-pdf --
 
   // -- batch w17-rst (2026-11-07; insert this batch's entries below) --
+  new DocSource({
+    name: "suricata",
+    type: "git",
+    format: "rst",
+    url: "https://github.com/OISF/suricata.git",
+    paths: ["doc/userguide"],
+    rootPath: "doc/userguide",
+    tags: ["firewall", "networking"],
+    description: "Suricata IDS/IPS user guide - rules, configuration, Lua scripting, performance",
+  }),
+  new DocSource({
+    name: "mpv",
+    type: "git",
+    format: "rst",
+    url: "https://github.com/mpv-player/mpv.git",
+    paths: ["DOCS/man"],
+    rootPath: "DOCS/man",
+    tags: ["cli-tools"],
+    description: "mpv media player manual - options, input.conf, Lua/JavaScript/IPC scripting",
+  }),
+  new DocSource({
+    name: "faultier-python",
+    type: "git",
+    format: "rst",
+    url: "https://github.com/hextreeio/faultier-python.git",
+    paths: ["docs"],
+    rootPath: "docs",
+    tags: ["hardware", "security"],
+    description: "Faultier fault-injection tool Python API and CLI documentation",
+  }),
+  new DocSource({
+    name: "greatfet",
+    type: "git",
+    format: "rst",
+    url: "https://github.com/greatscottgadgets/greatfet.git",
+    paths: ["docs/source"],
+    rootPath: "docs/source",
+    tags: ["hardware", "security"],
+    description: "GreatFET USB hardware hacking tool - board naming, APIs, logic analyser, I2C",
+  }),
   // -- end batch w17-rst --
 
 ];

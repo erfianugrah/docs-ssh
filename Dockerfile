@@ -4,7 +4,7 @@ FROM node:22-alpine AS fetcher
 # python3 + jinja2 back the TRaSH-Guides converter's full-Jinja renderer
 # (see src/ingestors/jinja-render.py) - no JS template engine handles the
 # Python object semantics those templates use.
-RUN apk add --no-cache git curl rsync python3 py3-jinja2
+RUN apk add --no-cache git curl rsync python3 py3-jinja2 py3-docutils
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

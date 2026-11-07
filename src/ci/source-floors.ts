@@ -73,6 +73,10 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   // -- end batch w28-pdf --
 
   // -- batch w17-rst (2026-11-07; insert this batch's entries below) --
+  suricata: 150,          // ~230 RST files (probe: 361 with _static etc.)
+  mpv: 11,                 // 20 man-page RST files
+  "faultier-python": 5,   // 7 docs/*.rst
+  greatfet: 10,            // 17 .rst files
   // -- end batch w17-rst --
 
 };

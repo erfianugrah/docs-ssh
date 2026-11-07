@@ -173,7 +173,7 @@ jobs:
 
       - name: Install Jinja2 package
         if: steps.plan.outputs.fetch == 'true'
-        run: pip install jinja2
+        run: pip install jinja2 docutils
 
       # ietf-rfc syncs over rsync (RsyncIngestor); without the binary the
       # source fails with `spawn rsync ENOENT` and drops out of the image.

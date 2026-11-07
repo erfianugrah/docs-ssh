@@ -503,6 +503,10 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   // -- end batch w28-pdf --
 
   // -- batch w17-rst (2026-11-07; insert this batch's entries below) --
+  suricata: ["firewall", "networking"],
+  mpv: ["cli-tools"],
+  "faultier-python": ["hardware", "security"],
+  greatfet: ["hardware", "security"],
   // -- end batch w17-rst --
 
 };
