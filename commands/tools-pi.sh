@@ -196,6 +196,31 @@ function splitOrigin(out: string): { origin: string; rest: string } {
 const ORIGIN_JOIN =
   `| awk -F'\\t' -v OFS='\\t' 'NR==FNR{o[$1]=$2;next} {if ($1 in o) print $0, o[$1]; else print}' /docs/_origins.tsv -`
 
+// Shell pipeline: suggest closest source names. Single `ls /docs | awk`,
+// implements prefix / suffix / hyphen-segment / substring matching.
+const SUGGEST_SOURCE = "ls /docs | awk -v s="$(printf '%s' '$SRC' | tr '[:upper:]' '[:lower:]')" -v src='$SRC' '" +
+  "function lower(x){return tolower(x)}" +
+  " function hyphens(a,b){split(a,x,"-");split(b,y,"-");for(i in x)for(j in y)if(x[i]==y[j]&&x[i]!="")return 1;return 0}" +
+  " {l=lower($0);if(l==s)next;if(index(l,s)==1){score[++n]=1;c[n]=$0;next}" +
+  " if(match(l,s"$")){score[++n]=2;c[n]=$0;next}" +
+  " if(hyphens(l,s)){score[++n]=3;c[n]=$0;next}" +
+  " if(index(l,s)||index(s,l)){score[++n]=4;c[n]=$0}" +
+  "}" +
+  " END{if(!n)exit 0" +
+  " for(i=1;i<=n;i++)for(j=i+1;j<=n;j++)if(score[j]<score[i]||(score[j]==score[i]&&c[j]<c[i])){ts=score[i];tc=c[i];score[i]=score[j];c[i]=c[j];score[j]=ts;c[j]=tc}" +
+  " printf "[unknown source \"%s\" - did you mean:",src" +
+  " lim=n>6?6:n;for(i=1;i<=lim;i++)printf" %s%s",c[i],i<lim?",":"]";printf "\n"}'"
+function sourceGuard(source?: string, srcVar = "SRC"): string {
+  if (!source) return ""
+  // Pre-check: source dir exists? If not, run suggestion pipeline and exit 0.
+  const s = sq(source)
+  return (srcVar + "=" + s + "; " +
+    "if [ -n "$" + srcVar + "" ] && [ ! -d "/docs/$" + srcVar + "" ]; then " +
+    "sg=$(" + SUGGEST_SOURCE + "); " +
+    "if [ -n "$sg" ]; then echo "$sg"; exit 0; fi; " +
+    "fi; true; ")
+}
+
 function capOutput(text: string, path?: string): string {
   if (text.length <= MAX_RESULT_CHARS) return text
   let end = MAX_RESULT_CHARS
@@ -339,10 +364,11 @@ const searchTool = defineTool({
   async execute(_id, params) {
     const limit = params.maxResults ?? 15
     const tokens = tokenizeQuery(params.query)
+    const guard = sourceGuard(params.source)
     const filter = params.source ? `| rg '^${sq(params.source)}/'` : ""
     const base = `${rgOrChain(tokens, "/docs/_index.tsv")} ${filter}`
     const raw = await ssh(
-      `if [ -s /docs/_origins.tsv ]; then ${base} ${ORIGIN_JOIN}; else ${base}; fi`,
+      `${guard}if [ -s /docs/_origins.tsv ]; then ${base} ${ORIGIN_JOIN}; else ${base}; fi`,
     )
     const lines = raw.split("\n").filter(Boolean)
     if (lines.length === 0) {
@@ -450,6 +476,7 @@ const findTool = defineTool({
   }),
 
   async execute(_id, params) {
+    const guard = sourceGuard(params.source)
     let dir: string
     try {
       dir = params.source ? safePath(`/docs/${sq(params.source)}/`) : "/docs/"
@@ -457,7 +484,7 @@ const findTool = defineTool({
       return errorResult((e as Error).message)
     }
     const limit = params.maxResults ?? 30
-    const result = await ssh(`find '${dir}' -iname '${sq(params.pattern)}' -type f | head -${limit}`)
+    const result = await ssh(`${guard}find '${dir}' -iname '${sq(params.pattern)}' -type f | head -${limit}`)
     return {
       content: [{ type: "text", text: result }],
       details: { pattern: params.pattern, source: params.source },

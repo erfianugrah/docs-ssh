@@ -15,6 +15,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { suggestSource } from "../shared/source-suggest.js";
 
 export const MAX_RESULT_CHARS = 51_200;
 
@@ -320,6 +321,46 @@ export class DocsService {
   summary(p: SummaryParams): Promise<string> {
     return this.cached("summary", p, () => this.summaryImpl(p));
   }
+
+  // --- Source-name suggestions ---
+
+  /** Lazily-loaded list of source directory names under the docs root. */
+  private _sourceNames: string[] | null = null;
+  private async sourceNames(): Promise<string[]> {
+    if (this._sourceNames) return this._sourceNames;
+    // Derive from _index.tsv (one row per file, path starts with <source>/) -
+    // cheaper than a full `ls` that hits the filesystem for every dir.
+    const raw = await this.exec(
+      `if [ -s '${sq(this.root)}/_index.tsv' ]; then ` +
+        `awk -F'\\t' '{n=split($1,a,"/"); if(n>1 && a[1]~/^[a-z0-9][a-z0-9._-]*$/) print a[1]}' '${sq(this.root)}/_index.tsv' | sort -u; ` +
+        `else ls '${sq(this.root)}' 2>/dev/null; fi`,
+    );
+    this._sourceNames = raw.split("\n").filter(Boolean);
+    return this._sourceNames;
+  }
+
+  /**
+   * When `source` is a non-empty string that does NOT match a real source
+   * dir, return a "did you mean" suggestion string. Returns null otherwise.
+   */
+  private async sourceGuard(source: string): Promise<string | null> {
+    const names = await this.sourceNames();
+    // Exact match (case-insensitive) - source exists, no suggestion needed.
+    if (names.some((n) => n.toLowerCase() === source.toLowerCase())) return null;
+    const suggestions = suggestSource(source, names);
+    if (suggestions.length === 0) return null;
+    return `[unknown source "${source}" - did you mean: ${suggestions.join(", ")}]`;
+  }
+
+  /**
+   * Extract the source name from a /docs/<source>/... path.
+   * Returns null for the bare /docs/ root or malformed paths.
+   */
+  private sourceFromPath(p: string): string | null {
+    const rel = p.slice(this.root.length);
+    const m = rel.match(/^\/([a-zA-Z0-9][a-zA-Z0-9._-]*)\//);
+    return m ? m[1] : null;
+  }
   sources(p: SourcesParams): Promise<string> {
     return this.cached("sources", p, () => this.sourcesImpl(p));
   }
@@ -412,6 +453,13 @@ export class DocsService {
   private async searchImpl(params: SearchParams): Promise<string> {
     const limit = params.maxResults ?? 15;
     const tokens = tokenizeQuery(params.query);
+
+    // Guard: unknown source → suggestion
+    if (params.source) {
+      const guard = await this.sourceGuard(params.source);
+      if (guard) return guard;
+    }
+
     const filter = params.source ? `| rg '^${sq(params.source)}/'` : "";
     const base = `${rgOrChain(tokens, `${this.root}/_index.tsv`)} ${filter}`;
     const raw = await this.exec(
@@ -449,6 +497,14 @@ export class DocsService {
   private async readImpl(params: ReadParams): Promise<string> {
     const argPath = this.resolvePath(params);
     const p = this.safePath(argPath);
+
+    // Guard: unknown source in path → suggestion
+    const src = this.sourceFromPath(p);
+    if (src) {
+      const guard = await this.sourceGuard(src);
+      if (guard) return guard;
+    }
+
     let cmd: string;
 
     if (params.offset) {
@@ -474,6 +530,11 @@ export class DocsService {
   }
 
   private async findImpl(params: FindParams): Promise<string> {
+    // Guard: unknown source → suggestion
+    if (params.source) {
+      const guard = await this.sourceGuard(params.source);
+      if (guard) return guard;
+    }
     const dir = params.source
       ? this.safePath(`/docs/${sq(params.source)}/`)
       : this.root + "/";
@@ -487,6 +548,13 @@ export class DocsService {
     const ctx = Math.abs(Math.floor(params.context ?? 3));
     const argPath = this.resolvePath(params);
     const p = this.safePath(argPath);
+
+    // Guard: unknown source in path → suggestion
+    const src = this.sourceFromPath(p);
+    if (src) {
+      const guard = await this.sourceGuard(src);
+      if (guard) return guard;
+    }
 
     const [jsonResult, countResult] = await Promise.all([
       this.exec(`rg -i --json -C${ctx} '${sq(params.query)}' '${sq(p)}' | head -500`),
@@ -521,6 +589,14 @@ export class DocsService {
   private async summaryImpl(params: SummaryParams): Promise<string> {
     const argPath = this.resolvePath(params);
     const p = this.safePath(argPath);
+
+    // Guard: unknown source in path → suggestion
+    const src = this.sourceFromPath(p);
+    if (src) {
+      const guard = await this.sourceGuard(src);
+      if (guard) return guard;
+    }
+
     const [headings, lineCount, byteCount] = await Promise.all([
       this.exec(`${this.originLookup(p)}; rg -n '^#' '${sq(p)}'`),
       this.exec(`wc -l < '${sq(p)}'`),

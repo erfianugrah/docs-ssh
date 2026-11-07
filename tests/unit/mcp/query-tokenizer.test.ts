@@ -13,6 +13,10 @@ function stubRunner(stdout = "", exitCode = 0): { runner: Runner; cmds: string[]
   const cmds: string[] = [];
   const runner: Runner = async (command) => {
     cmds.push(command);
+    // Handle source-list lookup (runs before every source-filtered operation)
+    if (command.includes("_index.tsv") && command.includes("sort -u")) {
+      return { stdout: "supabase-etl\nsupabase", stderr: "", exitCode: 0 };
+    }
     return { stdout, stderr: "", exitCode };
   };
   return { runner, cmds };
@@ -125,8 +129,11 @@ describe("DocsService.search multi-word wiring", () => {
     const { runner, cmds } = stubRunner("supabase-etl/x.md\tTitle\tsummary");
     const svc = new DocsService("/docs", runner);
     await svc.search({ query: "etl pipeline replication", source: "supabase-etl" });
-    expect(cmds[0]).toContain("rg -i -e 'etl' -e 'pipeline' -e 'replication' /docs/_index.tsv");
-    expect(cmds[0]).toContain("rg '^supabase-etl/'");
+    // cmds[0] is source-list lookup; find the actual search command
+    const searchCmd = cmds.find((c) => c.includes("rg -i -e 'etl'"))!;
+    expect(searchCmd).toBeDefined();
+    expect(searchCmd).toContain("rg -i -e 'etl' -e 'pipeline' -e 'replication' /docs/_index.tsv");
+    expect(searchCmd).toContain("rg '^supabase-etl/'");
   });
 
   it("ranks multi-token-hit rows first and truncates with a footer", async () => {
