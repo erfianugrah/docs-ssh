@@ -491,6 +491,10 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   // -- end batch w24-batch1 --
 
   // -- batch w25-win32 (2026-11-07; insert this batch's entries below) --
+  "win32-api":       ["windows", "hardware", "apis"],
+  "win32-docs":      ["windows", "hardware", "audio"],
+  "windows-drivers": ["windows", "hardware"],
+  "windows-ddi":     ["windows", "hardware", "apis"],
   // -- end batch w25-win32 --
 
   // -- batch w26-batch2 (2026-11-07; insert this batch's entries below) --
@@ -542,6 +546,7 @@ export const TAG_LABELS: Record<string, string> = {
   email: "Email & services",
   blogs: "Blogs & changelogs",
   "api-specs": "API specs",
+  audio: "Audio & multimedia",
   osint: "OSINT & reconnaissance",
   linux: "Linux distros",
   nix: "Nix & NixOS",
