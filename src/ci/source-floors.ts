@@ -118,6 +118,8 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   // -- end batch w26-batch2 --
 
   // -- batch w27-svd (2026-11-07; insert this batch's entries below) --
+  // athom: Wix sitemap, ~138 product + category + blog-post pages.
+  athom: 90,
   "nordic-nrf52840": 40,
   "nordic-nrf52820": 25,
   "artery-at32f405": 30,
@@ -126,11 +128,11 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   // -- batch w28-pdf (2026-11-07; insert this batch's entries below) --
 
   // CH32FV2x_V3xRM_en.PDF: ~1,000-page RM split into per-section .md.
-  "wch-ch32v30x": 60,
+  "wch-ch32v30x": 130,
   // HUT 1.5 (~200 pages) + HID 1.11 (~100 pages). ~50 sections each.
   "usb-hid-usage-tables": 60,
   // DS (~84 pages) + AN0185 EN + ZH. ~30 sections across all three.
-  "at32f405": 20,
+  "at32f405": 200,    // 307 md from 4 PDFs (2026-11-08)
 
   // -- end batch w28-pdf --
 
