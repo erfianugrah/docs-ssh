@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { execFile } from "node:child_process";
@@ -122,6 +123,12 @@ interface StampData {
    * a configurable threshold.
    */
   fileCount?: number;
+  /**
+   * sourceFingerprint() of the config that produced fileCount. When it
+   * differs on the next fetch, the source was changed on purpose (more
+   * PDFs, a wider urlPattern) and the size guard does not apply.
+   */
+  configHash?: string;
   /**
    * Content-negotiation outcome counts from the previous fetch.
    * Used to detect adoption-rate drift — e.g. an upstream disabling
@@ -437,9 +444,13 @@ export class UpdateDocSets {
       // both ways) is just as suspicious as a >50% shrink — both
       // signal upstream restructuring. Default threshold 0.5 → fail
       // on <50% or >200% of the prior count.
+      const configHash = sourceFingerprint(source);
+      const configChanged = prevStamp?.configHash !== undefined && prevStamp.configHash !== configHash;
+      if (configChanged) console.log(`  [${source.name}] source config changed since last fetch; size guard skipped`);
       if (
         this.regressionThreshold > 0 &&
         !this.opts.regressionExempt?.has(source.name) &&
+        !configChanged &&
         prevStamp?.fileCount &&
         prevStamp.fileCount > 0
       ) {
@@ -476,6 +487,7 @@ export class UpdateDocSets {
 
       const stampData = await this.captureFreshness(source, normalised.version);
       stampData.fileCount = normalised.size;
+      stampData.configHash = configHash;
       if (normalised.negotiation) {
         stampData.negotiation = { ...normalised.negotiation };
       }
@@ -746,4 +758,30 @@ export class UpdateDocSets {
       return null;
     }
   }
+}
+
+/**
+ * Hash of the DocSource fields that decide WHAT gets fetched (urls, paths,
+ * patterns, format...). Throughput and metadata knobs are left out so
+ * tuning concurrency or a description does not disarm the size guard.
+ */
+const FINGERPRINT_SKIP = new Set([
+  "name",
+  "description",
+  "tags",
+  "pageConcurrency",
+  "deadlineMs",
+  "requestTimeoutMs",
+  "minRefetchSeconds",
+  "userAgent",
+  "expectRedirects",
+]);
+
+export function sourceFingerprint(source: DocSource): string {
+  const picked: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(source).sort(([a], [b]) => a.localeCompare(b))) {
+    if (FINGERPRINT_SKIP.has(k) || v === undefined || typeof v === "function") continue;
+    picked[k] = v;
+  }
+  return createHash("sha1").update(JSON.stringify(picked)).digest("hex").slice(0, 16);
 }

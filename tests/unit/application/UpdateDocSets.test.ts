@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { UpdateDocSets, BatchProgress } from "../../../src/application/UpdateDocSets.js";
+import { UpdateDocSets, BatchProgress, sourceFingerprint } from "../../../src/application/UpdateDocSets.js";
 import { DocFile } from "../../../src/domain/DocFile.js";
 import { DocSet } from "../../../src/domain/DocSet.js";
 import { DocSource } from "../../../src/domain/DocSource.js";
@@ -470,6 +470,47 @@ describe("UpdateDocSets", () => {
       expect(results[0].status).toBe("ok");
 
       await fs.rm(tmpDir, { recursive: true });
+    });
+
+    // A deliberate config change (docs-ssh#37: at32f405 gained PDFs and
+    // grew 68 -> 307) must not read as an upstream regression.
+    it("skips the guard when the source config changed since the stamp", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-reg-"));
+      const outDir = path.join(tmpDir, "out");
+      const workDir = path.join(tmpDir, "work");
+      const source = makeOfflineSource("regtest-cfg");
+      const stampDir = path.join(outDir, "regtest-cfg");
+      await fs.mkdir(stampDir, { recursive: true });
+      await fs.mkdir(workDir, { recursive: true });
+      const files = new Map();
+      for (let i = 0; i < 30; i++) files.set(`p${i}.md`, new DocFile(`p${i}.md`, `# Page ${i}`));
+      const run = async (configHash: string) => {
+        await fs.writeFile(
+          path.join(stampDir, ".stamp.json"),
+          JSON.stringify({ fetchedAt: new Date().toISOString(), fileCount: 2, configHash }),
+        );
+        const updater = new UpdateDocSets({
+          sources: [source],
+          ingestors: [mockIngestor(new DocSet(source, files))],
+          normalisers: [noopNormaliser],
+          outDir,
+          workDir,
+          maxAge: 0,
+        });
+        return (await updater.run())[0];
+      };
+      expect((await run(sourceFingerprint(source))).status).toBe("error");
+      expect((await run("0000000000000000")).status).toBe("ok");
+      const stamp = JSON.parse(await fs.readFile(path.join(stampDir, ".stamp.json"), "utf8"));
+      expect(stamp.configHash).toBe(sourceFingerprint(source));
+      await fs.rm(tmpDir, { recursive: true });
+    });
+
+    it("sourceFingerprint ignores throughput knobs, not scope", () => {
+      const base = { name: "fp", type: "http" as const, url: "https://x.example/", format: "pdf" as const, discovery: "pdf" as const, discoveryUrl: "https://x.example/a.pdf" };
+      const a = sourceFingerprint(new DocSource(base));
+      expect(sourceFingerprint(new DocSource({ ...base, pageConcurrency: 1, description: "d" }))).toBe(a);
+      expect(sourceFingerprint(new DocSource({ ...base, discoveryUrl: "https://x.example/a.pdf https://x.example/b.pdf" }))).not.toBe(a);
     });
   });
 
