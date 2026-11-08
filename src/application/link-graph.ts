@@ -51,6 +51,17 @@ export function normaliseUrl(url: string): string | undefined {
   p = p.replace(/\/index\.(html|htm|md)$/, "");
   p = p.replace(/\.(html|htm|md|mdx)$/, "");
   p = p.replace(/\/$/, "");
+  // learn.microsoft.com: lowercase; insert /en-us/ if missing on windows/
+  // paths; alias /windows/desktop/api/ -> /windows/win32/api/
+  if (u.host === "learn.microsoft.com") {
+    p = p.toLowerCase();
+    if (!p.startsWith("/en-us/")) {
+      if (p.startsWith("/windows/") || p.startsWith("/windows-hardware/")) {
+        p = "/en-us" + p;
+      }
+    }
+    p = p.replace("/en-us/windows/desktop/api/", "/en-us/windows/win32/api/");
+  }
   return `https://${u.host}${p}`;
 }
 
