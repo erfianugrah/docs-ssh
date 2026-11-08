@@ -1,3 +1,4 @@
+import { pruneRemovedSources } from "./application/prune-sources.js";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -95,6 +96,10 @@ console.log(`\n${results.length} sources: ${parts.join(", ")}.`);
 // `commands/generate-source-groups.ts` produces — both use the shared
 // pure builder so they never drift.
 const sourceNames = new Set(SOURCES.map((s) => s.name));
+
+// Renamed/removed sources would otherwise linger in the persistent cache.
+const pruned = await pruneRemovedSources(OUT_DIR, sourceNames);
+if (pruned.length) console.log(`Pruned ${pruned.length} removed source dir(s): ${pruned.join(", ")}`);
 const groupsPayload = buildSourceGroupsPayload(sourceNames);
 const groupsPath = path.join(OUT_DIR, "_source_groups.json");
 await fs.writeFile(groupsPath, JSON.stringify(groupsPayload, null, 2) + "\n");
