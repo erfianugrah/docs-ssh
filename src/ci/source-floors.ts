@@ -160,12 +160,29 @@ export const API_OVERVIEW_SOURCES: readonly string[] = [
   "vikunja-api",
 ];
 
+const R_RHEL =
+  "docs.redhat.com 403 Access Denied to our WAN IP since 2026-11-07, any UA (docs-ssh#30); previous copy kept";
+
 /**
  * Sources allowed to be absent from the image while an upstream blocks the
  * fetch. The nightly fetch keeps trying them, so they return on their own
  * once unblocked; remove the entry then. Each entry needs a reason + date.
  */
 export const TOLERATED_MISSING: Readonly<Record<string, string>> = {
+  "rhel9-basic-system-settings": R_RHEL,
+  "rhel9-containers": R_RHEL,
+  "rhel9-dnf": R_RHEL,
+  "rhel9-file-systems": R_RHEL,
+  "rhel9-firewalls": R_RHEL,
+  "rhel9-kernel": R_RHEL,
+  "rhel9-lvm": R_RHEL,
+  "rhel9-network-infrastructure-services": R_RHEL,
+  "rhel9-networking": R_RHEL,
+  "rhel9-performance": R_RHEL,
+  "rhel9-security-hardening": R_RHEL,
+  "rhel9-selinux": R_RHEL,
+  "rhel9-storage": R_RHEL,
+  "rhel9-systemd": R_RHEL,
   // (empty) akamai was here until 2026-10-19; its Bot Manager 403s came and
   // went and its 9.7k pages never fit a deadline, so the source was removed.
   // archwiki was here 2026-11-05 (wiki IP block) until it moved to the
