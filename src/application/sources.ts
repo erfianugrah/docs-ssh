@@ -4201,7 +4201,7 @@ export const SOURCES: readonly DocSource[] = [
     discovery: "sitemap-index",
     discoveryUrl: "https://www.athom.tech/sitemap.xml",
     urlPattern:
-      "athom\\.tech/(blank-1|esphome|wled|tasmota|bthome|zigbee|homekit|home-bridge)",
+      "athom\\.tech/(blank-1|post/|esphome|wled|tasmota|bthome|zigbee|homekit|home-bridge)",
     pageConcurrency: 6,
   }),
 
@@ -5728,9 +5728,11 @@ export const SOURCES: readonly DocSource[] = [
 
   // -- batch w28-pdf (2026-11-07; insert this batch's entries below) --
 
-  // WCH CH32FV2x_V3x Reference Manual (English). The PDF is committed in
-  // wuxx/nanoCH32V203; wch-ic.com's download pages are JS SPAs with no
-  // direct PDF URLs to fetch. Datasheet is NOT included (not on GitHub).
+  // WCH CH32FV2x_V3x Reference Manual (English) + CH32V30x Datasheet
+  // (English). The RM is committed in wuxx/nanoCH32V203; the datasheet is
+  // from a third-party mirror (arvidtek.com). wch-ic.com and wch.cn download
+  // pages are JS SPAs with no direct PDF URLs. WCH permits redistribution
+  // of datasheets for implementation purposes; no explicit licence found.
   new DocSource({
     name: "wch-ch32v30x",
     type: "http",
@@ -5738,8 +5740,9 @@ export const SOURCES: readonly DocSource[] = [
     format: "pdf",
     discovery: "pdf",
     discoveryUrl:
-      "https://raw.githubusercontent.com/wuxx/nanoCH32V203/master/doc/CH32FV2x_V3xRM_en.PDF",
-    description: "WCH CH32FV2x_V3x Reference Manual (English)",
+      "https://raw.githubusercontent.com/wuxx/nanoCH32V203/master/doc/CH32FV2x_V3xRM_en.PDF" +
+      " https://arvidtek.com/wp-content/uploads/2025/01/CH32V307DS0.pdf",
+    description: "WCH CH32FV2x_V3x Reference Manual + CH32V30x Datasheet (English)",
     tags: ["hardware"],
   }),
 
@@ -5758,10 +5761,11 @@ export const SOURCES: readonly DocSource[] = [
     tags: ["hardware", "standards"],
   }),
 
-  // Artery AT32F405 Datasheet + OTGHS Application Note (English + Chinese).
-  // Reference Manual and other ANs (AN0034 USB ESD, AN0290 magnetic
-  // keyboard) are not at discoverable URLs on arterytek.com as of
-  // 2026-11-07; their download pages are dynamic. Add when URLs are found.
+  // Artery AT32F405 Datasheet + Reference Manual + OTGHS Application Note
+  // (the Chinese RM duplicates the English one and is left out).
+  // RM_AT32F402_405_EN_V2.01.pdf (note: 402 before 405
+  // in the filename). AN0034 (USB ESD) and AN0290 (magnetic keyboard) do
+  // not exist in English on arterytek.com or arterychip.com as of 2026-11-08.
   new DocSource({
     name: "at32f405",
     type: "http",
@@ -5771,8 +5775,9 @@ export const SOURCES: readonly DocSource[] = [
     discoveryUrl:
       "https://www.arterytek.com/download/DS/DS_AT32F405_402_V2.01_EN.pdf" +
       " https://www.arterytek.com/download/APNOTE/AN0185_AT32_MCU_OTGHS_Application_Note_EN_V2.0.0.pdf" +
-      " https://www.arterytek.com/download/APNOTE/AN0185_AT32_MCU_OTGHS_Application_Note_ZH_V2.0.0.pdf",
-    description: "Artery AT32F405 Datasheet + OTGHS Application Note",
+      " https://www.arterytek.com/download/APNOTE/AN0185_AT32_MCU_OTGHS_Application_Note_ZH_V2.0.0.pdf" +
+      " https://www.arterytek.com/download/RM/RM_AT32F402_405_EN_V2.01.pdf",
+    description: "Artery AT32F405 Datasheet + Reference Manual + OTGHS Application Note",
     tags: ["hardware"],
     userAgent: BROWSER_UA,
   }),
