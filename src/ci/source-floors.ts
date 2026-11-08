@@ -143,6 +143,23 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   greatfet: 10,            // 17 .rst files
   // -- end batch w17-rst --
 
+  // -- batch rhel9-wayback (docs-ssh#30, 2026-11-08) --
+  "rhel9-basic-system-settings": 10, // 18 Wayback pages (archive.org flakes; 60%)
+  "rhel9-containers": 22, // 38 Wayback pages (archive.org flakes; 60%)
+  "rhel9-dnf": 9, // 16 Wayback pages (archive.org flakes; 60%)
+  "rhel9-networking": 34, // 57 Wayback pages (archive.org flakes; 60%)
+  "rhel9-network-infrastructure-services": 4, // 7 Wayback pages (archive.org flakes; 60%)
+  "rhel9-security-hardening": 12, // 20 Wayback pages (archive.org flakes; 60%)
+  "rhel9-selinux": 9, // 15 Wayback pages (archive.org flakes; 60%)
+  "rhel9-firewalls": 4, // 7 Wayback pages (archive.org flakes; 60%)
+  "rhel9-storage": 20, // 34 Wayback pages (archive.org flakes; 60%)
+  "rhel9-lvm": 14, // 24 Wayback pages (archive.org flakes; 60%)
+  "rhel9-file-systems": 21, // 36 Wayback pages (archive.org flakes; 60%)
+  "rhel9-performance": 28, // 47 Wayback pages (archive.org flakes; 60%)
+  "rhel9-kernel": 17, // 29 Wayback pages (archive.org flakes; 60%)
+  "rhel9-systemd": 3, // 6 Wayback pages (archive.org flakes; 60%)
+  // -- end batch rhel9-wayback --
+
 };
 
 /** API-spec sources whose converted tree must contain api/overview.md. */
@@ -162,31 +179,16 @@ export const API_OVERVIEW_SOURCES: readonly string[] = [
   "vikunja-api",
 ];
 
-const R_RHEL =
-  "docs.redhat.com 403 Access Denied to our WAN IP since 2026-11-07, any UA (docs-ssh#30); previous copy kept";
-
 /**
  * Sources allowed to be absent from the image while an upstream blocks the
  * fetch. The nightly fetch keeps trying them, so they return on their own
  * once unblocked; remove the entry then. Each entry needs a reason + date.
  */
 export const TOLERATED_MISSING: Readonly<Record<string, string>> = {
-  "rhel9-basic-system-settings": R_RHEL,
-  "rhel9-containers": R_RHEL,
-  "rhel9-dnf": R_RHEL,
-  "rhel9-file-systems": R_RHEL,
-  "rhel9-firewalls": R_RHEL,
-  "rhel9-kernel": R_RHEL,
-  "rhel9-lvm": R_RHEL,
-  "rhel9-network-infrastructure-services": R_RHEL,
-  "rhel9-networking": R_RHEL,
-  "rhel9-performance": R_RHEL,
-  "rhel9-security-hardening": R_RHEL,
-  "rhel9-selinux": R_RHEL,
-  "rhel9-storage": R_RHEL,
-  "rhel9-systemd": R_RHEL,
   // (empty) akamai was here until 2026-10-19; its Bot Manager 403s came and
   // went and its 9.7k pages never fit a deadline, so the source was removed.
   // archwiki was here 2026-11-05 (wiki IP block) until it moved to the
   // arch-wiki-docs package the same day (docs-ssh#21).
+  // rhel9-* sources were here until 2026-11-08 (docs.redhat.com Akamai 403
+  // since 2026-11-07); moved to Wayback Machine raw captures (docs-ssh#30).
 };
