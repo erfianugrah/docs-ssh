@@ -246,6 +246,11 @@ async function checkBulk(source: DocSource, method: string): Promise<Omit<CheckR
  * (ubuntu.com 500'd a different sample page on two runs in a row while
  * the nightly fetch, with its multi-retry backoff, got all 255 pages).
  */
+/** A Wayback raw capture pinned to a timestamp: immutable content. */
+export function isPinnedCapture(url: string): boolean {
+  return /^https:\/\/web\.archive\.org\/web\/\d{14}id_\//.test(url);
+}
+
 export function isUncounted(status: number, url: string): boolean {
   return (status === 429 && SERIAL_HOSTS.has(hostOf(url))) || status >= 500;
 }
@@ -302,11 +307,18 @@ async function checkPages(source: DocSource, method: string, urls: string[]): Pr
         const note = redirectNote(u, res);
         if (note && !source.expectRedirects) redirects.add(note);
       } catch (err) {
-        failures.push(`${err instanceof Error ? err.message : String(err)} ${u}`.slice(0, 160));
+        const msg = `${err instanceof Error ? err.message : String(err)} ${u}`.slice(0, 160);
+        // archive.org drops connections under load like it 429s: noise.
+        (SERIAL_HOSTS.has(hostOf(u)) ? uncounted : failures).push(msg);
       }
     }),
   );
   const notes = [`${urls.length} URLs`, ...redirects];
+  // Pinned captures (web.archive.org/web/<ts>id_/...) cannot drift, so an
+  // archive.org outage says nothing about the source (rhel9-*, docs-ssh#30).
+  if (failures.length === 0 && uncounted.length === samples.length && urls.every(isPinnedCapture)) {
+    return { method, status: "ok", count: urls.length, detail: `${urls.length} pinned captures; archive.org unreachable this run: ${uncounted[0]}` };
+  }
   const status = samplesStatus(samples.length, failures.length, uncounted.length);
   if (status === "fail") {
     return { method, status, count: urls.length, detail: `all ${samples.length} sample pages failed: ${failures[0] ?? uncounted[0]}` };

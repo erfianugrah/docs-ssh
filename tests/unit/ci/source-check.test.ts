@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { checkSource, filterUrls, hostOf, isTransientStatus, isUncounted, pickSamples, probeTimeoutMs, samplesStatus } from "../../../src/ci/source-check.js";
+import { checkSource, filterUrls, hostOf, isTransientStatus, isPinnedCapture, isUncounted, pickSamples, probeTimeoutMs, samplesStatus } from "../../../src/ci/source-check.js";
 import { DocSource } from "../../../src/domain/DocSource.js";
 
 describe("filterUrls", () => {
@@ -147,5 +147,13 @@ describe("checkSource bulk redirects", () => {
     stubRedirectedArchive();
     const r = await checkSource(tarball(true));
     expect(r.status).toBe("ok");
+  });
+});
+
+describe("isPinnedCapture", () => {
+  it("matches only timestamp-pinned Wayback raw captures", () => {
+    expect(isPinnedCapture("https://web.archive.org/web/20240701194425id_/https://docs.redhat.com/x")).toBe(true);
+    expect(isPinnedCapture("https://web.archive.org/web/2/https://docs.redhat.com/x")).toBe(false);
+    expect(isPinnedCapture("https://docs.redhat.com/x")).toBe(false);
   });
 });
