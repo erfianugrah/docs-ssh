@@ -11,6 +11,7 @@ import { retryWithBackoff } from "../shared/retry.js";
 import type { DocIngestor } from "../domain/DocIngestor.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
 import { resolvePartials } from "../normaliser/resolvePartials.js";
+import { resolveDocusaurusImports } from "../normaliser/resolveDocusaurusImports.js";
 import { collectOrigins } from "./origins.js";
 import type { DocSource, DocFormat } from "../domain/DocSource.js";
 
@@ -628,12 +629,20 @@ export class UpdateDocSets {
     // fetch log surfaces silent content loss per source.
     const dropped: string[] = [];
 
+    // Cross-file pre-pass: resolve Docusaurus `import` partials (inlines
+    // content into host pages and drops `_*.mdx` files). Must run BEFORE
+    // per-file normalisation so the inlined raw MDX is cleaned together
+    // with its host page.
+    let sourceFiles = set.source.resolveDocusaurusImports
+      ? resolveDocusaurusImports(set.files)
+      : set.files;
+
     // Cross-file pre-pass: inline `<$Partial>` transclusions and drop the
     // `_partials/**` fragments. Must run BEFORE per-file normalisation so the
     // inlined raw MDX is cleaned together with its host page.
-    const sourceFiles = set.source.resolvePartials
-      ? resolvePartials(set.files)
-      : set.files;
+    sourceFiles = set.source.resolvePartials
+      ? resolvePartials(sourceFiles)
+      : sourceFiles;
 
     for (const [, file] of sourceFiles) {
       let current: DocFile | null = file;
