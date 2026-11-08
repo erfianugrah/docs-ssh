@@ -5559,7 +5559,7 @@ export const SOURCES: readonly DocSource[] = [
 
 
   // Immich -- Docusaurus MDX from immich-app/immich (AGPL-3.0). ~253 pgs.
-  // Docusaurus import partials not resolved; JSX imports stripped.
+  // Docusaurus import partials resolved; JSX imports stripped.
   new DocSource({
     name: "immich",
     url: "https://github.com/immich-app/immich",
@@ -5567,6 +5567,7 @@ export const SOURCES: readonly DocSource[] = [
     format: "mdx",
     paths: ["docs/docs"],
     rootPath: "docs/docs",
+    resolveDocusaurusImports: true,
   }),
 
   // darktable -- Hugo markdown from darktable-org/dtdocs (GPL-3.0).

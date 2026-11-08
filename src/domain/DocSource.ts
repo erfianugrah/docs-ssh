@@ -99,6 +99,13 @@ export interface DocSourceConfig {
    */
   readonly resolvePartials?: boolean;
   /**
+   * Resolve Docusaurus `import Name from './_foo.mdx'` partial transclusions
+   * by inlining partial files (basename starts with `_`) into referencing
+   * pages and dropping the partials from the served set. Runs as a
+   * DocSet-level pre-pass before per-file normalisation.
+   */
+  readonly resolveDocusaurusImports?: boolean;
+  /**
    * Override the global per-page fetch parallelism (http sources only).
    * Lower it for large scrapes on rate-limit-prone hosts (e.g.
    * cloudflare-blog) so 15-wide bursts don't trip the upstream's bot /
@@ -210,6 +217,7 @@ export class DocSource {
   readonly tags: readonly string[];
   readonly description: string | undefined;
   readonly resolvePartials: boolean;
+  readonly resolveDocusaurusImports: boolean;
   readonly pageConcurrency: number | undefined;
   readonly deadlineMs: number | undefined;
   readonly minRefetchSeconds: number | undefined;
@@ -245,6 +253,7 @@ export class DocSource {
     this.tags = config.tags ?? [];
     this.description = config.description;
     this.resolvePartials = config.resolvePartials ?? false;
+    this.resolveDocusaurusImports = config.resolveDocusaurusImports ?? false;
     this.pageConcurrency = config.pageConcurrency;
     this.deadlineMs = config.deadlineMs;
     this.minRefetchSeconds = config.minRefetchSeconds;
