@@ -56,6 +56,33 @@ describe("normaliseUrl", () => {
     expect(normaliseUrl("mailto:a@b.c")).toBeUndefined();
     expect(normaliseUrl("not a url")).toBeUndefined();
   });
+
+  it("lowercases learn.microsoft.com paths", () => {
+    expect(normaliseUrl("https://learn.microsoft.com/EN-US/Windows/Win32/API/Winreg/Nf-Winreg-RegOpenKeyExW"))
+      .toBe("https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw");
+  });
+
+  it("inserts /en-us/ on learn.microsoft.com windows/ paths missing the locale prefix", () => {
+    expect(normaliseUrl("https://learn.microsoft.com/windows/win32/api/winreg/nf-winreg-regopenkeyexw"))
+      .toBe("https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw");
+    expect(normaliseUrl("https://learn.microsoft.com/windows-hardware/drivers/ddi/hidsdi/nf-hidsdi-hidd_getfeature"))
+      .toBe("https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/hidsdi/nf-hidsdi-hidd_getfeature");
+  });
+
+  it("leaves non-windows paths alone on learn.microsoft.com (no en-us insertion)", () => {
+    expect(normaliseUrl("https://learn.microsoft.com/azure/something"))
+      .toBe("https://learn.microsoft.com/azure/something");
+  });
+
+  it("aliases /windows/desktop/api/ to /windows/win32/api/", () => {
+    expect(normaliseUrl("https://learn.microsoft.com/en-us/windows/desktop/api/winreg/nf-winreg-regopenkeyexw"))
+      .toBe("https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw");
+  });
+
+  it("aliases /windows/desktop/api/ and inserts en-us together", () => {
+    expect(normaliseUrl("https://learn.microsoft.com/windows/desktop/api/winreg/nf-winreg-regopenkeyexw"))
+      .toBe("https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw");
+  });
 });
 
 const PG = "https://www.postgresql.org/docs/current/";
@@ -170,6 +197,53 @@ describe("buildLinkGraph", () => {
       { path: "small/b/hub.md", links: [] },
     ];
     expect(buildLinkGraph(pages, new Map())).toHaveLength(2);
+  });
+
+  it("resolves learn.microsoft.com cross-source links through origin reverse map", () => {
+    // win32-api page links to a win32-docs page via site-relative path.
+    // The link page's origin resolves the relative URL against learn.microsoft.com
+    // and the target's origin maps it back through the reverse index.
+    const origins = new Map([
+      ["win32-api/winreg/nf-winreg-regopenkeyexw.md",
+        "https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw"],
+      ["win32-docs/coreaudio/wasapi.md",
+        "https://learn.microsoft.com/en-us/windows/win32/coreaudio/wasapi"],
+    ]);
+    const edges = buildLinkGraph(
+      [
+        {
+          path: "win32-api/winreg/nf-winreg-regopenkeyexw.md",
+          links: ["/windows/win32/CoreAudio/wasapi"],
+        },
+        { path: "win32-docs/coreaudio/wasapi.md", links: [] },
+      ],
+      origins,
+    );
+    expect(edges).toEqual([
+      ["win32-api/winreg/nf-winreg-regopenkeyexw.md", "win32-docs/coreaudio/wasapi.md"],
+    ]);
+  });
+
+  it("resolves /windows/desktop/api/ links via the desktop->win32 alias", () => {
+    const origins = new Map([
+      ["win32-docs/coreaudio/wasapi.md",
+        "https://learn.microsoft.com/en-us/windows/win32/coreaudio/wasapi"],
+      ["win32-api/cfgmgr32/nf-cfgmgr32-cm_get_device_interface_lista.md",
+        "https://learn.microsoft.com/en-us/windows/win32/api/cfgmgr32/nf-cfgmgr32-cm_get_device_interface_lista"],
+    ]);
+    const edges = buildLinkGraph(
+      [
+        {
+          path: "win32-docs/coreaudio/wasapi.md",
+          links: ["/windows/desktop/api/cfgmgr32/nf-cfgmgr32-cm_get_device_interface_lista"],
+        },
+        { path: "win32-api/cfgmgr32/nf-cfgmgr32-cm_get_device_interface_lista.md", links: [] },
+      ],
+      origins,
+    );
+    expect(edges).toEqual([
+      ["win32-docs/coreaudio/wasapi.md", "win32-api/cfgmgr32/nf-cfgmgr32-cm_get_device_interface_lista.md"],
+    ]);
   });
 });
 

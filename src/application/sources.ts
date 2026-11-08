@@ -1,5 +1,5 @@
 import { DocSource } from "../domain/DocSource.js";
-import { lexicanumPublicUrl } from "./public-urls.js";
+import { lexicanumPublicUrl, win32ApiPublicUrl, win32DocsPublicUrl, windowsDriversPublicUrl, windowsDdiPublicUrl } from "./public-urls.js";
 
 // Browser User-Agent for the few government legislation sites that
 // block non-browser UAs at the WAF/TLS layer (verified: planalto.gov.br
@@ -5475,6 +5475,7 @@ export const SOURCES: readonly DocSource[] = [
     type: "git",
     url: "https://github.com/MicrosoftDocs/sdk-api",
     format: "markdown",
+    publicUrl: win32ApiPublicUrl,
     paths: [
       "sdk-api-src/content/setupapi",
       "sdk-api-src/content/cfgmgr32",
@@ -5508,6 +5509,7 @@ export const SOURCES: readonly DocSource[] = [
     type: "git",
     url: "https://github.com/MicrosoftDocs/win32",
     format: "markdown",
+    publicUrl: win32DocsPublicUrl,
     paths: [
       "desktop-src/CoreAudio",
       "desktop-src/Services",
@@ -5527,6 +5529,7 @@ export const SOURCES: readonly DocSource[] = [
     type: "git",
     url: "https://github.com/MicrosoftDocs/windows-driver-docs",
     format: "markdown",
+    publicUrl: windowsDriversPublicUrl,
     paths: [
       "windows-driver-docs-pr/audio",
       "windows-driver-docs-pr/hid",
@@ -5543,6 +5546,7 @@ export const SOURCES: readonly DocSource[] = [
     type: "git",
     url: "https://github.com/MicrosoftDocs/windows-driver-docs-ddi",
     format: "markdown",
+    publicUrl: windowsDdiPublicUrl,
     paths: [
       "wdk-ddi-src/content/hidsdi",
       "wdk-ddi-src/content/hidpi",
