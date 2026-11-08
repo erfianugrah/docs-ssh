@@ -258,7 +258,25 @@ Copy page`;
     expect(result.content).toBe(md);
   });
 
-  it("strips Sphinx/MkDocs heading permalink anchors", async () => {
+  it("strips Sphinx/MkDocs heading permalink anchors with U+F0C1 glyph", async () => {
+    // U+F0C1 (Font Awesome link glyph) - seen in platformio, build123d
+    // Covers: link form with title, bare link form, "Link to this table"
+    const md = [
+      '# PlatformIO Core (CLI)[\uf0c1](#platformio-core-cli "Link to this heading")',
+      '### 6.2.1 (2026-??-??)[\uf0c1](#id1 "Link to this heading")',
+      'Geometry containers [\uf0c1](#id1 "Link to this table")',
+      '*property*camber_line*:Edge*[\uf0c1](#objects_curve.Airfoil.camber_line)',
+      'add\\_files(x)[\uf0c1](#kipy.board.Board.add "Link to this definition")',
+    ].join("\n");
+    const out = (await cleaner.normalise(new DocFile("p.md", md))).content.split("\n");
+    expect(out[0]).toBe("# PlatformIO Core (CLI)");
+    expect(out[1]).toBe("### 6.2.1 (2026-??-??)");
+    expect(out[2]).toBe("Geometry containers");
+    expect(out[3]).toBe("*property*camber_line*:Edge*");
+    expect(out[4]).toBe("add_files(x)");
+  });
+
+  it("strips Sphinx/MkDocs heading permalink anchors (¶ and # glyph)", async () => {
     const md = [
       '# Board[\u00b6](#module-kipy.board "Link to this heading")',
       '## zpoolprops.7[](#zpoolprops-7 "Link to this heading")',
@@ -269,8 +287,185 @@ Copy page`;
     const out = (await cleaner.normalise(new DocFile("p.md", md))).content.split("\n");
     expect(out[0]).toBe("# Board");
     expect(out[1]).toBe("## zpoolprops.7");
-    expect(out[2]).toBe("add\\_files(x)");
+    expect(out[2]).toBe("add_files(x)");
     expect(out[3]).toBe("### Old");
     expect(out[4]).toBe('Keep [this link](#anchor "Link to this heading elsewhere") and [\u00b6](#x).');
+  });
+
+  it("strips standalone U+F0C1 glyph at end of heading lines", async () => {
+    // ezdxf style: `# Introduction \u{f0c1}` (no link form, just the glyph)
+    const md = [
+      "# Introduction \u{f0c1}",
+      "## What is ezdxf \u{f0c1}",
+      "### Windows \u{f0c1}",
+      "# About \u{f0c1}",
+    ].join("\n");
+    const out = (await cleaner.normalise(new DocFile("p.md", md))).content.split("\n");
+    expect(out[0]).toBe("# Introduction");
+    expect(out[1]).toBe("## What is ezdxf");
+    expect(out[2]).toBe("### Windows");
+    expect(out[3]).toBe("# About");
+  });
+
+  it("does not strip U+F0C1 inside code fences", async () => {
+    const md = "# Title\n\n```\n\u{f0c1} in code\n```\n";
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).toContain("\u{f0c1}");
+  });
+
+  // ─── Readthedocs breadcrumb removal ─────────────────────────────
+
+  it("strips readthedocs breadcrumb block at top of file (Home/About/Edit)", async () => {
+    // build123d style
+    const md = [
+      "- Home",
+      "- About",
+      "- [Edit on GitHub](https://github.com/gumyr/build123d/blob/dev/docs/index.rst)",
+      "",
+      "---",
+      "",
+      "# About",
+      "",
+      "Content here.",
+    ].join("\n");
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).not.toContain("- Home");
+    expect(result.content).not.toContain("- About");
+    expect(result.content).not.toContain("[Edit on GitHub]");
+    expect(result.content).not.toContain("---");
+    expect(result.content).toContain("# About");
+    expect(result.content).toContain("Content here.");
+  });
+
+  it("strips readthedocs breadcrumb with Home link", async () => {
+    // ezdxf style
+    const md = [
+      "- [Home](https://ezdxf.readthedocs.io/en/stable/index.html)",
+      "- Introduction",
+      "-",
+      "",
+      "---",
+      "",
+      "# Introduction",
+      "",
+      "## What is ezdxf",
+    ].join("\n");
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).not.toContain("- [Home]");
+    expect(result.content).not.toContain("- Introduction");
+    expect(result.content).not.toContain("---");
+    expect(result.content).toContain("# Introduction");
+    expect(result.content).toContain("## What is ezdxf");
+  });
+
+  it("preserves normal dash-separator after list (not a breadcrumb)", async () => {
+    // A regular `---` horizontal rule after a list is NOT a breadcrumb
+    const md = [
+      "# Guide",
+      "",
+      "- Step one",
+      "- Step two",
+      "",
+      "---",
+      "",
+      "Next section.",
+    ].join("\n");
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).toContain("- Step one");
+    expect(result.content).toContain("---");
+    expect(result.content).toContain("# Guide");
+  });
+
+  // ─── Turndown escape unescaping ──────────────────────────────────
+
+  it("unescapes Turndown backslash-underscore outside code fences", async () => {
+    // kicad-python autodoc signatures
+    const md = [
+      "# KiCad",
+      "",
+      "_class_ KiCad(_socket\\_path: str | None \\= None_, _client\\_name: str | None \\= None_)",
+      "",
+      "-   **socket\\_path** - The path to the IPC API socket",
+    ].join("\n");
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).toContain("_socket_path: str | None = None_");
+    expect(result.content).toContain("_client_name: str | None = None_");
+    expect(result.content).toContain("**socket_path**");
+    expect(result.content).not.toContain("\\_");
+  });
+
+  it("unescapes \\= but keeps \\[ \\] in type annotations", async () => {
+    const md = [
+      "get\\_items(_nicknames: Sequence\\[str\\] \\= ()_)",
+      "load\\_all\\_libraries(_types: int | Sequence\\[int\\] | None \\= None_)",
+    ].join("\n");
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).toContain("Sequence\\[str\\] = ()");
+    expect(result.content).toContain("Sequence\\[int\\] | None = None");
+  });
+
+  it("preserves backslash-underscore inside code fences", async () => {
+    const md = [
+      "# Guide",
+      "",
+      "```python",
+      "def foo(bar\\_baz: str): pass",
+      "```",
+      "",
+      "Outside: socket\\_path",
+    ].join("\n");
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).toContain("def foo(bar\\_baz: str): pass");
+    expect(result.content).toContain("Outside: socket_path");
+  });
+
+  it("preserves backslash-underscore in inline code", async () => {
+    const md = "Use `some\\_var` here.\n\nBut socket\\_path outside.";
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).toContain("`some\\_var`");
+    expect(result.content).toContain("socket_path");
+  });
+
+  it("does not unescape backslash-star (would create emphasis)", async () => {
+    const md = "The \\*emphasis\\* stays escaped.";
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).toContain("\\*emphasis\\*");
+    expect(result.content).not.toContain("*emphasis*");
+  });
+
+  it("leaves normal backslash-escaped markdown alone", async () => {
+    const md = [
+      "\\# Not a heading",
+      "\\* Not a list",
+      "\\` Not code",
+    ].join("\n");
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).toContain("\\# Not a heading");
+    expect(result.content).toContain("\\* Not a list");
+    expect(result.content).toContain("\\` Not code");
+  });
+
+  // ─── Idempotency: non-Sphinx sources ─────────────────────────────
+
+  it("does not alter standard markdown content (regression)", async () => {
+    const md = [
+      "# CLI Reference",
+      "",
+      "The Supabase CLI provides tools to develop your project locally.",
+      "",
+      "## Commands",
+      "",
+      "- `supabase init` - Initialize a local project",
+      "- `supabase start` - Start the local development stack",
+      "",
+      "```bash",
+      "supabase db push",
+      "```",
+      "",
+      "> [!NOTE]",
+      "> This is a GFM alert block - leave it alone.",
+    ].join("\n");
+    const result = await cleaner.normalise(new DocFile("p.md", md));
+    expect(result.content).toBe(md.trim());
   });
 });

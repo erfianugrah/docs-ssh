@@ -68,13 +68,20 @@ export class MarkdownCleaner implements DocNormaliser {
     if (file.preNormalised) content = anchorsToMarkdownOutsideCode(content);
 
     // Sphinx / MkDocs heading permalinks: `[\u00b6](#id "Link to this
-    // heading")` (empty text on some themes) after every heading and API
-    // definition. They leaked into index titles (openzfs-man, pfsense,
-    // kicad-python). Matched on the exact title attribute only.
+    // heading")` or `[\uf0c1](#id "Link to this heading")` after every
+    // heading and API definition. The U+F0C1 glyph is Font Awesome private-
+    // use and ALWAYS a Sphinx permalink; strip every occurrence (with or
+    // without a title attribute) to cover "Link to this table" and bare
+    // `[\uf0c1](#id)` forms seen in readthedocs sphinx_rtd_theme.
     content = content.replace(
       /\[(?:\u00b6|#)?\]\(#[^\s)]*\s+"(?:Link|Permalink) to this (?:heading|headline|definition)"\)/g,
       "",
     );
+    content = content.replace(/[ \t]*\[\uf0c1\]\(#[^)]*\)/g, "");
+
+    // Standalone U+F0C1 permalink glyph at end of any line (ezdxf,
+    // build123d: both heading lines and inside <dl>/<dt> HTML blocks).
+    content = content.replace(/ \uf0c1\s*$/gm, "");
 
     // MediaWiki footer boilerplate
     content = content.replace(/^Retrieved from "\[?https?:\/\/wiki\.[^"]*"?\]?\s*$/gm, "");
@@ -94,6 +101,21 @@ export class MarkdownCleaner implements DocNormaliser {
       /^(?:Navigation menu|Page actions?|Personal tools|Jump to navigation|Jump to search|Toolbox|In other languages)\s*$/gm,
       "",
     );
+
+    // Readthedocs sphinx_rtd_theme breadcrumb block at the top of a page:
+    // a run of list items starting with "Home" or "[Edit on GitHub]",
+    // followed by `---` before the H1. The block is at the very start of
+    // content (after any [Skip to content] link).
+    content = content.replace(
+      /^(- (?:Home|\[Home\]\([^)]*\)|About|\[Edit on GitHub\]\([^)]*\)).*\n)(?:(?:- .*\n)|-\n)*\n---\s*\n+/,
+      "",
+    );
+
+    // Turndown over-escapes `_` and `=` in autodoc signatures on HTML-only
+    // Sphinx sites (kicad-python: `socket\_path`, `\= None`), which breaks
+    // grepping for identifiers. Unescape only outside code; `\[`/`\]` and
+    // `\*` stay escaped (they guard link and emphasis syntax).
+    content = unescapeAutodocOutsideFences(content);
 
     // Collapse excessive blank lines
     content = content.replace(/\n{3,}/g, "\n\n").trim();
@@ -181,4 +203,38 @@ function stripCssOutsideFences(content: string): string {
   }
 
   return result.join("\n");
+}
+
+/**
+ * Unescape Turndown backslash escapes that are artifacts of HTML→MD conversion
+ * in autodoc signatures, NOT legitimate markdown escaping.
+ *
+ * Unescapes: `\_` -> `_`, `\=` -> `=`. Never `\*`, `\[`, `\]`, `\#`.
+ *
+ * Only operates outside fenced code blocks and inline code spans.
+ */
+function unescapeAutodocOutsideFences(content: string): string {
+  if (!/\\[_=]/.test(content)) return content;
+  let inFence = false;
+  return content
+    .split("\n")
+    .map((line) => {
+      const t = line.trimStart();
+      if (t.startsWith("```") || t.startsWith("~~~")) {
+        inFence = !inFence;
+        return line;
+      }
+      if (inFence) return line;
+      // Split on backticks: odd segments are inline code, even are prose.
+      return line
+        .split("`")
+        .map((seg, i) => {
+          if (i % 2) return seg; // inline code: preserve
+          return seg
+            .replace(/\\_/g, "_")
+            .replace(/\\=/g, "=");
+        })
+        .join("`");
+    })
+    .join("\n");
 }
