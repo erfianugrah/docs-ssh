@@ -33,6 +33,12 @@ RUN if [ "$DOCS_PREBUILT" = "true" ] && [ -d "/docs-ctx" ] && [ "$(ls -A /docs-c
 RUN find /docs -name '.stamp.json' -delete \
  && node --import tsx/esm src/commands/build-index.ts /docs /docs/_index.tsv
 
+# Split /docs into 32 stable buckets + a top-level-files layer, with all
+# times zeroed, so an unchanged bucket is byte-identical to the last build
+# and its layer is neither pushed nor pulled again (docs-ssh#38). The
+# runtime stage copies each bucket as its own layer.
+RUN node --import tsx/esm src/commands/layer-buckets.ts /docs /layers
+
 # ─── Stage 1b: compile the MCP-over-HTTP server to a single binary ────────────
 # Bun --compile bundles the runtime + deps into one executable, so the Alpine
 # runtime stage needs no Node/node_modules (only libstdc++/libgcc, added below).
@@ -63,8 +69,44 @@ RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
   && passwd -d docs
 
 # Copy docs (now including the pre-built /docs/_index.tsv produced in
-# stage 1 by build-index.ts) — owned by root, readable by all.
-COPY --from=fetcher /docs /docs
+# stage 1 by build-index.ts) - owned by root, readable by all. One layer per
+# bucket from src/commands/layer-buckets.ts (docs-ssh#38): a rebuild ships
+# only the buckets whose sources changed. `top` (_index.tsv and the other
+# top-level files, which change with any doc) goes last. The list must match
+# BUCKETS; tests/unit/commands/layer-buckets.test.ts enforces it.
+COPY --from=fetcher /layers/00/ /
+COPY --from=fetcher /layers/01/ /
+COPY --from=fetcher /layers/02/ /
+COPY --from=fetcher /layers/03/ /
+COPY --from=fetcher /layers/04/ /
+COPY --from=fetcher /layers/05/ /
+COPY --from=fetcher /layers/06/ /
+COPY --from=fetcher /layers/07/ /
+COPY --from=fetcher /layers/08/ /
+COPY --from=fetcher /layers/09/ /
+COPY --from=fetcher /layers/10/ /
+COPY --from=fetcher /layers/11/ /
+COPY --from=fetcher /layers/12/ /
+COPY --from=fetcher /layers/13/ /
+COPY --from=fetcher /layers/14/ /
+COPY --from=fetcher /layers/15/ /
+COPY --from=fetcher /layers/16/ /
+COPY --from=fetcher /layers/17/ /
+COPY --from=fetcher /layers/18/ /
+COPY --from=fetcher /layers/19/ /
+COPY --from=fetcher /layers/20/ /
+COPY --from=fetcher /layers/21/ /
+COPY --from=fetcher /layers/22/ /
+COPY --from=fetcher /layers/23/ /
+COPY --from=fetcher /layers/24/ /
+COPY --from=fetcher /layers/25/ /
+COPY --from=fetcher /layers/26/ /
+COPY --from=fetcher /layers/27/ /
+COPY --from=fetcher /layers/28/ /
+COPY --from=fetcher /layers/29/ /
+COPY --from=fetcher /layers/30/ /
+COPY --from=fetcher /layers/31/ /
+COPY --from=fetcher /layers/top/ /
 
 # Build the per-source sources.json and the post-build health report.
 # These two are tiny POSIX-sh scripts and don't justify Node in the
