@@ -157,3 +157,49 @@ describe("isPinnedCapture", () => {
     expect(isPinnedCapture("https://docs.redhat.com/x")).toBe(false);
   });
 });
+
+describe("checkSource archived pages", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("does not fetch a source made entirely of pinned captures", async () => {
+    const fetchMock = vi.fn(async () => new Response("ok"));
+    vi.stubGlobal("fetch", fetchMock);
+    const source = new DocSource({
+      name: "pinned",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: [
+        "https://web.archive.org/web/20240701194425id_/https://example.com/a",
+        "https://web.archive.org/web/20240701194426id_/https://example.com/b",
+      ],
+    });
+
+    const r = await checkSource(source);
+    expect(r.status).toBe("ok");
+    expect(r.count).toBe(2);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("samples live origin pages instead of archived pages in a mixed source", async () => {
+    const fetchMock = vi.fn(async () => new Response("ok"));
+    vi.stubGlobal("fetch", fetchMock);
+    const source = new DocSource({
+      name: "mixed",
+      type: "http",
+      format: "html",
+      url: "https://example.com/",
+      urls: [
+        "https://web.archive.org/web/20240701194425id_/https://example.com/a",
+        "https://example.com/b",
+        "https://example.com/c",
+        "https://web.archive.org/web/20240701194426id_/https://example.com/d",
+      ],
+    });
+
+    const r = await checkSource(source);
+    expect(r.status).toBe("ok");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.every(([url]) => String(url).startsWith("https://example.com/"))).toBe(true);
+  });
+});

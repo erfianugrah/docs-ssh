@@ -1481,14 +1481,14 @@ export const SOURCES: readonly DocSource[] = [
 
   // ─── OpenCode ────────────────────────────────────────────────────
 
-  // Git sparse — Astro Starlight source (630 mdx files)
+  // Git sparse - Astro Starlight V1 source; V2 docs live in ../content.
   new DocSource({
     name: "opencode",
     type: "git",
     url: "https://github.com/sst/opencode",
     format: "mdx",
-    paths: ["packages/web/src/content/docs"],
-    rootPath: "packages/web/src/content/docs",
+    paths: ["services/site/src/docs/v1/content"],
+    rootPath: "services/site/src/docs/v1/content",
   }),
 
   // ─── Pi (Earendil) ──────────────────────────────────────────────
