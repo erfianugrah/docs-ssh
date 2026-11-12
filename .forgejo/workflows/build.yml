@@ -137,12 +137,17 @@ jobs:
       - name: Check free space on job filesystem
         # The job rootfs is the CI docker daemon's bounded fs (router#39);
         # a fetch run copies ~25G into it (docs/ ~3G + work/ ~22G, measured
-        # in the cache volume 2026-11-12, docs-ssh#39). Fail before copying
-        # rather than ENOSPC halfway.
+        # in the cache volume 2026-11-12, docs-ssh#39), and "Save docs cache"
+        # then writes ~25G of .new copies before the old cache is removed:
+        # ~50G peak on the CI fs, plus build headroom. Fail before copying
+        # rather than ENOSPC halfway through a 2h fetch.
         run: |
           avail_kb=$(df --output=avail / | tail -1 | tr -d ' ')
           avail_gb=$(( avail_kb / 1024 / 1024 ))
-          need_gb=30
+          # docs/ restore (~3G) + image build always; work/ (~22G) and the
+          # cache save (~25G of .new copies) only when Plan says fetch. The
+          # gate runs before Plan, so size for the fetch case.
+          need_gb=60
           echo "available: ${avail_gb}G, need: ${need_gb}G"
           if [ "$avail_gb" -lt "$need_gb" ]; then
             echo "::error::only ${avail_gb}G free on job filesystem; ${need_gb}G needed for docs cache + build context. Clean up old runner artifacts or increase the runner disk."
@@ -240,6 +245,8 @@ jobs:
           docker cp docs/. "$c":/cache/docs.new/
           docker cp /tmp/docs-work/. "$c":/cache/work.new/
           docker run --rm -v "$CACHE_VOLUME":/cache "$HELPER_IMAGE" sh -c 'rm -rf /cache/docs /cache/work && mv /cache/docs.new /cache/docs && mv /cache/work.new /cache/work && du -sh /cache/docs /cache/work'
+          # work/ is fetch-only; free its ~22G before the image build.
+          rm -rf /tmp/docs-work
 
       - name: Remove cache helper container
         if: always() && env.CACHE_HELPER != ''
