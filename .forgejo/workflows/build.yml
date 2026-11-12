@@ -134,16 +134,30 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Restore docs cache from volume
+      - name: Check free space on job filesystem
+        # The job rootfs is the CI docker daemon's bounded fs (router#39);
+        # a fetch run copies ~25G into it (docs/ ~3G + work/ ~22G, measured
+        # in the cache volume 2026-11-12, docs-ssh#39). Fail before copying
+        # rather than ENOSPC halfway.
+        run: |
+          avail_kb=$(df --output=avail / | tail -1 | tr -d ' ')
+          avail_gb=$(( avail_kb / 1024 / 1024 ))
+          need_gb=30
+          echo "available: ${avail_gb}G, need: ${need_gb}G"
+          if [ "$avail_gb" -lt "$need_gb" ]; then
+            echo "::error::only ${avail_gb}G free on job filesystem; ${need_gb}G needed for docs cache + build context. Clean up old runner artifacts or increase the runner disk."
+            exit 1
+          fi
+
+      - name: Restore docs/ from cache volume
         run: |
           echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
           docker volume create "$CACHE_VOLUME" >/dev/null
           c=$(docker create -v "$CACHE_VOLUME":/cache "$HELPER_IMAGE" true)
           echo "CACHE_HELPER=$c" >> "$GITHUB_ENV"
-          mkdir -p docs /tmp/docs-work
+          mkdir -p docs
           # docker cp of a missing path fails; an empty volume is a cold start.
           docker cp "$c":/cache/docs/. docs/ 2>/dev/null || echo "cache: no docs yet (cold start)"
-          docker cp "$c":/cache/work/. /tmp/docs-work/ 2>/dev/null || echo "cache: no work dir yet"
           echo "restored: $(find docs -name '*.md' | wc -l) md files, $(du -sh docs | cut -f1)"
           if [ -f docs/_build.json ]; then echo "last fetch: $(cat docs/_build.json)"; fi
 
@@ -168,6 +182,16 @@ jobs:
           EVENT=$event FORCE_REFRESH="${{ inputs.refresh || false }}" \
             LAST_FETCH_FILE=docs/_build.json FETCHER_CHANGED=$changed \
             node --import tsx/esm src/ci/plan-cli.ts >> "$GITHUB_OUTPUT"
+
+      - name: Restore work/ from cache volume
+        # /tmp/docs-work is only needed during a fetch (git clone work dirs, 22G).
+        # Skipping it when fetch=false saves 22G in the job container.
+        if: steps.plan.outputs.fetch == 'true'
+        run: |
+          c="$CACHE_HELPER"
+          mkdir -p /tmp/docs-work
+          docker cp "$c":/cache/work/. /tmp/docs-work/ 2>/dev/null || echo "cache: no work dir yet"
+          echo "work restored: $(du -sh /tmp/docs-work | cut -f1)"
 
       - name: Install Jinja2 (TRaSH-Guides converter)
         if: steps.plan.outputs.fetch == 'true'
