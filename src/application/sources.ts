@@ -4885,8 +4885,13 @@ export const SOURCES: readonly DocSource[] = [
     format: "html",
     description:
       "Brazil LGPD (Lei 13.709/2018, Portuguese) - data protection law for the Supabase sa-east-1 region",
-    urls: ["https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm"],
-    // planalto.gov.br ECONNRESETs the docs-ssh UA (browser UA passes).
+    // Pinned Wayback raw capture: since 2026-11-11 planalto.gov.br 302s the
+    // law page to gov.br/planalto, an F5 captcha wall (429) for any client,
+    // and Wayback captures from 2026-11 on are its "Acesso Negado" page.
+    // 2026-10-27 is the full text (through Art. 65). Statutes change slowly.
+    urls: [
+      "https://web.archive.org/web/20261027174212id_/https://planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm",
+    ],
     userAgent: BROWSER_UA,
   }),
 
