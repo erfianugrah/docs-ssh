@@ -91,6 +91,36 @@ const MARKDOWN_CT_PREFIXES = [
 ];
 
 /**
+ * Decode a response body. fetch's text() always decodes UTF-8, which turns
+ * legacy Latin-1 pages with no charset label (planalto.gov.br) into U+FFFD.
+ * A declared charset (Content-Type, then <meta> in the first 2 KB) wins;
+ * otherwise bytes that are not valid UTF-8 decode as windows-1252, the HTML
+ * standard's default for unlabelled legacy pages.
+ */
+export async function readBody(
+  res: { text(): Promise<string>; arrayBuffer?(): Promise<ArrayBuffer> },
+  contentType: string,
+): Promise<string> {
+  if (typeof res.arrayBuffer !== "function") return res.text();
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  const declared =
+    /charset\s*=\s*"?([\w-]+)/i.exec(contentType)?.[1] ??
+    /<meta[^>]+charset\s*=\s*["']?([\w-]+)/i.exec(new TextDecoder("latin1").decode(bytes.subarray(0, 2048)))?.[1];
+  if (declared) {
+    try {
+      return new TextDecoder(declared).decode(bytes);
+    } catch {
+      // Unknown label: fall through to the sniff.
+    }
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder("windows-1252").decode(bytes);
+  }
+}
+
+/**
  * Heuristic check: does the response body look like HTML, even though
  * the Content-Type header claims markdown? Some origins mislabel —
  * the only signal we can fall back to is content shape. Checks the
@@ -201,7 +231,7 @@ async function fetchPage(
 
   const ct = (res.headers?.get?.("content-type") ?? "").toLowerCase();
   let isMarkdown = MARKDOWN_CT_PREFIXES.some((p) => ct.startsWith(p));
-  const body = await res.text();
+  const body = await readBody(res, ct);
 
   // Mislabelled Content-Type sniff: the header says markdown but the
   // body opens with HTML. We can't trust the negotiation in that case —
@@ -231,7 +261,7 @@ async function fetchPage(
         Accept: "text/html",
       });
       if (fallback.ok) {
-        const fallbackBody = await fallback.text();
+        const fallbackBody = await readBody(fallback, (fallback.headers?.get?.("content-type") ?? "").toLowerCase());
         if (fallbackBody.length > body.length * 2) {
           return {
             body: fallbackBody,

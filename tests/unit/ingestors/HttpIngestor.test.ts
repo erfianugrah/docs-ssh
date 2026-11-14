@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { HttpIngestor } from "../../../src/ingestors/HttpIngestor.js";
+import { HttpIngestor, readBody } from "../../../src/ingestors/HttpIngestor.js";
 import { DocSource } from "../../../src/domain/DocSource.js";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -2355,5 +2355,36 @@ describe("HttpIngestor", () => {
     expect(segment).toMatch(/~[0-9a-f]{8}\.md$/);
 
     await fs.rm(tmpDir, { recursive: true });
+  });
+});
+
+describe("readBody", () => {
+  const res = (bytes: Uint8Array) => ({
+    text: async () => new TextDecoder().decode(bytes),
+    arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+  });
+  // "LEI Nº 13.709 ... informação" as planalto.gov.br serves it: Latin-1, no charset label.
+  const latin1 = Uint8Array.from(Buffer.from("<p>LEI N\u00ba 13.709 informa\u00e7\u00e3o</p>", "latin1"));
+
+  it("decodes unlabelled non-UTF-8 bytes as windows-1252", async () => {
+    expect(await readBody(res(latin1), "text/html")).toBe("<p>LEI N\u00ba 13.709 informa\u00e7\u00e3o</p>");
+  });
+
+  it("honours the Content-Type charset", async () => {
+    expect(await readBody(res(latin1), "text/html; charset=iso-8859-1")).toContain("informa\u00e7\u00e3o");
+  });
+
+  it("honours a <meta charset> when the header has none", async () => {
+    const page = Uint8Array.from(Buffer.from('<meta charset="iso-8859-1"><p>a\u00e7\u00e3o</p>', "latin1"));
+    expect(await readBody(res(page), "text/html")).toContain("a\u00e7\u00e3o");
+  });
+
+  it("leaves valid UTF-8 alone", async () => {
+    const utf8 = new TextEncoder().encode("<p>informa\u00e7\u00e3o \u2014 ok</p>");
+    expect(await readBody(res(utf8), "text/html")).toBe("<p>informa\u00e7\u00e3o \u2014 ok</p>");
+  });
+
+  it("falls back to text() for responses without arrayBuffer", async () => {
+    expect(await readBody({ text: async () => "plain" }, "text/html")).toBe("plain");
   });
 });
