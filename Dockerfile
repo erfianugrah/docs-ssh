@@ -8,7 +8,8 @@ RUN apk add --no-cache git curl rsync python3 py3-jinja2 py3-docutils poppler-ut
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
+# pnpm from npm like CI (ci.yml): Node 25+ no longer ships corepack
+RUN npm install -g pnpm@10 && pnpm install --frozen-lockfile
 
 COPY tsconfig.json ./
 COPY src/ ./src/
