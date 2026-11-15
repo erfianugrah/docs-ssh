@@ -204,9 +204,11 @@ fly deploy
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `ci.yml` | push / PR | typecheck + unit tests with coverage + Docker E2E |
+| `ci.yml` | push / PR / workflow_dispatch | typecheck + unit tests with coverage (test job) + embedder tests (embed) + Docker E2E (e2e) - three parallel jobs |
 | `build.yml` | tags `v*`, daily 02:00 UTC, manual | plan from the cached docs' age + fetcher-code diff; fetch only if needed (warm cache on the runner host); build & push `latest` + date (+ semver on tags); deploy to Composer; smoke. A daily run right after a release that fetched is skipped. |
-| `probe-sources.yml` | weekly | probe sources for better ingestion methods |
+| `check-sources.yml` | push/PR touching fetcher code, daily 00:30 UTC, manual | per-source health probe (~5 min) - catches dead URLs / private repos before the nightly build ships without that source |
+| `embed-backfill.yml` | manual | backfill `_related.tsv` embedding neighbours for the whole corpus (dispatch until `pending=0`) |
+| `probe-sources.yml` | weekly (Sun 04:00 UTC), manual | probe sources for better ingestion methods (upstream format shifts)
 
 ## Development
 

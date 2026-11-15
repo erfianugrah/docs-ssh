@@ -10,7 +10,7 @@ SSH docs server - 429 documentation sources (docs + API specs) served as searcha
 pnpm install              # Node 22+, pnpm 10
 pnpm lint                 # typecheck only (tsc --noEmit)
 pnpm test                 # unit tests (vitest, tests/unit/)
-pnpm test:e2e             # Docker-based E2E tests (requires Docker, 3-min timeout)
+pnpm test:e2e             # Docker-based E2E tests (requires Docker, 5-min timeout)
 pnpm test:smoke           # smoke tests against live container (DOCS_SSH_HOST=docs.erfi.io)
 pnpm test:coverage        # unit tests with v8 coverage
 pnpm generate:tools       # regenerate commands/tools.sh from TypeScript template
@@ -26,7 +26,7 @@ pnpm release:major        # same, major bump
 
 Run a single test file: `npx vitest run tests/unit/path/to/test.ts` (not `pnpm test -- path` — that runs all tests).
 
-CI runs two parallel jobs on every push/PR: `test` (verify tools.sh sync → lint → test:coverage) and `e2e` (Docker-based E2E). Match locally when debugging CI failures. `release.yml` re-runs the full verification (tools sync + lint + unit + E2E) before building+pushing on tag pushes.
+CI runs three parallel jobs on every push/PR/workflow_dispatch: `test` (verify tools.sh sync -> lint -> test:coverage), `embed` (Python embedder tests), and `e2e` (Docker-based E2E). Match locally when debugging CI failures. `build.yml` handles tag `v*` releases, the daily 02:00 UTC refresh, and manual runs - it re-runs full verification (tools sync + lint + unit + E2E) before building+pushing on tag pushes.
 
 ## Gotchas
 
@@ -86,12 +86,12 @@ A second transport (alongside SSH) so remote chat LLMs that can't SSH (Claude.ai
 
 ## Adding a new SSH command
 
-Add a `case` entry in `log-cmd.sh:44-59` and a script in `commands/`. Human-facing commands (like `help`) get `FORCE_COLOR=1`; machine-consumable commands (like `tools`) don't.
+Add a `case` entry in `log-cmd.sh:56-75` and a script in `commands/`. Human-facing commands (like `help`) get `FORCE_COLOR=1`; machine-consumable commands (like `tools`) don't.
 
 ## Testing
 
 - **Unit tests** (`tests/unit/`): mirror `src/` structure. No network or Docker needed.
-- **E2E tests** (`tests/e2e/smoke.test.ts`): require Docker. 3-minute timeout. **Wipes `./docs/` at setup AND teardown** to build with mock fixtures — running this after `pnpm fetch-docs` or `docker:build:cached` will delete cached docs, forcing a re-fetch next time.
+- **E2E tests** (`tests/e2e/smoke.test.ts`): require Docker. 5-minute timeout. **Wipes `./docs/` at setup AND teardown** to build with mock fixtures - running this after `pnpm fetch-docs` or `docker:build:cached` will delete cached docs, forcing a re-fetch next time.
 - **Smoke tests** (`tests/smoke/smoke.test.ts`): require a live SSH server. Test all sources, index, API specs, builtins, security. Default host is `localhost`; set `DOCS_SSH_HOST=docs.erfi.io` to test production.
 - **Benchmarks** (`tests/benchmark/`): token efficiency tests, require a live SSH server.
 - Four vitest configs: `vitest.config.ts` (unit), `vitest.e2e.config.ts`, `vitest.smoke.config.ts`, `vitest.bench.config.ts`.
