@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Forgejo 16 has no API to re-run a job; a dispatch is the scriptable rerun.
+  workflow_dispatch:
 
 jobs:
   test:
