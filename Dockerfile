@@ -1,5 +1,5 @@
 # ─── Stage 1: fetch and normalise docs ───────────────────────────────────────
-FROM node:22-alpine AS fetcher
+FROM node:26-alpine AS fetcher
 
 # python3 + jinja2 back the TRaSH-Guides converter's full-Jinja renderer
 # (see src/ingestors/jinja-render.py) - no JS template engine handles the
