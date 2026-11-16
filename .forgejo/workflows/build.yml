@@ -71,7 +71,7 @@ jobs:
       - name: Start job-private dockerd
         if: github.event_name == 'push'
         run: |
-          sh -c 'dockerd --host=unix:///tmp/dind.sock --data-root=/tmp/dind-data --storage-driver=vfs >/tmp/dockerd.log 2>&1 &'
+          sh -c 'dockerd --host=unix:///tmp/dind.sock --data-root=/var/tmp/dind-data --storage-driver=vfs >/tmp/dockerd.log 2>&1 &'
           for i in $(seq 1 30); do docker -H unix:///tmp/dind.sock info >/dev/null 2>&1 && break; sleep 1; done
           echo "DOCKER_HOST=unix:///tmp/dind.sock" >> "$GITHUB_ENV"
           docker -H unix:///tmp/dind.sock info --format 'private dockerd: {{.ServerVersion}} {{.Driver}}'
@@ -189,14 +189,15 @@ jobs:
             node --import tsx/esm src/ci/plan-cli.ts >> "$GITHUB_OUTPUT"
 
       - name: Restore work/ from cache volume
-        # /tmp/docs-work is only needed during a fetch (git clone work dirs, 22G).
+        # /var/tmp/docs-work is only needed during a fetch (git clone work dirs, 22G).
+        # Not /tmp: job /tmp is a 3G tmpfs since forgejo-compose 52fb500 (run 238 ENOSPC).
         # Skipping it when fetch=false saves 22G in the job container.
         if: steps.plan.outputs.fetch == 'true'
         run: |
           c="$CACHE_HELPER"
-          mkdir -p /tmp/docs-work
-          docker cp "$c":/cache/work/. /tmp/docs-work/ 2>/dev/null || echo "cache: no work dir yet"
-          echo "work restored: $(du -sh /tmp/docs-work | cut -f1)"
+          mkdir -p /var/tmp/docs-work
+          docker cp "$c":/cache/work/. /var/tmp/docs-work/ 2>/dev/null || echo "cache: no work dir yet"
+          echo "work restored: $(du -sh /var/tmp/docs-work | cut -f1)"
 
       - name: Install Jinja2 (TRaSH-Guides converter)
         if: steps.plan.outputs.fetch == 'true'
@@ -231,7 +232,7 @@ jobs:
             '{fetchedAt: $t, commit: $c, reason: $r, docsMaxAge: ($m | tonumber)}' > docs/_build.json
         env:
           DOCS_OUT_DIR: ${{ github.workspace }}/docs
-          DOCS_WORK_DIR: /tmp/docs-work
+          DOCS_WORK_DIR: /var/tmp/docs-work
           DOCS_MAX_AGE: ${{ steps.plan.outputs.docs_max_age }}
           DOCS_REGRESSION_EXEMPT: ${{ inputs.regression_exempt || '' }}
 
@@ -243,10 +244,10 @@ jobs:
           c="$CACHE_HELPER"
           docker run --rm -v "$CACHE_VOLUME":/cache "$HELPER_IMAGE" sh -c 'rm -rf /cache/docs.new /cache/work.new && mkdir -p /cache/docs.new /cache/work.new'
           docker cp docs/. "$c":/cache/docs.new/
-          docker cp /tmp/docs-work/. "$c":/cache/work.new/
+          docker cp /var/tmp/docs-work/. "$c":/cache/work.new/
           docker run --rm -v "$CACHE_VOLUME":/cache "$HELPER_IMAGE" sh -c 'rm -rf /cache/docs /cache/work && mv /cache/docs.new /cache/docs && mv /cache/work.new /cache/work && du -sh /cache/docs /cache/work'
           # work/ is fetch-only; free its ~22G before the image build.
-          rm -rf /tmp/docs-work
+          rm -rf /var/tmp/docs-work
 
       - name: Remove cache helper container
         if: always() && env.CACHE_HELPER != ''
