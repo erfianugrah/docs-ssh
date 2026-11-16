@@ -366,9 +366,6 @@ export const SOURCES: readonly DocSource[] = [
     discovery: "rss",
     discoveryUrl: "https://planet.postgresql.org/rss20.xml",
     expectRedirects: true,
-    // Aggregated blogs redirect to their own hosts; cybertec-postgresql.com
-    // 403s the docs-ssh UA (check-sources runs 237/241, 2026-11-16).
-    userAgent: BROWSER_UA,
   }),
 
   // Weekly curated newsletter. RSS items link to self-hosted issue pages

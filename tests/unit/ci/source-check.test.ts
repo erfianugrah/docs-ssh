@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { checkSource, filterUrls, hostOf, isTransientStatus, isPinnedCapture, isUncounted, pickSamples, probeTimeoutMs, samplesStatus } from "../../../src/ci/source-check.js";
+import { checkSource, filterUrls, hostOf, isForeignBlock, isTransientStatus, isPinnedCapture, isUncounted, pickSamples, probeTimeoutMs, samplesStatus } from "../../../src/ci/source-check.js";
 import { DocSource } from "../../../src/domain/DocSource.js";
 
 describe("filterUrls", () => {
@@ -77,6 +77,25 @@ describe("isUncounted", () => {
     expect(isUncounted(429, "https://docs.example/")).toBe(false);
     expect(isUncounted(500, "https://ubuntu.com/server/docs/x/")).toBe(true);
     expect(isUncounted(404, "https://docs.example/")).toBe(false);
+  });
+});
+
+describe("isForeignBlock", () => {
+  // planet-postgres: postgr.es/p/9Br redirects to a cybertec blog whose
+  // Cloudflare 403s Node fetch whatever the UA (check-sources 237/241/245).
+  const req = "https://postgr.es/p/9Br";
+  const blog = "https://www.cybertec-postgresql.com/en/slonik/";
+  it("skips a 4xx served by another host on a redirecting aggregator", () => {
+    expect(isForeignBlock(true, req, blog, 403)).toBe(true);
+  });
+  it("counts it when the source does not expect redirects", () => {
+    expect(isForeignBlock(false, req, blog, 403)).toBe(false);
+  });
+  it("counts a 4xx from the source's own host", () => {
+    expect(isForeignBlock(true, req, "https://postgr.es/p/9Bs", 404)).toBe(false);
+  });
+  it("ignores successes", () => {
+    expect(isForeignBlock(true, req, blog, 200)).toBe(false);
   });
 });
 

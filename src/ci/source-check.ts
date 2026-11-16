@@ -256,6 +256,18 @@ export function isUncounted(status: number, url: string): boolean {
 }
 
 /**
+ * A 4xx served by ANOTHER host on a source whose pages redirect away by
+ * design (expectRedirects: planet-postgres RSS items land on each blog). It
+ * is that one blog blocking bots, not the source breaking: cybertec's
+ * Cloudflare 403s Node fetch with any UA (check-sources 237/241/245,
+ * 2026-11-16). Counted like a 5xx: noted, not a warn; all samples blocked
+ * still fails.
+ */
+export function isForeignBlock(expectRedirects: boolean, requested: string, finalUrl: string, status: number): boolean {
+  return expectRedirects && status >= 400 && status < 500 && !!finalUrl && hostOf(finalUrl) !== hostOf(requested);
+}
+
+/**
  * Verdict over the sample pages: no sample fetched = fail, whether the
  * misses were hard failures or uncounted ones; any hard failure = warn.
  */
@@ -309,7 +321,7 @@ async function checkPages(source: DocSource, method: string, urls: string[]): Pr
       try {
         const res = await get(u, source);
         await res.body?.cancel();
-        if (isUncounted(res.status, u)) uncounted.push(`HTTP ${res.status} ${u}`);
+        if (isUncounted(res.status, u) || isForeignBlock(!!source.expectRedirects, u, res.url, res.status)) uncounted.push(`HTTP ${res.status} ${res.url || u}`);
         else if (!res.ok) failures.push(`HTTP ${res.status} ${u}`);
         const note = redirectNote(u, res);
         if (note && !source.expectRedirects) redirects.add(note);
@@ -325,7 +337,7 @@ async function checkPages(source: DocSource, method: string, urls: string[]): Pr
   if (status === "fail") {
     return { method, status, count: urls.length, detail: `all ${samples.length} sample pages failed: ${failures[0] ?? uncounted[0]}` };
   }
-  if (uncounted.length > 0) notes.push(`${uncounted.length} sample(s) rate-limited or 5xx, not counted: ${uncounted[0]}`);
+  if (uncounted.length > 0) notes.push(`${uncounted.length} sample(s) rate-limited, 5xx or blocked by a foreign host, not counted: ${uncounted[0]}`);
   if (failures.length > 0) {
     notes.push(`${failures.length}/${samples.length} samples failed: ${failures[0]}`);
     return { method, status: "warn", count: urls.length, detail: notes.join("; ") };
