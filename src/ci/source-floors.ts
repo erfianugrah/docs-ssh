@@ -17,7 +17,11 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   "aws-s3": 300,
   "aws-iam": 200,
   nextjs: 200,
-  docker: 1000,
+  // docker/docs "Redesign Docker Docs with product-focused navigation"
+  // (#26676, 2026-11-19) deleted content/get-started and most of
+  // content/guides: content/**/*.md went 1121 -> 990 upstream, 992 on
+  // 2026-11-21, under the old 1000 floor (build.yml runs 255, 258).
+  docker: 500,
   kubernetes: 1000,
   mdn: 10000,
   terraform: 4000,
@@ -65,7 +69,7 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   "kicad-druid": 4,
   platformio: 155,
   ezdxf: 110,
-  "scikit-rf": 30,
+  "scikit-rf": 70,    // 114 pages since discovery reads the section indexes (2026-11-21)
   pyvista: 600,
   "kicad-druid-src": 10,
   // -- end batch w23-auspex --

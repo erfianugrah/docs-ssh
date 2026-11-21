@@ -5703,18 +5703,26 @@ export const SOURCES: readonly DocSource[] = [
     description: "ezdxf DXF read/write library: tutorials, addons, entity/render APIs",
   }),
 
-  // scikit-rf: RF/microwave engineering (readthedocs sphinx_rtd_theme).
-  // Landing sidebar lists the full toctree (~45 pages: tutorials + API).
+  // scikit-rf: RF/microwave engineering (readthedocs, Shibuya theme since
+  // upstream's 2026-11-15 docs redesign). The landing page became a survey
+  // page linking 22 pages (was the full ~45-page sidebar toctree under
+  // sphinx_rtd_theme), so discovery also reads the tutorials, API and
+  // examples index pages. Shibuya content sits in <article>, so the
+  // cascade needs no htmlContentClass (rtd's "document" class is gone).
+  // skipMarkdownNegotiation: readthedocs' negotiated markdown carries the
+  // whole Shibuya sidebar (~75 lines before the H1 on api/network); the
+  // HTML path converts only <article>.
   new DocSource({
     name: "scikit-rf",
     type: "http",
     url: "https://scikit-rf.readthedocs.io/en/latest/",
     format: "html",
     discovery: "toc",
-    discoveryUrl: "https://scikit-rf.readthedocs.io/en/latest/",
+    discoveryUrl:
+      "https://scikit-rf.readthedocs.io/en/latest/ https://scikit-rf.readthedocs.io/en/latest/tutorials/index.html https://scikit-rf.readthedocs.io/en/latest/api/index.html https://scikit-rf.readthedocs.io/en/latest/examples/index.html",
     urlPattern: "scikit-rf\\.readthedocs\\.io/en/latest/",
     urlExclude: "(genindex|py-modindex|search)\\.html$|/_(static|modules|sources|downloads)/",
-    htmlContentClass: "document",
+    skipMarkdownNegotiation: true,
     tags: ["hardware", "languages"],
     description: "scikit-rf RF engineering: tutorials, network/VNA/calibration APIs",
   }),

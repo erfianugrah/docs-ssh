@@ -228,6 +228,54 @@ describe("GitIngestor", () => {
     await fs.rm(tmpDir, { recursive: true });
   }, 30_000);
 
+  it("sparse-checks out a single-FILE path on a fresh clone AND on the existing clone", async () => {
+    // SVD sources list one .svd file in `paths`. Cone-mode
+    // `git sparse-checkout set <file>` only passes on the first run,
+    // when `clone --no-checkout` has left the index empty; on the next
+    // run (clone kept in work/) the index holds the file and git
+    // refuses: "'<path>' is not a directory" (build.yml runs 255, 258).
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docs-ssh-sparse-file-"));
+    const repoDir = path.join(tmpDir, "repo");
+    const workDir = path.join(tmpDir, "work");
+    await fs.mkdir(repoDir);
+    await fs.mkdir(workDir);
+    execSync("git init --bare --initial-branch=main", { cwd: repoDir, stdio: "pipe" });
+
+    const cloneDir = path.join(tmpDir, "clone");
+    execSync(`git clone ${repoDir} ${cloneDir}`, { stdio: "pipe" });
+    const svdDir = path.join(cloneDir, "mdk", "dev");
+    await fs.mkdir(svdDir, { recursive: true });
+    const svd = (name: string) =>
+      `<device><name>${name}</name><peripherals><peripheral><name>GPIO</name>` +
+      `<baseAddress>0x50000000</baseAddress><registers><register><name>OUT</name>` +
+      `<addressOffset>0x504</addressOffset></register></registers></peripheral></peripherals></device>`;
+    await fs.writeFile(path.join(svdDir, "dev.svd"), svd("DEV"));
+    await fs.writeFile(path.join(svdDir, "other.svd"), svd("OTHER"));
+    execSync("git add .", { cwd: cloneDir, stdio: "pipe" });
+    execSync("git -c user.name=Test -c user.email=test -c commit.gpgsign=false commit -m 'init'", {
+      cwd: cloneDir,
+      stdio: "pipe",
+    });
+    execSync("git push origin main", { cwd: cloneDir, stdio: "pipe" });
+
+    const src = new DocSource({
+      name: "svd-file-test",
+      type: "git",
+      format: "svd",
+      url: `file://${repoDir}`,
+      paths: ["mdk/dev/dev.svd"],
+    });
+    for (let run = 1; run <= 2; run++) {
+      const set = await ingestor.ingest(src, workDir);
+      expect(set.hasFile("dev/index.md"), `run ${run}`).toBe(true);
+      expect(set.hasFile("dev/GPIO.md"), `run ${run}`).toBe(true);
+      // Only the listed file is ingested, not its siblings.
+      expect(set.hasFile("other/index.md"), `run ${run}`).toBe(false);
+    }
+
+    await fs.rm(tmpDir, { recursive: true });
+  }, 30_000);
+
   it("stores full 40-char SHA as version (not --short)", async () => {
     // Freshness check in UpdateDocSets compares remote full-SHA against
     // stamp.gitSha. If we stored a --short SHA, it would auto-disambiguate

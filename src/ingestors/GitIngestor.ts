@@ -152,7 +152,14 @@ export class GitIngestor implements DocIngestor {
         cwd: cloneDir,
         timeout: GIT_FAST_TIMEOUT,
       });
-      await execFileAsync("git", ["sparse-checkout", "set", ...source.paths], {
+      // --skip-checks: a `paths` entry may be a single file (SVD sources).
+      // Cone mode then treats it as a directory, which still materialises
+      // the file (cone mode checks out every file directly inside each
+      // ancestor dir); collectSvd reads only the listed path. Without the
+      // flag git refuses a file path once the index holds it ("is not a directory"),
+      // i.e. on every run after the first (`clone --no-checkout` leaves
+      // the index empty, so the first run passes): build.yml 255/258.
+      await execFileAsync("git", ["sparse-checkout", "set", "--skip-checks", ...source.paths], {
         cwd: cloneDir,
         timeout: GIT_FAST_TIMEOUT,
       });
