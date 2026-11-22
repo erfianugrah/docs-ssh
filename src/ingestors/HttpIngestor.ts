@@ -616,13 +616,15 @@ export class HttpIngestor implements DocIngestor {
         );
         totalPages += pageCount;
 
-        // Title from the PDF URL or source name
+        // A pinned Wayback capture cites the vendor's own URL; its last path
+        // segment is the original filename either way.
+        const citeUrl = waybackOriginal(pdfUrl) ?? pdfUrl;
         const pdfBasename = decodeURIComponent(
-          pdfUrl.split("/").pop()?.replace(/\.pdf$/i, "") ?? source.name,
+          citeUrl.split("/").pop()?.replace(/\.pdf$/i, "") ?? source.name,
         );
-        const title = `${source.description ?? pdfBasename}`;
+        const title = source.pdfTitles?.[pdfUrl] ?? source.description ?? pdfBasename;
 
-        const sections = splitPdfText(text, title, pdfUrl);
+        const sections = splitPdfText(text, title, citeUrl);
         console.log(`  [${source.name}]   ${sections.length} sections`);
 
         let secIdx = 0;
@@ -631,8 +633,8 @@ export class HttpIngestor implements DocIngestor {
           const filePath = `${pdfBasename}/${slug}.md`;
           if (source.urlPattern && !new RegExp(source.urlPattern).test(filePath)) continue;
           if (source.urlExclude && new RegExp(source.urlExclude).test(filePath)) continue;
-          const md = sectionToMarkdown(section, title, pdfUrl);
-          files.set(filePath, new DocFile(filePath, md, { originUrl: pdfUrl }));
+          const md = sectionToMarkdown(section, title, citeUrl);
+          files.set(filePath, new DocFile(filePath, md, { originUrl: citeUrl }));
           secIdx++;
         }
       } finally {

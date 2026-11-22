@@ -194,6 +194,13 @@ export interface DocSourceConfig {
    * pages without it go through the normal article/main cascade.
    */
   readonly htmlContentClass?: string;
+  /**
+   * `pdf` discovery: document title per PDF URL in `discoveryUrl`, used for
+   * that PDF's section H1s instead of the source description (one source
+   * often bundles a datasheet, a reference manual and app notes). Filled
+   * from the vendor-docs manifest by `vendorPdfFields()`.
+   */
+  readonly pdfTitles?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -227,6 +234,7 @@ export class DocSource {
   readonly tocDepth: number | undefined;
   readonly expectRedirects: boolean;
   readonly htmlContentClass: string | undefined;
+  readonly pdfTitles: Readonly<Record<string, string>> | undefined;
   readonly resolveTrashGuides: boolean;
   readonly publicUrl: ((repoRelPath: string) => string | undefined) | undefined;
 
@@ -263,6 +271,7 @@ export class DocSource {
     this.tocDepth = config.tocDepth;
     this.expectRedirects = config.expectRedirects ?? false;
     this.htmlContentClass = config.htmlContentClass;
+    this.pdfTitles = config.pdfTitles;
     this.resolveTrashGuides = config.resolveTrashGuides ?? false;
     this.publicUrl = config.publicUrl;
   }

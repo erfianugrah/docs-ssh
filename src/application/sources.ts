@@ -1,5 +1,6 @@
 import { DocSource } from "../domain/DocSource.js";
 import { lexicanumPublicUrl, win32ApiPublicUrl, win32DocsPublicUrl, windowsDriversPublicUrl, windowsDdiPublicUrl } from "./public-urls.js";
+import { vendorPdfFields } from "./vendor-docs.js";
 
 // Browser User-Agent for the few government legislation sites that
 // block non-browser UAs at the WAF/TLS layer (verified: planalto.gov.br
@@ -6140,9 +6141,7 @@ export const SOURCES: readonly DocSource[] = [
     url: "https://github.com/wuxx/nanoCH32V203",
     format: "pdf",
     discovery: "pdf",
-    discoveryUrl:
-      "https://raw.githubusercontent.com/wuxx/nanoCH32V203/master/doc/CH32FV2x_V3xRM_en.PDF" +
-      " https://arvidtek.com/wp-content/uploads/2025/01/CH32V307DS0.pdf",
+    ...vendorPdfFields("wch-ch32v30x"),
     description: "WCH CH32FV2x_V3x Reference Manual + CH32V30x Datasheet (English)",
     tags: ["hardware"],
   }),
@@ -6156,16 +6155,16 @@ export const SOURCES: readonly DocSource[] = [
     url: "https://www.usb.org/",
     format: "pdf",
     discovery: "pdf",
-    discoveryUrl:
-      "https://www.usb.org/sites/default/files/hut1_5.pdf https://www.usb.org/sites/default/files/hid1_11.pdf",
+    ...vendorPdfFields("usb-hid-usage-tables"),
     description: "USB-IF HID Usage Tables + HID Device Class Definition",
     tags: ["hardware", "standards"],
   }),
 
   // Artery AT32F405 Datasheet + Reference Manual + OTGHS Application Note
-  // (the Chinese RM duplicates the English one and is left out).
-  // RM_AT32F402_405_EN_V2.01.pdf (note: 402 before 405
-  // in the filename). AN0034 (USB ESD) and AN0290 (magnetic keyboard) do
+  // (the Chinese RM duplicates the English one and is left out). PDF list in
+  // vendor-docs.ts (DS V2.03 + RM V2.02 since 2026-11-22, the newest English
+  // revisions that day; arterychip.com is Artery's current download host).
+  // AN0034 (USB ESD) and AN0290 (magnetic keyboard) do
   // not exist in English on arterytek.com or arterychip.com as of 2026-11-08.
   new DocSource({
     name: "at32f405",
@@ -6173,11 +6172,7 @@ export const SOURCES: readonly DocSource[] = [
     url: "https://www.arterytek.com/",
     format: "pdf",
     discovery: "pdf",
-    discoveryUrl:
-      "https://www.arterytek.com/download/DS/DS_AT32F405_402_V2.01_EN.pdf" +
-      " https://www.arterytek.com/download/APNOTE/AN0185_AT32_MCU_OTGHS_Application_Note_EN_V2.0.0.pdf" +
-      " https://www.arterytek.com/download/APNOTE/AN0185_AT32_MCU_OTGHS_Application_Note_ZH_V2.0.0.pdf" +
-      " https://www.arterytek.com/download/RM/RM_AT32F402_405_EN_V2.01.pdf",
+    ...vendorPdfFields("at32f405"),
     description: "Artery AT32F405 Datasheet + Reference Manual + OTGHS Application Note",
     tags: ["hardware"],
     userAgent: BROWSER_UA,
