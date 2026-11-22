@@ -24,6 +24,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";
+import type { UpstreamAccess } from "../application/upstream-access.js";
 import type { DocSource } from "../domain/DocSource.js";
 import { discover } from "../ingestors/discovery/index.js";
 import { applyUrlSuffix } from "../ingestors/HttpIngestor.js";
@@ -429,5 +430,38 @@ export async function checkSource(source: DocSource, timeoutMs = 300_000): Promi
     return { name: source.name, method: source.type, status: "fail", detail: msg.slice(0, 200), ms: Date.now() - t0 };
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/**
+ * Re-requests a registered upstream block (src/application/upstream-access.ts)
+ * the way it refused us: the fetcher UA, plus `Accept: text/markdown` for a
+ * header filter. HTTP 200 means the block lifted and the entry is stale
+ * (warn); anything else, a 202 challenge page or a stall included, confirms
+ * it (ok). No retry: a block that answers once is worth a look.
+ */
+export async function checkUpstream(host: string, entry: UpstreamAccess, timeoutMs = 20_000): Promise<CheckResult> {
+  const t0 = Date.now();
+  const name = `upstream:${host}`;
+  const method = `upstream:${entry.status}`;
+  if (!entry.probe) return { name, method, status: "ok", detail: "no probe URL", ms: 0 };
+  const headers: Record<string, string> = { "User-Agent": UA };
+  if (entry.status === "header-filtered") headers.Accept = "text/markdown, text/html;q=0.9";
+  try {
+    const res = await fetch(entry.probe, { headers, signal: AbortSignal.timeout(timeoutMs), redirect: "follow" });
+    await res.body?.cancel();
+    if (res.status === 200) {
+      return {
+        name,
+        method,
+        status: "warn",
+        detail: `block lifted? HTTP 200 for ${entry.probe} (recorded ${entry.status} since ${entry.since}): re-check and update upstream-access.ts`,
+        ms: Date.now() - t0,
+      };
+    }
+    return { name, method, status: "ok", detail: `still ${entry.status}: HTTP ${res.status}`, ms: Date.now() - t0 };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { name, method, status: "ok", detail: `still ${entry.status}: ${msg}`.slice(0, 200), ms: Date.now() - t0 };
   }
 }

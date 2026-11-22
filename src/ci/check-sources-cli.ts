@@ -11,11 +11,16 @@
  * a source's own deadlineMs raises its ceiling (probeTimeoutMs).
  * CHECK_STRICT=1 also fails on warnings. Failures of sources listed in
  * TOLERATED_MISSING (src/ci/source-floors.ts) count as warnings.
+ *
+ * A full run (no CHECK_ONLY / CHECK_CHANGED_SINCE), or CHECK_UPSTREAM=1,
+ * also re-probes every UPSTREAM_ACCESS entry with a probe URL
+ * (src/application/upstream-access.ts) and warns when a block has lifted.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { SOURCES } from "../application/sources.js";
-import { type CheckResult, checkSource, probeTimeoutMs } from "./source-check.js";
+import { UPSTREAM_ACCESS } from "../application/upstream-access.js";
+import { type CheckResult, checkSource, checkUpstream, probeTimeoutMs } from "./source-check.js";
 import { TOLERATED_MISSING } from "./source-floors.js";
 
 const concurrency = Number(process.env.CHECK_CONCURRENCY ?? 8) || 8;
@@ -56,6 +61,7 @@ function changedSince(ref: string): Set<string> {
 }
 
 let sources = SOURCES;
+let probeUpstream = process.env.CHECK_UPSTREAM === "1";
 const only = (process.env.CHECK_ONLY ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 if (only.length > 0) {
   sources = SOURCES.filter((s) => only.includes(s.name));
@@ -63,8 +69,10 @@ if (only.length > 0) {
   const changed = changedSince(process.env.CHECK_CHANGED_SINCE);
   sources = SOURCES.filter((s) => changed.has(s.name));
   console.error(`changed since ${process.env.CHECK_CHANGED_SINCE}: ${[...changed].join(", ") || "(none)"}`);
+} else {
+  probeUpstream = true;
 }
-if (sources.length === 0) {
+if (sources.length === 0 && !probeUpstream) {
   console.error("no sources to check");
   process.exit(0);
 }
@@ -87,6 +95,17 @@ async function worker(): Promise<void> {
   }
 }
 await Promise.all(Array.from({ length: Math.min(concurrency, sources.length) }, worker));
+if (probeUpstream) {
+  const probed = await Promise.all(
+    Object.entries(UPSTREAM_ACCESS)
+      .filter(([, e]) => e.probe)
+      .map(([host, e]) => checkUpstream(host, e)),
+  );
+  for (const r of probed) {
+    results.push(r);
+    console.error(`${r.status === "ok" ? "ok  " : "WARN"} ${r.name} (${(r.ms / 1000).toFixed(1)}s) ${r.detail}`);
+  }
+}
 
 const order: Record<string, number> = { fail: 0, warn: 1, tolerated: 2, ok: 3 };
 results.sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name));

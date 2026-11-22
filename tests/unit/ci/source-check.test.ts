@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { checkSource, filterUrls, hostOf, isForeignBlock, isTransientStatus, isPinnedCapture, isUncounted, pickSamples, probeTimeoutMs, samplesStatus } from "../../../src/ci/source-check.js";
+import { checkSource, checkUpstream, filterUrls, hostOf, isForeignBlock, isTransientStatus, isPinnedCapture, isUncounted, pickSamples, probeTimeoutMs, samplesStatus } from "../../../src/ci/source-check.js";
 import { DocSource } from "../../../src/domain/DocSource.js";
 
 describe("filterUrls", () => {
@@ -220,5 +220,44 @@ describe("checkSource archived pages", () => {
     expect(r.status).toBe("ok");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls.every(([url]) => String(url).startsWith("https://example.com/"))).toBe(true);
+  });
+});
+
+describe("checkUpstream", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const base = { since: "2026-11-01", checked: "2026-11-22", evidence: "e", fallback: "f" };
+
+  it("warns when a blocked host answers 200 (block lifted)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("ok", { status: 200 })));
+    const r = await checkUpstream("b.example", { ...base, status: "blocked", probe: "https://b.example/x" });
+    expect(r.name).toBe("upstream:b.example");
+    expect(r.status).toBe("warn");
+    expect(r.detail).toMatch(/block lifted/);
+  });
+
+  it("confirms the block on 403, a 202 challenge page and a network error", async () => {
+    for (const impl of [
+      async () => new Response("no", { status: 403 }),
+      async () => new Response("challenge", { status: 202 }),
+      async () => {
+        throw new TypeError("fetch failed");
+      },
+    ]) {
+      vi.stubGlobal("fetch", vi.fn(impl));
+      const r = await checkUpstream("b.example", { ...base, status: "challenge", probe: "https://b.example/x" });
+      expect(r.status).toBe("ok");
+      expect(r.detail).toMatch(/^still challenge/);
+    }
+  });
+
+  it("sends the markdown Accept header only for header-filtered hosts", async () => {
+    const fetchMock = vi.fn(async (_u: string, _init?: RequestInit) => new Response("no", { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await checkUpstream("h.example", { ...base, status: "header-filtered", probe: "https://h.example/" });
+    await checkUpstream("u.example", { ...base, status: "ua-filtered", probe: "https://u.example/" });
+    const h0 = fetchMock.mock.calls[0][1]?.headers as Record<string, string>;
+    const h1 = fetchMock.mock.calls[1][1]?.headers as Record<string, string>;
+    expect(h0.Accept).toMatch(/text\/markdown/);
+    expect(h1.Accept).toBeUndefined();
   });
 });
