@@ -6115,6 +6115,36 @@ export const SOURCES: readonly DocSource[] = [
     description: "Nordic nRF52820 CMSIS-SVD register map (peripheral, register and field descriptions)",
   }),
 
+  // STM32 register maps: ST's SVDs as mirrored (Apache-2.0, line endings
+  // normalised) by modm-io/cmsis-svd-stm32. st.com itself is blocked for the
+  // fetcher (upstream-access.ts), and ST's site terms forbid redistributing
+  // its PDFs, so register lookups come from here (docs-ssh#53). Parts:
+  // H7R/H7S, N657 and F723, plus the usual QMK keyboard MCUs (F072 = F0x2,
+  // F103, F303, F401, F405, F407, F411, F446).
+  new DocSource({
+    name: "stm32-svd",
+    type: "git",
+    url: "https://github.com/modm-io/cmsis-svd-stm32",
+    format: "svd",
+    paths: [
+      "stm32h7rs/STM32H7R.svd",
+      "stm32h7rs/STM32H7S.svd",
+      "stm32n6/STM32N657.svd",
+      "stm32f7/STM32F723.svd",
+      "stm32f0/STM32F0x2.svd",
+      "stm32f1/STM32F103.svd",
+      "stm32f3/STM32F303.svd",
+      "stm32f4/STM32F401.svd",
+      "stm32f4/STM32F405.svd",
+      "stm32f4/STM32F407.svd",
+      "stm32f4/STM32F411.svd",
+      "stm32f4/STM32F446.svd",
+    ],
+    tags: ["hardware"],
+    description:
+      "STM32 CMSIS-SVD register maps (H7R/H7S, N657, F723, F072, F103, F303, F401, F405, F407, F411, F446): peripheral, register and field descriptions",
+  }),
+
   // Artery AT32F405 register map (BSD-3-Clause, repo license).
   new DocSource({
     name: "artery-at32f405",

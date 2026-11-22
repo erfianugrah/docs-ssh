@@ -102,6 +102,41 @@ export const VENDOR_DOCS: readonly VendorDoc[] = [
     source: "wch-ch32v30x",
   },
 
+  // ── STMicroelectronics ─────────────────────────────────────────
+  // Provenance only, not mirrored: ST's site terms (capture 20261020105546 of
+  // /content/st_com/en/about/terms-of-use.html) forbid reproducing or
+  // distributing its Materials without written permission. www.st.com and
+  // www.st.com.cn are blocked for us, so every row needs a pinned capture;
+  // ST's CDN gzip-encodes PDFs and Wayback replays that (undici decodes it).
+  // Check a capture with pdfinfo before pinning it: the 2024-09-10 UM2502
+  // capture is cut at 1 MiB.
+  {
+    vendor: "st",
+    doc: "DS4260",
+    title: "USBLC6-2 Very low capacitance ESD protection",
+    rev: "Rev 7",
+    url: "https://www.st.com/resource/en/datasheet/usblc6-2.pdf",
+    fetch: "https://web.archive.org/web/20261117191058id_/https://www.st.com/resource/en/datasheet/usblc6-2.pdf",
+  },
+  {
+    vendor: "st",
+    doc: "AN4879",
+    title: "Introduction to USB hardware and PCB guidelines using STM32 MCUs",
+    rev: "Rev 12",
+    url: "https://www.st.com/resource/en/application_note/an4879-introduction-to-usb-hardware-and-pcb-guidelines-using-stm32-mcus-stmicroelectronics.pdf",
+    fetch:
+      "https://web.archive.org/web/20261001185309id_/https://www.st.com/resource/en/application_note/an4879-introduction-to-usb-hardware-and-pcb-guidelines-using-stm32-mcus-stmicroelectronics.pdf",
+  },
+  {
+    vendor: "st",
+    doc: "UM2502",
+    title: "STLINK-V3MODS and STLINK-V3MINI debugger/programmer tiny probes for STM32 microcontrollers",
+    rev: "Rev 2",
+    url: "https://www.st.com/resource/en/user_manual/um2502-stlinkv3mods-and-stlinkv3mini-debuggerprogrammer-tiny-probes-for-stm32-microcontrollers-stmicroelectronics.pdf",
+    fetch:
+      "https://web.archive.org/web/20231216150458id_/https://www.st.com/resource/en/user_manual/um2502-stlinkv3mods-and-stlinkv3mini-debuggerprogrammer-tiny-probes-for-stm32-microcontrollers-stmicroelectronics.pdf",
+  },
+
   // ── USB-IF ─────────────────────────────────────────────────────
   {
     vendor: "usb-if",

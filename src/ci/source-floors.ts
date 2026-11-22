@@ -126,6 +126,7 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   athom: 90,
   "nordic-nrf52840": 40,
   "nordic-nrf52820": 25,
+  "stm32-svd": 900,  // 1021 pages from 12 SVDs (2026-11-22)
   "artery-at32f405": 30,
   // -- end batch w27-svd --
 

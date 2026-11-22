@@ -58,8 +58,17 @@ export const UPSTREAM_ACCESS: Readonly<Record<string, UpstreamAccess>> = {
     checked: "2026-11-22",
     evidence:
       "Akamai (e40218.a.akamaiedge.net): TLS completes, then HTTP/2 stream reset INTERNAL_ERROR or a silent stall over HTTP/1.1; any UA, browser headers too; dev box and servarr the same",
-    fallback: "pinned Wayback captures of the resource/en/... PDFs (vendor-docs.ts fetch column); SVDs from a GitHub mirror",
+    fallback:
+      "pinned Wayback captures of the resource/en/... PDFs (vendor-docs.ts fetch column, provenance only: ST's terms forbid redistribution); SVDs from modm-io/cmsis-svd-stm32 (stm32-svd)",
     probe: "https://www.st.com/resource/en/datasheet/usblc6-2.pdf",
+  },
+  "www.st.com.cn": {
+    status: "blocked",
+    since: "2026-11-22",
+    checked: "2026-11-22",
+    evidence: "same Akamai block as www.st.com: no response for the fetcher UA (serves the same resource/en/... paths)",
+    fallback: "none needed: ST documents use www.st.com captures",
+    probe: "https://www.st.com.cn/resource/en/datasheet/usblc6-2.pdf",
   },
   "docs.redhat.com": {
     status: "blocked",
