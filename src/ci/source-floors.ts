@@ -147,6 +147,12 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   "faultier-python": 2,   // 3 docs/source/*.rst upstream (2026-11-07)
   greatfet: 10,            // 17 .rst files
   // -- end batch w17-rst --
+  // docs-ssh#57 (local fetch 2026-11-24 in brackets)
+  cynthion: 15,            // (25)
+  "cynthion-src": 20,      // (34)
+  luna: 5,                 // (7)
+  packetry: 4,             // (6)
+  "gsg-cynthion-blog": 20, // (31 posts in the tag feed)
 
   // -- batch rhel9-wayback (docs-ssh#30, 2026-11-08) --
   "rhel9-basic-system-settings": 10, // 18 Wayback pages (archive.org flakes; 60%)

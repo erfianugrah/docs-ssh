@@ -552,6 +552,11 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   mpv: ["cli-tools"],
   "faultier-python": ["hardware", "security"],
   greatfet: ["hardware", "security"],
+  cynthion: ["hardware", "security"],
+  "cynthion-src": ["hardware", "security"],
+  luna: ["hardware"],
+  packetry: ["hardware", "security"],
+  "gsg-cynthion-blog": ["hardware", "blogs"],
   // -- end batch w17-rst --
 
 };

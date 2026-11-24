@@ -6253,4 +6253,62 @@ export const SOURCES: readonly DocSource[] = [
   }),
   // -- end batch w17-rst --
 
+  // ── Great Scott Gadgets Cynthion USB analyser (docs-ssh#57) ──
+  //
+  // Cynthion docs, the LUNA gateware framework, Packetry (the capture app)
+  // and the Cynthion analyzer/platform gateware source. All BSD-3-Clause.
+  // cynthion-hardware is not mirrored: its repo holds a 16-line README plus
+  // KiCad files, and the schematic PDF ships only inside the release zip.
+  new DocSource({
+    name: "cynthion",
+    type: "git",
+    format: "rst",
+    url: "https://github.com/greatscottgadgets/cynthion.git",
+    paths: ["docs/source"],
+    rootPath: "docs/source",
+    tags: ["hardware", "security"],
+    description: "Cynthion USB 2.0 analyser/test tool - getting started, Packetry, Facedancer, USB proxy, hardware, gateware tutorials",
+  }),
+  new DocSource({
+    name: "cynthion-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/cynthion.git",
+    paths: ["cynthion/python/src/gateware"],
+    rootPath: "cynthion/python/src/gateware",
+    tags: ["hardware", "security"],
+    description: "Cynthion gateware source (Amaranth): USB analyzer (capture FSM, event codes, vendor requests), board platform and Pmod pin maps",
+  }),
+  new DocSource({
+    name: "luna",
+    type: "git",
+    format: "rst",
+    url: "https://github.com/greatscottgadgets/luna.git",
+    paths: ["docs"],
+    rootPath: "docs",
+    tags: ["hardware"],
+    description: "LUNA - Amaranth USB gateware framework (USB device stacks, ULPI/UTMI PHY interfaces, custom hardware)",
+  }),
+  new DocSource({
+    name: "packetry",
+    type: "git",
+    format: "rst",
+    url: "https://github.com/greatscottgadgets/packetry.git",
+    paths: ["docs/source"],
+    rootPath: "docs/source",
+    tags: ["hardware", "security"],
+    description: "Packetry - USB 2.0 capture and analysis app for Cynthion (capture, decoding, file formats)",
+  }),
+  // Hugo tag feed with root-relative <link>s (rss.ts resolves them).
+  new DocSource({
+    name: "gsg-cynthion-blog",
+    type: "http",
+    format: "html",
+    url: "https://greatscottgadgets.com/",
+    discovery: "rss",
+    discoveryUrl: "https://greatscottgadgets.com/tags/cynthion/index.xml",
+    tags: ["hardware", "blogs"],
+    description: "Great Scott Gadgets blog posts tagged Cynthion (design updates, manufacturing, Packetry, use cases)",
+  }),
+
 ];
