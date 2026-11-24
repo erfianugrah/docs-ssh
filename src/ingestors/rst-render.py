@@ -3,7 +3,11 @@
 
 Reads a single JSON object from stdin of the form:
 
-    {"files": [["rel/path.rst", "content..."], ...]}
+    {"files": [["rel/path.rst", "content..."], ...], "root": "/abs/dir"}
+
+`root` (optional) is the directory the relative paths sit in; each file
+is rendered with its real source path so `.. include::` resolves
+relative to the including file, as Sphinx does.
 
 and writes a JSON array of [relPath, html5String] pairs to stdout.
 Files that cause a docutils error are rendered as a single error
@@ -16,6 +20,7 @@ placeholder so a human or downstream agent sees what was lost.
 """
 
 import json
+import os
 import sys
 
 import docutils.core
@@ -66,6 +71,7 @@ SPHINX_DIRECTIVES = [
     "hlist",
     "centered",
     "eval_rst",
+    "todo",
 ]
 
 # Already-registered standard docutils directives (no-op if re-registered):
@@ -108,6 +114,7 @@ for name in SPHINX_ROLES:
 def main() -> None:
     payload = json.load(sys.stdin)
     file_pairs = payload["files"]  # [[relPath, rstContent], ...]
+    root = payload.get("root")
 
     results = []
     for rel_path, rst_content in file_pairs:
@@ -120,6 +127,7 @@ def main() -> None:
             # gives the inner HTML without <html>/<head>/<body> wrapper.
             parts = docutils.core.publish_parts(
                 source=rst_content,
+                source_path=os.path.join(root, rel_path) if root else None,
                 writer=html5_polyglot.Writer(),
                 settings_overrides={
                     "report_level": 5,          # suppress warnings

@@ -260,7 +260,7 @@ export class GitIngestor implements DocIngestor {
     const walkExtensions = isGodoc
       ? GO_EXTENSIONS
       : isTxt
-        ? TXT_EXTENSIONS
+        ? new Set([...TXT_EXTENSIONS, ...(source.txtExtensions ?? [])])
         : isHtml
           ? HTML_EXTENSIONS
           : MARKDOWN_EXTENSIONS;

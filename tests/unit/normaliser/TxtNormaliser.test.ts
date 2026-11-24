@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { TxtNormaliser } from "../../../src/normaliser/TxtNormaliser.js";
 import { DocFile } from "../../../src/domain/DocFile.js";
+import { DocSource } from "../../../src/domain/DocSource.js";
 
 const normaliser = new TxtNormaliser();
 
@@ -232,5 +233,43 @@ describe("TxtNormaliser: KiCad rule files (kicad-druid-src)", () => {
     const out = await n.normalise(f);
     expect(out?.path).toBe("JLCPCB/JLCPCB-2L-1oz.md");
     expect(out?.content).toMatch(/^# JLCPCB-2L-1oz\n/);
+  });
+});
+
+describe("TxtNormaliser: mixed-language code sources (txtExtensions)", () => {
+  const mixed = new DocSource({
+    name: "apollo-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/apollo.git",
+    txtExtensions: ["c", "md"],
+  });
+
+  it("keeps the full filename so foo.c and foo.h do not collide", async () => {
+    const n = new TxtNormaliser();
+    const c = await n.normalise(new DocFile("firmware/src/jtag.c", "int x;\n"), mixed);
+    const h = await n.normalise(new DocFile("firmware/src/jtag.h", "extern int x;\n"), mixed);
+    expect(c?.path).toBe("firmware/src/jtag.c.md");
+    expect(h?.path).toBe("firmware/src/jtag.h.md");
+  });
+
+  it("titles each page with its repo path", async () => {
+    const out = await new TxtNormaliser().normalise(new DocFile("firmware/src/jtag.c", "int x;\n"), mixed);
+    expect(out?.content).toMatch(/^# firmware\/src\/jtag\.c\n/);
+    expect(out?.content).toContain("```text\nint x;\n```");
+  });
+
+  it("passes .md files (READMEs) through unfenced", async () => {
+    const f = new DocFile("README.md", "# Apollo\n\nDebug controller.\n");
+    const out = await new TxtNormaliser().normalise(f, mixed);
+    expect(out?.path).toBe("README.md");
+    expect(out?.content).toBe("# Apollo\n\nDebug controller.\n");
+  });
+
+  it("leaves sources without txtExtensions on the old naming", async () => {
+    const plain = new DocSource({ name: "nvapi-headers", type: "git", format: "txt", url: "https://github.com/NVIDIA/nvapi" });
+    const out = await new TxtNormaliser().normalise(new DocFile("nvapi.h", "int x;\n"), plain);
+    expect(out?.path).toBe("nvapi.md");
+    expect(out?.content).toMatch(/^# nvapi\n/);
   });
 });

@@ -99,6 +99,21 @@ describe("walkDir", () => {
     await fs.rm(tmpDir, { recursive: true });
   });
 
+  it("accepts a single file as the walk root (a paths entry naming one file)", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "walkdir-test-"));
+    await fs.writeFile(path.join(tmpDir, "main.c"), "int main;");
+    await fs.writeFile(path.join(tmpDir, "notes.bin"), "x");
+
+    const files = new Map();
+    await walkDir(path.join(tmpDir, "main.c"), tmpDir, files, { extensions: new Set(["c"]) });
+    await walkDir(path.join(tmpDir, "notes.bin"), tmpDir, files, { extensions: new Set(["c"]) });
+
+    expect([...files.keys()]).toEqual(["main.c"]);
+    expect(files.get("main.c")?.content).toBe("int main;");
+
+    await fs.rm(tmpDir, { recursive: true });
+  });
+
   it("handles empty directories", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "walkdir-test-"));
     await fs.mkdir(path.join(tmpDir, "empty"), { recursive: true });

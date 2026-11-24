@@ -31,8 +31,10 @@ export interface WalkDirOptions {
 
 /**
  * Recursively walks a directory, collecting files into a Map keyed by relative path.
+ * `dir` may also be a single file (a git source's `paths` entry naming one
+ * file); it is filtered and stored exactly like a file found by the walk.
  *
- * @param dir       The current directory being walked
+ * @param dir       The current directory (or file) being walked
  * @param root      The root directory (used to compute relative paths)
  * @param files     The accumulator map to populate
  * @param options   Optional filtering and path transformation
@@ -43,6 +45,10 @@ export async function walkDir(
   files: Map<string, DocFile>,
   options?: WalkDirOptions,
 ): Promise<void> {
+  if ((await fs.stat(dir)).isFile()) {
+    await addFile(dir, root, files, options);
+    return;
+  }
   const entries = await fs.readdir(dir, { withFileTypes: true });
 
   for (const entry of entries) {
@@ -51,30 +57,40 @@ export async function walkDir(
     if (entry.isDirectory()) {
       await walkDir(fullPath, root, files, options);
     } else if (entry.isFile()) {
-      // Skip non-doc metadata files
-      if (SKIP_FILENAMES.has(entry.name)) continue;
-
-      // Extension filter
-      if (options?.extensions) {
-        const ext = entry.name.split(".").pop() ?? "";
-        if (!options.extensions.has(ext)) continue;
-      }
-
-      // Per-filename skip predicate (for *_test.go, z*.go, etc.)
-      if (options?.skipFile?.(entry.name)) continue;
-
-      const content = await fs.readFile(fullPath, "utf-8");
-      let relativePath = path.relative(root, fullPath);
-      const rawPath = relativePath;
-
-      if (options?.pathTransform) {
-        relativePath = options.pathTransform(relativePath);
-      }
-
-      files.set(
-        relativePath,
-        new DocFile(relativePath, content, { originUrl: options?.originUrl?.(rawPath) }),
-      );
+      await addFile(fullPath, root, files, options);
     }
   }
+}
+
+async function addFile(
+  fullPath: string,
+  root: string,
+  files: Map<string, DocFile>,
+  options?: WalkDirOptions,
+): Promise<void> {
+  const name = path.basename(fullPath);
+  // Skip non-doc metadata files
+  if (SKIP_FILENAMES.has(name)) return;
+
+  // Extension filter
+  if (options?.extensions) {
+    const ext = name.split(".").pop() ?? "";
+    if (!options.extensions.has(ext)) return;
+  }
+
+  // Per-filename skip predicate (for *_test.go, z*.go, etc.)
+  if (options?.skipFile?.(name)) return;
+
+  const content = await fs.readFile(fullPath, "utf-8");
+  let relativePath = path.relative(root, fullPath);
+  const rawPath = relativePath;
+
+  if (options?.pathTransform) {
+    relativePath = options.pathTransform(relativePath);
+  }
+
+  files.set(
+    relativePath,
+    new DocFile(relativePath, content, { originUrl: options?.originUrl?.(rawPath) }),
+  );
 }

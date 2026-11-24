@@ -1,5 +1,5 @@
 import { DocFile } from "../domain/DocFile.js";
-import type { DocFormat } from "../domain/DocSource.js";
+import type { DocFormat, DocSource } from "../domain/DocSource.js";
 import type { DocNormaliser } from "../domain/DocNormaliser.js";
 
 /** Series prefixes used by the RFC Editor's text module (rfc/, bcp/, fyi/, ien/, std/). */
@@ -73,8 +73,13 @@ export class TxtNormaliser implements DocNormaliser {
     return format === "txt";
   }
 
-  async normalise(file: DocFile): Promise<DocFile | null> {
-    const heading = extractHeading(file.path, file.content);
+  async normalise(file: DocFile, source?: DocSource): Promise<DocFile | null> {
+    // READMEs walked by a txt source with "md" in txtExtensions are
+    // already markdown: serve them as they are, not fenced.
+    if (file.extension === "md") return file;
+    // Mixed-language code sources (txtExtensions) title each page with its
+    // repo path: "firmware/src/jtag.c" says more than "jtag".
+    const heading = source?.txtExtensions ? file.path : extractHeading(file.path, file.content);
     const body = cleanBody(file.content);
     // Guard against the fence sequence appearing in the source text.
     const fence = body.includes("\n```") ? "~~~~" : "```";
@@ -86,7 +91,12 @@ export class TxtNormaliser implements DocNormaliser {
     if (abstract) parts.push(abstract);
     // Strip any source extension (.txt for RFCs, .h/.py/.cpp for git
     // code sources) - the served file is always .md.
-    const mdPath = file.path.replace(/\.[a-z0-9_]+$/i, ".md");
+    // Sources with txtExtensions mix languages (foo.c next to foo.h), so
+    // they keep the full filename (foo.c.md, foo.h.md) - stripping it
+    // would let one overwrite the other. Older txt sources keep foo.md.
+    const mdPath = source?.txtExtensions
+      ? `${file.path}.md`
+      : file.path.replace(/\.[a-z0-9_]+$/i, ".md");
     parts.push(`${fence}text\n${body}\n${fence}`);
     return new DocFile(mdPath, parts.join("\n\n") + "\n", {
       originUrl: file.originUrl,

@@ -150,6 +150,14 @@ export const UPSTREAM_ACCESS: Readonly<Record<string, UpstreamAccess>> = {
     fallback: "pinned Wayback captures",
     probe: "https://www.legislation.gov.uk/ukpga/2018/12/contents",
   },
+  "www.crowdsupply.com": {
+    status: "challenge",
+    since: "2026-11-24",
+    checked: "2026-11-24",
+    evidence: "Cloudflare managed challenge: HTTP 403 'Just a moment...' page for the fetcher UA and BROWSER_UA, campaign pages and the /updates feed alike",
+    fallback: "none needed: GSG reposts its Cynthion campaign updates on the greatscottgadgets.com tag feed (gsg-cynthion-blog)",
+    probe: "https://www.crowdsupply.com/great-scott-gadgets/cynthion/updates",
+  },
   "www.planalto.gov.br": {
     status: "ua-filtered",
     since: "2026-08-20",

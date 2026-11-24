@@ -557,6 +557,20 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   luna: ["hardware"],
   packetry: ["hardware", "security"],
   "gsg-cynthion-blog": ["hardware", "blogs"],
+  "cynthion-moondancer-svd": ["hardware"],
+  "luna-src": ["hardware"],
+  "luna-soc": ["hardware"],
+  "luna-soc-src": ["hardware"],
+  facedancer: ["hardware", "security"],
+  "facedancer-src": ["hardware", "security"],
+  "packetry-src": ["hardware", "security"],
+  "apollo-src": ["hardware"],
+  "saturn-v-src": ["hardware"],
+  "python-usb-protocol-src": ["hardware"],
+  "pyfwup-src": ["hardware"],
+  "cynthion-test-src": ["hardware"],
+  "cynthion-uac-src": ["hardware"],
+  amaranth: ["hardware"],
   // -- end batch w17-rst --
 
 };

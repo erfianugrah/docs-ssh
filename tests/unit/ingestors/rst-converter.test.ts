@@ -138,6 +138,14 @@ beforeAll(async () => {
     ].join("\n"),
   );
 
+  // ── api/registers.rst - include relative to the including file
+  // (luna-soc's eptri.rst pulls ../images/eptri/registers-*.rst) ──
+  fs.writeFileSync(path.join(root, "api", "_regs.inc"), "EPNO register selects the endpoint.\n");
+  fs.writeFileSync(
+    path.join(root, "api", "registers.rst"),
+    ["Registers", "=========", "", ".. include:: _regs.inc", "", ".. todo::", "", "   Document the PRIME register.", ""].join("\n"),
+  );
+
   const files: ConvertedFile[] = await convertRstTree(root);
   byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
 });
@@ -150,6 +158,7 @@ describe.skipIf(!hasDocutils)("rst-converter", () => {
   it("converts all .rst files", () => {
     expect(Object.keys(byPath).sort()).toEqual([
       "api/index.md",
+      "api/registers.md",
       "grid-table.md",
       "index.md",
       "installation.md",
@@ -236,6 +245,15 @@ describe.skipIf(!hasDocutils)("rst-converter", () => {
     const api = byPath["api/index.md"];
     expect(api).toContain("[installation](installation.md)");
     expect(api).toContain("[grid-table](grid-table.md)");
+  });
+
+  it("resolves .. include:: relative to the including file", () => {
+    expect(byPath["api/registers.md"]).toContain("EPNO register selects the endpoint.");
+  });
+
+  it("keeps .. todo:: content as a stub", () => {
+    expect(byPath["api/registers.md"]).toContain("[directive: todo]");
+    expect(byPath["api/registers.md"]).toContain("Document the PRIME register.");
   });
 
   it("stubs toctree directive with content", () => {

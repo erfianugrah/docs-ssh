@@ -201,6 +201,16 @@ export interface DocSourceConfig {
    * from the vendor-docs manifest by `vendorPdfFields()`.
    */
   readonly pdfTitles?: Readonly<Record<string, string>>;
+  /**
+   * `txt` git sources: extensions walked on top of GitIngestor's default
+   * set (.txt .h .py ...), e.g. ["c", "rs", "md"]. Per source so adding
+   * a language never changes what existing txt sources ship. Setting it
+   * also switches TxtNormaliser to full-filename pages titled with the
+   * repo path (foo.c -> foo.c.md, so foo.c and foo.h cannot collide), and
+   * `.md` files pass through unfenced (READMEs next to the code). A
+   * `paths` entry may name a single file.
+   */
+  readonly txtExtensions?: readonly string[];
 }
 
 /**
@@ -236,6 +246,7 @@ export class DocSource {
   readonly htmlContentClass: string | undefined;
   readonly pdfTitles: Readonly<Record<string, string>> | undefined;
   readonly resolveTrashGuides: boolean;
+  readonly txtExtensions: readonly string[] | undefined;
   readonly publicUrl: ((repoRelPath: string) => string | undefined) | undefined;
 
   constructor(config: DocSourceConfig) {
@@ -273,6 +284,9 @@ export class DocSource {
     this.htmlContentClass = config.htmlContentClass;
     this.pdfTitles = config.pdfTitles;
     this.resolveTrashGuides = config.resolveTrashGuides ?? false;
+    // undefined (not []) when unset: sourceFingerprint() skips undefined,
+    // so existing sources keep their config hash.
+    this.txtExtensions = config.txtExtensions;
     this.publicUrl = config.publicUrl;
   }
 

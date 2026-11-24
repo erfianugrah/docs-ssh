@@ -65,7 +65,7 @@ export async function convertRstTree(rstDir: string): Promise<ConvertedFile[]> {
   }
 
   // Batch-render via Python/docutils
-  const htmlResults = renderBatch(payload);
+  const htmlResults = renderBatch(payload, path.resolve(rstDir));
   if (!htmlResults) {
     throw new Error("rst-converter: rst-render.py failed (missing python3 or docutils)");
   }
@@ -156,6 +156,7 @@ const MAX_BATCH_BYTES = 8 * 1024 * 1024; // 8 MB per batch
 
 function renderBatch(
   payloads: [string, string][],
+  root: string,
 ): [string, string][] | null {
   if (!docutilsAvailable()) {
     console.warn("  [rst] python3+docutils unavailable - cannot render RST");
@@ -184,7 +185,7 @@ function renderBatch(
   for (const batch of batches) {
     try {
       const stdout = execFileSync("python3", [RST_RENDERER], {
-        input: JSON.stringify({ files: batch }),
+        input: JSON.stringify({ files: batch, root }),
         encoding: "utf-8",
         maxBuffer: 256 * 1024 * 1024,
       });

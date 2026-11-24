@@ -6255,10 +6255,18 @@ export const SOURCES: readonly DocSource[] = [
 
   // ── Great Scott Gadgets Cynthion USB analyser ──
   //
-  // Cynthion docs, the LUNA gateware framework, Packetry (the capture app)
-  // and the Cynthion analyzer/platform gateware source. All BSD-3-Clause.
-  // cynthion-hardware is not mirrored: its repo holds a 16-line README plus
-  // KiCad files, and the schematic PDF ships only inside the release zip.
+  // Everything GSG publishes for Cynthion: the docs (cynthion, luna,
+  // luna-soc, facedancer, packetry, all rst), the code as fenced text
+  // (gateware, host tools, Rust firmware, Packetry decoder, the SAMD11
+  // Apollo debug controller and Saturn-V bootloader, test software), the
+  // moondancer SoC register map, and Amaranth, the HDL the gateware is
+  // written in. GSG repos are BSD-3-Clause except saturn-v (MIT/Apache-2.0)
+  // and Amaranth (BSD-2-Clause). Left out of the GSG org (2026-11-24):
+  // cynthion-hardware and tycho (KiCad files, the schematic PDF ships only
+  // in the release zip), luna-boards (other vendors' FPGA boards),
+  // cynthion-analyzer (an integration Makefile), luna-analyzer-capture
+  // (superseded by Packetry). The Crowd Supply campaign updates sit behind
+  // a Cloudflare challenge and are reposted on the GSG blog feed below.
   new DocSource({
     name: "cynthion",
     type: "git",
@@ -6269,15 +6277,37 @@ export const SOURCES: readonly DocSource[] = [
     tags: ["hardware", "security"],
     description: "Cynthion USB 2.0 analyser/test tool - getting started, Packetry, Facedancer, USB proxy, hardware, gateware tutorials",
   }),
+  // Whole code tree minus the generated moondancer PAC (served as SVD by
+  // cynthion-moondancer-svd). Paths keep the repo layout.
   new DocSource({
     name: "cynthion-src",
     type: "git",
     format: "txt",
     url: "https://github.com/greatscottgadgets/cynthion.git",
-    paths: ["cynthion/python/src/gateware"],
-    rootPath: "cynthion/python/src/gateware",
+    paths: [
+      "cynthion/python/src",
+      "cynthion/python/examples",
+      "cynthion/python/README.md",
+      "firmware/moondancer",
+      "firmware/smolusb",
+      "firmware/libgreat",
+      "firmware/lunasoc-hal",
+      "firmware/ladybug",
+      "shared",
+      "BUILD.md",
+    ],
+    txtExtensions: ["rs", "md"],
     tags: ["hardware", "security"],
-    description: "Cynthion gateware source (Amaranth): USB analyzer (capture FSM, event codes, vendor requests), board platform and Pmod pin maps",
+    description: "Cynthion source: Amaranth gateware (USB analyzer capture FSM, event codes, vendor requests, facedancer SoC, board platform, Pmod pins), host CLI, moondancer Rust firmware, smolusb",
+  }),
+  new DocSource({
+    name: "cynthion-moondancer-svd",
+    type: "git",
+    url: "https://github.com/greatscottgadgets/cynthion.git",
+    format: "svd",
+    paths: ["firmware/moondancer-pac/svd/moondancer.svd"],
+    tags: ["hardware"],
+    description: "Cynthion moondancer SoC CMSIS-SVD register map (eptri USB device controller, timer, UART, GPIO, SPI flash)",
   }),
   new DocSource({
     name: "luna",
@@ -6290,6 +6320,57 @@ export const SOURCES: readonly DocSource[] = [
     description: "LUNA - Amaranth USB gateware framework (USB device stacks, ULPI/UTMI PHY interfaces, custom hardware)",
   }),
   new DocSource({
+    name: "luna-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/luna.git",
+    paths: ["luna/gateware", "examples", "README.md"],
+    txtExtensions: ["md"],
+    tags: ["hardware"],
+    description: "LUNA gateware source: USB2/USB3 device stacks, endpoints, requests, ULPI/UTMI/PIPE PHY interfaces, streams, analyzer",
+  }),
+  // paths holds all of docs/: eptri.rst includes ../images/eptri/*.rst.
+  new DocSource({
+    name: "luna-soc",
+    type: "git",
+    format: "rst",
+    url: "https://github.com/greatscottgadgets/luna-soc.git",
+    paths: ["docs"],
+    rootPath: "docs/source",
+    tags: ["hardware"],
+    description: "luna-soc - Amaranth SoC library docs: eptri USB device controller (registers, transfer sequences)",
+  }),
+  new DocSource({
+    name: "luna-soc-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/luna-soc.git",
+    paths: ["luna_soc", "examples/hello-rust/firmware", "README.md"],
+    txtExtensions: ["rs", "md"],
+    tags: ["hardware"],
+    description: "luna-soc source: VexRiscv/Minerva SoC builder, eptri USB peripheral, UART/timer/SPI flash/ILA cores, SVD and C/Rust header generators",
+  }),
+  new DocSource({
+    name: "facedancer",
+    type: "git",
+    format: "rst",
+    url: "https://github.com/greatscottgadgets/facedancer.git",
+    paths: ["docs/source"],
+    rootPath: "docs/source",
+    tags: ["hardware", "security"],
+    description: "Facedancer - emulate USB devices in Python (Cynthion moondancer backend): getting started, library overview, USB proxy, examples",
+  }),
+  new DocSource({
+    name: "facedancer-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/facedancer.git",
+    paths: ["facedancer", "examples", "README.md"],
+    txtExtensions: ["md"],
+    tags: ["hardware", "security"],
+    description: "Facedancer source: device/configuration/interface/endpoint model, request handlers, USB proxy and filters, moondancer/greatdancer backends, HID keyboard and mass-storage devices",
+  }),
+  new DocSource({
     name: "packetry",
     type: "git",
     format: "rst",
@@ -6298,6 +6379,85 @@ export const SOURCES: readonly DocSource[] = [
     rootPath: "docs/source",
     tags: ["hardware", "security"],
     description: "Packetry - USB 2.0 capture and analysis app for Cynthion (capture, decoding, file formats)",
+  }),
+  new DocSource({
+    name: "packetry-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/packetry.git",
+    paths: ["src"],
+    txtExtensions: ["rs"],
+    tags: ["hardware", "security"],
+    description: "Packetry Rust source: Cynthion and iCE40-usbtrace capture backends (USB vendor protocol), packet/transaction/transfer decoder, capture database, pcap/pcapng import and export, UI",
+  }),
+  new DocSource({
+    name: "apollo-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/apollo.git",
+    paths: ["apollo_fpga", "firmware/src", "README.md"],
+    txtExtensions: ["c", "md"],
+    tags: ["hardware"],
+    description: "Apollo - Cynthion's SAMD11 debug controller: firmware (JTAG, FPGA configuration, USB switch, vendor requests) and the apollo_fpga host library (ECP5 programming, SPI flash bridge, ILA)",
+  }),
+  new DocSource({
+    name: "saturn-v-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/saturn-v.git",
+    paths: ["boards/cynthion", "common", "main.c", "usb.c", "boot.h", "README.md"],
+    txtExtensions: ["c", "md"],
+    tags: ["hardware"],
+    description: "Saturn-V - DFU bootloader for Cynthion's SAMD11/SAMD21 (USB DFU, flash partition, board pins)",
+  }),
+  new DocSource({
+    name: "python-usb-protocol-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/python-usb-protocol.git",
+    paths: ["usb_protocol", "examples", "README.md"],
+    txtExtensions: ["md"],
+    tags: ["hardware"],
+    description: "python-usb-protocol (usb_protocol) source: USB descriptor types, parsers and emitters (standard, CDC, UAC1-3, MIDI, Microsoft OS 1.0) used by LUNA and Facedancer",
+  }),
+  new DocSource({
+    name: "pyfwup-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/pyfwup.git",
+    paths: ["fwup", "fwup_utils", "README.md"],
+    txtExtensions: ["md"],
+    tags: ["hardware"],
+    description: "pyfwup source: Python DFU, FX3, LPC43xx and micronucleus firmware upgraders (Cynthion firmware updates)",
+  }),
+  new DocSource({
+    name: "cynthion-test-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/cynthion-test.git",
+    txtExtensions: ["md"],
+    tags: ["hardware"],
+    description: "Cynthion production test software: test sequence, self-test and speed-test gateware drivers, measurement ranges, error codes",
+  }),
+  new DocSource({
+    name: "cynthion-uac-src",
+    type: "git",
+    format: "txt",
+    url: "https://github.com/greatscottgadgets/cynthion-uac.git",
+    paths: ["uac", "slides/slides.md", "README.md"],
+    txtExtensions: ["md"],
+    tags: ["hardware"],
+    description: "USB Audio Class 2 device gateware for Cynthion (UAC2 descriptors, isochronous streaming, clock generation, DAC) plus talk slides",
+  }),
+  new DocSource({
+    name: "amaranth",
+    type: "git",
+    format: "rst",
+    url: "https://github.com/amaranth-lang/amaranth.git",
+    paths: ["docs"],
+    rootPath: "docs",
+    tags: ["hardware"],
+    description: "Amaranth HDL language guide, tutorial, standard library (wiring, streams, FIFOs, CDC, data layouts) and platform reference",
   }),
   // Hugo tag feed with root-relative <link>s (rss.ts resolves them).
   new DocSource({
