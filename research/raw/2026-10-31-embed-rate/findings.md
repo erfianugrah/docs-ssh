@@ -1,4 +1,4 @@
-# docs-ssh#16: embed rate 146 pages/min vs 667 measured (2026-10-31)
+# Embed rate 146 pages/min vs 667 measured (2026-10-31)
 
 Cause: the router CPU has been capped at ~400 MHz on every core since
 2026-10-30 13:35 UTC, about 4h20m into embed-backfill run 139. Not the
@@ -13,7 +13,7 @@ pages, not the code.
   - threads=12: random 162, pending 163, pending-sorted 163 pages/min
   - the random-corpus set runs as slowly as the pending set: nothing about
     the remaining pages is special
-- Prometheus node_cpu_scaling_frequency_hertz, instance 10.0.71.1:9100:
+- Prometheus node_cpu_scaling_frequency_hertz, instance 192.0.2.1:9100:
   - 5-min max over all cores 13:00-13:30 UTC 10-30: 2120-3800 MHz;
     13:35 onward: 400 MHz, every sample through 2026-10-31 08:30 UTC
   - daily max single-core 09-01 .. 10-29: ~3810 MHz every day

@@ -20,11 +20,11 @@ get from docs.erfi.io. Raw evidence: `research/raw/2026-11-07-source-candidates/
    discord 10, frigate 7, immich 7, openai 7.
 4. What runs: Suricata and Vector are live units on the router; immich,
    atuin, open-webui, seerr images in compose stacks; lockstep/fladder are
-   Jellyfin work; qmk_userspace and hidlab are active repos.
+   Jellyfin work; the owner's keyboard and input-device repos are active.
 
 Many "low coverage" searches are search-quality misses, not missing sources:
 forgejo actions, kicad-cli, duckdb aggregates and transaction_timeout all
-exist in the corpus but miss on title+summary keywords (docs-ssh#19 territory).
+exist in the corpus but miss on title+summary keywords.
 
 ## Shortlist (feasible with existing ingestors)
 
@@ -39,7 +39,7 @@ exist in the corpus but miss on title+summary keywords (docs-ssh#19 territory).
 | qmk | git qmk/qmk_firmware docs | 208 | qmk_userspace |
 | pid-codes | git pidcodes/pidcodes.github.com | 1,702 | 13 raw fetches |
 | ghidra | git NSA/ghidra help topics (.htm) | 137 | 15 queries |
-| discord-api | git discord/discord-api-docs | ~100 | discordctl, 10 queries |
+| discord-api | git discord/discord-api-docs | ~100 | a Discord tool, 10 queries |
 | immich | git immich-app/immich docs/docs (mdx, partials) | ~253 | 5 fetches, 7 queries |
 | darktable | git darktable-org/dtdocs content (en) | ~300-400 | 11 fetches |
 | anthropic | llms-full, frontmatter `url:` split, 50 MB | 886 | 4 queries |
@@ -47,7 +47,7 @@ exist in the corpus but miss on title+summary keywords (docs-ssh#19 territory).
 | open-webui | llms-full, Mintlify | 431 | stack |
 | llama-cpp | git ggml-org/llama.cpp docs | ~24 | llmc |
 | atuin, huma | git docs dirs | 53, 43 | in use |
-| vikunja | website mdx + Swagger docs.json | ~50 + API | vkctl/veans |
+| vikunja | website mdx + Swagger docs.json | ~50 + API | a board CLI |
 | seerr | rename `jellyseerr` (repo now redirects to seerr-team/seerr); overseerr is archived | 45 | maintenance |
 
 ## Eliminated, with the reason
@@ -59,9 +59,9 @@ exist in the corpus but miss on title+summary keywords (docs-ssh#19 territory).
   for register offsets, INTENSET bits and interrupt numbers. Needs a new
   `svd` format converter.
 - WCH CH32V30x reference manual, USB HID Usage Tables: PDF only. A PDF
-  ingestor would also unlock the AT32F405 datasheets in docs-ssh#23.
+  ingestor would also unlock the AT32F405 datasheets (the 2026-11-07 CAD batch).
 - Suricata, mpv, nRF Connect SDK: RST sources; add to the RST normaliser
-  case (docs-ssh#17). Suricata's readthedocs htmlzip is one singlehtml page.
+  case. Suricata's readthedocs htmlzip is one singlehtml page.
 - hls.js (2 pages), USBPcap (no docs), usb.ids (one text file), Supabase
   client llms/*.txt (one monolithic file per language), pgx/goose godoc
   (LSP covers library APIs), wlink and usbipd-win wikis (10 pages each).

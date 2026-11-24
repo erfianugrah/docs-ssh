@@ -135,9 +135,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check free space on job filesystem
-        # The job rootfs is the CI docker daemon's bounded fs (router#39);
+        # The job rootfs is the CI docker daemon's bounded fs;
         # a fetch run copies ~25G into it (docs/ ~3G + work/ ~22G, measured
-        # in the cache volume 2026-11-12, docs-ssh#39), and "Save docs cache"
+        # in the cache volume 2026-11-12), and "Save docs cache"
         # then writes ~25G of .new copies before the old cache is removed:
         # ~50G peak on the CI fs, plus build headroom. Fail before copying
         # rather than ENOSPC halfway through a 2h fetch.
@@ -190,7 +190,7 @@ jobs:
 
       - name: Restore work/ from cache volume
         # /var/tmp/docs-work is only needed during a fetch (git clone work dirs, 22G).
-        # Not /tmp: job /tmp is a 3G tmpfs since forgejo-compose 52fb500 (run 238 ENOSPC).
+        # Not /tmp: job /tmp is a 3G tmpfs since a Forgejo compose change (run 238 ENOSPC).
         # Skipping it when fetch=false saves 22G in the job container.
         if: steps.plan.outputs.fetch == 'true'
         run: |
@@ -253,7 +253,7 @@ jobs:
         if: always() && env.CACHE_HELPER != ''
         run: docker rm -f "$CACHE_HELPER" >/dev/null || true
 
-      # Embedding neighbours for docs_related (docs-ssh#5): incremental over
+      # Embedding neighbours for docs_related: incremental over
       # the cache volume, so it runs whenever an image is built, not only
       # after a fetch. Budget = whatever the 175-min job leaves after a 30-min
       # reserve, capped at 40 min; leftover pages carry over to the next night.

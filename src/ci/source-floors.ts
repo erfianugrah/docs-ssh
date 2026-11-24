@@ -49,7 +49,7 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   faultycat: 6,
   "hextree-faultier": 1,
   chipwhisperer: 60,
-  // PCB design / fabrication (docs-ssh#18, 2026-11-04). ~50% of the
+  // PCB design / fabrication (2026-11-04). ~50% of the
   // measured full-fetch counts.
   kicad: 4,
   "kicad-dev-docs": 27,
@@ -60,7 +60,7 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   "libhmk-src": 12,
   // Renamed from jellyseerr; no prior floor entry.
   seerr: 26,
-  // -- batch w23-auspex (2026-11-07; insert this batch's entries below) --
+  // -- batch w23-cad (2026-11-07; insert this batch's entries below) --
   // ~65% of the measured full-fetch counts (see final report).
   build123d: 45,
   trimesh: 85,
@@ -72,7 +72,7 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   "scikit-rf": 70,    // 114 pages since discovery reads the section indexes (2026-11-21)
   pyvista: 600,
   "kicad-druid-src": 10,
-  // -- end batch w23-auspex --
+  // -- end batch w23-cad --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --
   "claude-code": 140,
@@ -147,14 +147,14 @@ export const SOURCE_FLOORS: Readonly<Record<string, number>> = {
   "faultier-python": 2,   // 3 docs/source/*.rst upstream (2026-11-07)
   greatfet: 10,            // 17 .rst files
   // -- end batch w17-rst --
-  // docs-ssh#57 (local fetch 2026-11-24 in brackets)
+  // cynthion batch (local fetch 2026-11-24 in brackets)
   cynthion: 15,            // (25)
   "cynthion-src": 20,      // (34)
   luna: 5,                 // (7)
   packetry: 4,             // (6)
   "gsg-cynthion-blog": 20, // (31 posts in the tag feed)
 
-  // -- batch rhel9-wayback (docs-ssh#30, 2026-11-08) --
+  // -- batch rhel9-wayback (2026-11-08) --
   "rhel9-basic-system-settings": 10, // 18 Wayback pages (archive.org flakes; 60%)
   "rhel9-containers": 22, // 38 Wayback pages (archive.org flakes; 60%)
   "rhel9-dnf": 9, // 16 Wayback pages (archive.org flakes; 60%)
@@ -199,7 +199,7 @@ export const TOLERATED_MISSING: Readonly<Record<string, string>> = {
   // (empty) akamai was here until 2026-10-19; its Bot Manager 403s came and
   // went and its 9.7k pages never fit a deadline, so the source was removed.
   // archwiki was here 2026-11-05 (wiki IP block) until it moved to the
-  // arch-wiki-docs package the same day (docs-ssh#21).
+  // arch-wiki-docs package the same day.
   // rhel9-* sources were here until 2026-11-08 (docs.redhat.com Akamai 403
-  // since 2026-11-07); moved to Wayback Machine raw captures (docs-ssh#30).
+  // since 2026-11-07); moved to Wayback Machine raw captures.
 };

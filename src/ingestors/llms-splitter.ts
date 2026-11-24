@@ -101,7 +101,7 @@ const URL_LINE = /^URL: (https?:\/\/\S+)\s*$/;
 const slugify = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 /**
- * File name for a page whose title slug is already taken (docs-ssh#12).
+ * File name for a page whose title slug is already taken.
  * Prefer a name from the page URL: the slug plus the URL's path segments,
  * minus a final segment that repeats the slug (/hyperdrive/platform/limits/
  * for "Limits" -> limits-hyperdrive-platform.md). That name survives the

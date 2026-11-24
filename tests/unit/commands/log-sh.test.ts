@@ -16,7 +16,7 @@ let logFile: string;
 
 function sh(script: string, env: Record<string, string> = {}): string {
   return execFileSync("sh", ["-c", `. '${LIB}'; ${script}`], {
-    env: { PATH: process.env.PATH ?? "", LOG_FILE: logFile, CLIENT: "10.0.71.1", ...env },
+    env: { PATH: process.env.PATH ?? "", LOG_FILE: logFile, CLIENT: "192.0.2.1", ...env },
     encoding: "utf8",
   });
 }
@@ -57,7 +57,7 @@ describe("log_json", () => {
     const meta = b64({ op: "search", q: "row level security", source: "postgres", sid: "s1", junk: "x" });
     sh(`DOCS_META='${meta}'; log_json exec "rg ..." 0 1 false`);
     const [l] = lines();
-    expect(l).toMatchObject({ type: "exec", client: "10.0.71.1", cmd: "rg ...", op: "search", q: "row level security", source: "postgres", sid: "s1" });
+    expect(l).toMatchObject({ type: "exec", client: "192.0.2.1", cmd: "rg ...", op: "search", q: "row level security", source: "postgres", sid: "s1" });
     expect(l).not.toHaveProperty("junk");
   });
 
@@ -73,7 +73,7 @@ describe("log_json", () => {
   it("skips the container healthcheck (echo ok from localhost)", () => {
     sh(`log_json exec "echo ok"`, { CLIENT: "127.0.0.1" });
     sh(`log_json exec.done "echo ok" 0 0 false`, { CLIENT: "::1" });
-    sh(`log_json exec "echo ok"`, { CLIENT: "10.0.71.1" });
+    sh(`log_json exec "echo ok"`, { CLIENT: "192.0.2.1" });
     expect(lines()).toHaveLength(1);
   });
 

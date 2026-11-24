@@ -3,7 +3,7 @@
 Status: untested | checked | eliminated. Demand cites demand.md (query-log
 misses, agent web fetches, web-search queries) or the repo/stack that uses the
 thing. Evidence files: hw.md, windows.md, ai-dev.md, infra.md (worker dumps,
-each with parent corrections at the end). Items carded in docs-ssh#23
+each with parent corrections at the end). Items carded on the board (2026-11-07)
 (build123d, PyVista, trimesh, JLC3DP, AT32F405, OCP viewer, kicad-druid,
 PlatformIO, ezdxf, scikit-rf) are out of scope.
 
@@ -15,8 +15,8 @@ PlatformIO, ezdxf, scikit-rf) are out of scope.
 | WCH CH32V30x RM | ~70 web queries | eliminated | PDF-only on a JS site (hw.md); no SVD in openwch/ch32v307 tree |
 | wlink docs | 3 searches | checked | 10 md, thin (hw.md) |
 | pid.codes | 13 raw fetches | checked | 1702 md, CC0 (hw.md) |
-| usb.ids | hidlab | eliminated | one 730 KB text file, low value (hw.md) |
-| USB HID Usage Tables | hidlab | eliminated | PDF-only (hw.md) |
+| usb.ids | input-device repo | eliminated | one 730 KB text file, low value (hw.md) |
+| USB HID Usage Tables | input-device repo | eliminated | PDF-only (hw.md) |
 | Ghidra help topics | 15 web queries, 3 searches | checked | 137 .htm JavaHelp, Apache-2.0 (hw.md) |
 | QMK firmware docs | qmk_userspace repo | checked | 208 md, GPL-2.0 (hw.md) |
 | USBPcap | 14 raw fetches | eliminated | no docs in repo (hw.md) |
@@ -32,18 +32,18 @@ PlatformIO, ezdxf, scikit-rf) are out of scope.
 | llama.cpp docs | llmc | checked | ~24 md, MIT (ai-dev.md) |
 | Open WebUI docs | llm-compose | checked | llms-full 431 Mintlify pages (ai-dev.md) |
 | Supabase client refs (llms/js.txt) | 3 searches | eliminated (for now) | one monolithic file per language (ai-dev.md) |
-| Discord API docs | 10 queries; discordctl | checked | ~100 mdx, CC-BY-SA-4.0 (ai-dev.md) |
+| Discord API docs | 10 queries; a Discord tool | checked | ~100 mdx, CC-BY-SA-4.0 (ai-dev.md) |
 | hls.js docs | 3 searches | eliminated | 2 pages (ai-dev.md) |
-| Vikunja docs + API | vkctl/veans | checked | website mdx + Swagger 2.0 docs.json (ai-dev.md) |
+| Vikunja docs + API | a board CLI | checked | website mdx + Swagger 2.0 docs.json (ai-dev.md) |
 | Frigate | 10 fetches, 8 searches | checked | 82 md, MIT (infra.md) |
 | Suricata | 5 searches; runs on router | eliminated (for now) | RST; readthedocs htmlzip is one singlehtml page (infra.md) |
 | Vector | 3 searches; runs on router | checked | 214 md, CUE-generated reference pages thin (infra.md) |
 | Immich | 5 fetches, 7 queries | checked | ~253 mdx, partials (infra.md) |
 | darktable manual | 11 fetches | checked | ~300-400 Hugo md, en-only path (infra.md) |
 | Atuin | atuin repo + compose | checked | 53 md, MIT (infra.md) |
-| Seerr | servarr-compose | checked | jellyseerr repo redirects to seerr-team/seerr; overseerr archived (parent gh api) |
+| Seerr | media-stack repo | checked | jellyseerr repo redirects to seerr-team/seerr; overseerr archived (parent gh api) |
 | Jellyfin OpenAPI | 40 queries; lockstep, fladder | checked | api.jellyfin.org stable JSON, 294 paths (infra.md) |
 | smallstep docs | certgen | checked | 344 mdx, no LICENSE file (infra.md) |
 | huma v2 docs | 2 repos | checked | 43 md, MIT (infra.md) |
 | pgx v5 / goose v3 (godoc) | go.mod usage | eliminated | no markdown; LSP covers library APIs (infra.md) |
-| SVDs for CH32V307 / AT32F405 / M480 | hidlab | untested | not in openwch/ch32v307 or OpenNuvoton/M480BSP trees; vendor packs not checked |
+| SVDs for CH32V307 / AT32F405 / M480 | input-device repo | untested | not in openwch/ch32v307 or OpenNuvoton/M480BSP trees; vendor packs not checked |

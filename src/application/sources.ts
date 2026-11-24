@@ -3370,7 +3370,7 @@ export const SOURCES: readonly DocSource[] = [
   // an Arch mirror via the package page's /download/ redirect: zero load on
   // wiki.archlinux.org. Until 2026-11-05 this scraped ~2.2k pages from the
   // wiki itself, and after two full scrapes ~26h apart the wiki refused our
-  // WAN IP at the TLS handshake (docs-ssh#20/#21).
+  // WAN IP at the TLS handshake.
   // The en/ tree holds ns0 pages plus Category:/Help:/ArchWiki: pages and
   // md5-named translated pages; urlExclude keeps ns0 English, as the scrape
   // did: a parens group with a URL-encoded byte (non-ASCII language names)
@@ -5410,7 +5410,7 @@ export const SOURCES: readonly DocSource[] = [
 
   // ── PCB design / fabrication (KiCad, Freerouting, JLCPCB, libhmk) ──
   //
-  // Tooling for a KiCad 10 keyboard PCB (docs-ssh#18). docs.kicad.org
+  // Tooling for a KiCad 10 keyboard PCB. docs.kicad.org
   // and dev-docs.kicad.org answer `Accept: text/markdown` (verified
   // 2026-11-04); only dev-docs keeps a title in it, so the two
   // docs.kicad.org sources opt out of negotiation.
@@ -5533,11 +5533,11 @@ export const SOURCES: readonly DocSource[] = [
     description: "libhmk headers (command protocol, keycodes) + keyboard.json schema",
   }),
 
-  // -- batch w23-auspex (2026-11-07; insert this batch's entries below) --
+  // -- batch w23-cad (2026-11-07; insert this batch's entries below) --
 
-  // ── CAD / geometry / meshing Python toolchain (docs-ssh#23, auspex) ──
+  // ── CAD / geometry / meshing Python toolchain (2026-11-07) ──
   //
-  // The auspex keyboard CAD/PCB work pulls on several Python geometry
+  // Keyboard CAD/PCB work pulls on several Python geometry
   // libraries. Their sources are Sphinx RST projects with no RST
   // converter (that worker builds it in parallel), so each is mirrored
   // from the rendered readthedocs/site HTML. The readthedocs
@@ -5728,7 +5728,7 @@ export const SOURCES: readonly DocSource[] = [
     description: "scikit-rf RF engineering: tutorials, network/VNA/calibration APIs",
   }),
 
-  // -- end batch w23-auspex --
+  // -- end batch w23-cad --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --
 
@@ -6118,7 +6118,7 @@ export const SOURCES: readonly DocSource[] = [
   // STM32 register maps: ST's SVDs as mirrored (Apache-2.0, line endings
   // normalised) by modm-io/cmsis-svd-stm32. st.com itself is blocked for the
   // fetcher (upstream-access.ts), and ST's site terms forbid redistributing
-  // its PDFs, so register lookups come from here (docs-ssh#53). Parts:
+  // its PDFs, so register lookups come from here. Parts:
   // H7R/H7S, N657 and F723, plus the usual QMK keyboard MCUs (F072 = F0x2,
   // F103, F303, F401, F405, F407, F411, F446).
   new DocSource({
@@ -6253,7 +6253,7 @@ export const SOURCES: readonly DocSource[] = [
   }),
   // -- end batch w17-rst --
 
-  // ── Great Scott Gadgets Cynthion USB analyser (docs-ssh#57) ──
+  // ── Great Scott Gadgets Cynthion USB analyser ──
   //
   // Cynthion docs, the LUNA gateware framework, Packetry (the capture app)
   // and the Cynthion analyzer/platform gateware source. All BSD-3-Clause.

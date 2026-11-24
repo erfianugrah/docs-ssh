@@ -563,7 +563,7 @@ describe("per-page origin URLs from llms-full markers", () => {
   });
 });
 
-describe("duplicate titles take their name from the page URL (docs-ssh#12)", () => {
+describe("duplicate titles take their name from the page URL", () => {
   const fm = (title: string, url: string, body: string) =>
     `---\ntitle: ${title}\nurl: ${url}\n---\n\n${body}\n\n`;
 

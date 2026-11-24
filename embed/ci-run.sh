@@ -1,6 +1,6 @@
 #!/bin/sh
 # Run embed/embed.py against the docs cache volume on the CI host and copy the
-# resulting _related.tsv to $1 (docs-ssh#5 phase 2). Used by build.yml (daily,
+# resulting _related.tsv to $1 (phase 2). Used by build.yml (daily,
 # time-boxed) and embed-backfill.yml (first pass).
 #
 #   embed/ci-run.sh <out_related_tsv> <budget_seconds>

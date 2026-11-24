@@ -91,7 +91,7 @@ export const UPSTREAM_ACCESS: Readonly<Record<string, UpstreamAccess>> = {
     since: "2026-11-07",
     checked: "2026-11-22",
     evidence: "403 for the fetcher UA and a browser UA (JS doc portal behind a WAF)",
-    fallback: "nordic-nrf52820/nordic-nrf52840 come from the nrfx SVDs on GitHub; PS PDFs need captures (docs-ssh#41)",
+    fallback: "nordic-nrf52820/nordic-nrf52840 come from the nrfx SVDs on GitHub; PS PDFs need captures",
     probe: "https://docs.nordicsemi.com/bundle/ps_nrf52840/page/keyfeatures_html5.html",
   },
   "leginfo.legislature.ca.gov": {
@@ -192,7 +192,7 @@ export const UPSTREAM_ACCESS: Readonly<Record<string, UpstreamAccess>> = {
     status: "lifted",
     since: "2026-11-05",
     checked: "2026-11-22",
-    evidence: "refused our WAN IP at the TLS handshake after two full scrapes ~26 h apart (docs-ssh#20); 200 again on 2026-11-22",
+    evidence: "refused our WAN IP at the TLS handshake after two full scrapes ~26 h apart; 200 again on 2026-11-22",
     fallback: "archwiki ingests the arch-wiki-docs package from an Arch mirror (zero load on the wiki); do not go back to scraping",
   },
   "techdocs.akamai.com": {

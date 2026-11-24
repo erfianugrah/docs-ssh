@@ -68,111 +68,45 @@ supabase/guides/platform/manage-your-usage	1
 2	docs.unity3d.com
 ```
 
-## Low-coverage searches (best row hits < 75% of query tokens), first 120; work/Supabase-platform and unscoped personal rows removed before commit
+## Low-coverage searches (best row hits < 75% of query tokens), first 120, summarised per source
+
+Work/Supabase-platform and unscoped personal rows were removed before commit. The verbatim
+queries are not kept (personal search text). Typical shapes were
+a chip pinout query, a bootloader or debug-lock query, a register-offset query, an API
+endpoint-name query and a hardware-vendor product query. Columns: searches (repeats
+included), distinct queries, source named in the call.
 ```
-0/1	x3	github	ghidra
-0/1	x3	github	ghidramcp
-0/1	x3	github	rentry
-0/1	x3	github	vapid
-0/1	x3	kicad	kicad-cli
-0/1	x3	kicad	netlist
-0/1	x3	lidarr	trackfile
-0/1	x3	nvapi	pstates20_info_v2
-0/1	x3	nvapi	vfpoint
-0/1	x4	zod	optional
-0/1	x6	home-assistant	clickaction
-0/1	x10	nvapi	pstates20
-0/2	x3	forgejo	sync upstream
-0/2	x3	github	faultier crowbar
-0/2	x3	github	firmware dump
-0/2	x3	github	mouse firmware
-0/2	x3	github	op1 firmware
-0/2	x3	github	op1 schematic
-0/2	x3	github	usbfile cs_createupgradefile
-0/2	x3	github	webhid firefox
-0/2	x3	github	webpush vapid
-0/2	x3	github	wlink ch32v305
-0/2	x3	github	wlink wch-linke
-0/2	x3	libhmk	analog mux
-0/2	x3	lidarr	download clients
-0/2	x3	lidarr	lidarr album
-0/2	x3	lidarr	renametracks import
-0/2	x3	nvapi	pstates20 clock_entry
-0/2	x3	python	hextree faultier
-0/2	x3	searxng	mouse switch
-0/2	x3	searxng	singapore soldering
-0/2	x3	starlight	finalmouse company
-0/2	x3	windows-sdk	cm_locate_devnodew cfgmgr32
-0/2	x3	windows-server	ntquerysysteminformation systemprocessorperformanceinformation
-0/2	x7	duckdb	median quantile_cont
-0/2	x7	nvapi	get-winevent convertto-json
-0/2	x7	nvapi	pstates20 curve
-0/3	x3		iaudioclient3 audioclient vtable
-0/3	x3	bitwarden	sshkey privatekey keyfingerprint
-0/3	x3	forgejo	secret_key rotate encryption
-0/3	x3	frigate	frigate camera detection
-0/3	x3	github	endgame gear op1
-0/3	x3	github	libretiny bekenbinary bkcrypt
-0/3	x3	hlsjs	hls.js buffer abr
-0/3	x3	jellyfin	syncplay speed skip
-0/3	x3	libhmk	at32f405 adc channel
-0/3	x3	libhmk	keymap keycodes advanced
-0/3	x3	lidarr	album api endpoint
-0/3	x3	lidarr	config endpoint renametracks
-0/3	x3	lidarr	trackfile status missing
-0/3	x3	nordic	nrf52820 bootloader mbr
-0/3	x3	nordic	nrf52820 ficr deviceaddr
-0/3	x3	nuvoton-m480	sblock icelock config0
-0/3	x3	powershell	wasapi audio latency
-0/3	x3	searxng	glass carafe fridge
-0/3	x3	windows-sdk	openscmanagerw openservicew queryserviceconfigw
-0/3	x3	windows-sdk	regopenkeyexw regqueryvalueexw advapi32
-0/4	x3	fly	udp fly-global-services destination address
-0/4	x3	frigate	frigate camera recommended hardware
-0/4	x3	jellyfin	resume percentage minimum duration
-0/4	x3	kicad	custom design rules diff_pair_uncoupled
-0/4	x3	kicad	custom rules evaluated order
-0/4	x3	kicad	kicad-cli drc custom rules
-0/4	x3	kicad	s-expression string escape quote
-0/4	x3	libhmk	usb vid pid bootloader
-0/4	x3	lidarr	download client import queue
-0/4	x3	nordic	nrf52840 watchdog wdt reload
-0/4	x3	nordic	usbd endpoint stop easydma
-0/4	x3	nvapi	eld hdmi audio display
-0/4	x3	nvapi	hdmi audio display disabled
-0/4	x3	rfc	update apex soa ns
-0/4	x3	searxng	pcbite omnifixo helping hands
-0/4	x3	starlight	finalmouse orbital works mouse
-0/4	x3	suricata	pass action rule flow
-0/5	x3	claude-code	sessionstart compact matcher additionalcontext precompact
-0/5	x3	libhmk	at32 dfu bootloader vid pid
-0/5	x3	lidarr	album release foreignid mediumformat barcode
-0/5	x3	nordic	nrf52820 peripheral radio register offsets
-0/5	x3	nordic	nrf52840 rtc frequency 32768 app_timer
-0/5	x3	nordic	nrf52840 usbd intenset register semantics
-0/5	x3	nordic	nrf52840 usbd tasks_stopepin endpoint status
-0/5	x3	nrf52840	nrf52840 spim intenset end bit
-0/5	x3	nrf52840	nrf52840 spim tasks registers offset
-0/5	x3	nuvoton	nuvoton icp nu-link programming tool
-0/5	x3	nuvoton	nuvoton m480 config security lock
-0/5	x3	vector	loki sink compression default snappy
-0/6	x3	microsoft	low latency audio wasapi 128 samples
-0/6	x3	nordic	nrf52840 nvmc flash erase write endurance
-0/6	x3	nordic	nrf52840 power management sleep wfi dc-dc
-0/6	x3	nuvoton-m480	m483 sblock fmc ice debug lock
-0/6	x3	nuvoton-m480	m483 security lock sblock ice config
-0/7	x3	nuvoton-m480	sblock config0 boot ice debug lock m483
-0/9	x3	nuvoton	m483 lqfp-64 pin 33 pf.0 swdio pin 34 pf.1
-1/7	x1		nrf52840 spim0 events_end register offset 0x108 0x118
-1/7	x1	kicad	rotation angle positive counter-clockwise pcb file format
-1/6	x1		nrf52840 interrupt numbers gpiote spis1 usbd
-1/6	x1		nrf52840 usbd eventcause register offset endepin
-1/6	x1	go	go time.parse fractional seconds rfc3339 optional
-1/5	x1		nrf52 usbd easydma stopepin buffer
-1/5	x1		nrf52840 usbd easydma endepin buffer
-1/5	x1	astro	content security policy csp hashes
-1/5	x1	astro	content security policy inline scripts
-1/5	x1	github	nrf52840 bootloader dfu usb recovery
-1/5	x1	jellyfin	isinrole administrator role claim claimsidentity
-1/5	x1	jellyfin	sessions playing playstate playnow playcommand
+searches	distinct	source
+49	17	github
+39	8	nvapi
+30	10	nordic
+27	9	lidarr
+19	7	kicad
+15	5	libhmk
+12	4	nuvoton-m480
+12	4	searxng
+9	3	nuvoton
+9	3	windows-sdk
+8	6	(no source)
+8	4	jellyfin
+7	1	duckdb
+6	2	forgejo
+6	2	frigate
+6	1	home-assistant
+6	2	nrf52840
+6	2	starlight
+4	1	zod
+3	1	bitwarden
+3	1	claude-code
+3	1	fly
+3	1	hlsjs
+3	1	microsoft
+3	1	powershell
+3	1	python
+3	1	rfc
+3	1	suricata
+3	1	vector
+3	1	windows-server
+2	2	astro
+1	1	go
 ```

@@ -8,7 +8,7 @@ A result matches on its path, or on its origin URL (search's 4th column)
 when no other result in the list shares that URL - some sources map every
 page to one root URL, so a shared URL identifies nothing. URL matching is
 what keeps the set valid when a page's path moves between builds
-(docs-ssh#12). Writes baseline.tsv; prints hit@1/5/15 and MRR@15.
+. Writes baseline.tsv; prints hit@1/5/15 and MRR@15.
 The calls land in the server's query log as type:mcp lines with no sid,
 so they never feed back into extract.py."""
 import sys

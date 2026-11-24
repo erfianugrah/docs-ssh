@@ -1,4 +1,4 @@
-"""Embed docs pages and write per-page nearest neighbours (docs-ssh#5 phase 2).
+"""Embed docs pages and write per-page nearest neighbours (phase 2).
 
 See test_embed.py for the contract. Only numpy is imported at module level;
 fastembed is imported lazily in main().
@@ -128,8 +128,7 @@ def neighbours(paths, shas, vecs, k=8, block=4096, chunk=64):
     """Top-k rows by dot product per row; ties by path; excludes self and same-sha rows.
 
     Per block, without a full sort or partition of each score row (that
-    argpartition took most of the 697 s at 114k pages on the router,
-    docs-ssh#13): split every row into chunks of `chunk` columns and take
+    argpartition took most of the 697 s at 114k pages on the router): split every row into chunks of `chunk` columns and take
     the k-th largest chunk maximum. Those k maxima are k distinct scores at
     or above it, so it is a lower bound on the row's k-th score and every
     score >= it is a candidate, ties at the cut included. Ranking the few
@@ -217,7 +216,7 @@ def main(argv):
 
         # EMBED_THREADS = the container's --cpus. onnxruntime's default thread
         # count ignores the CPU quota and oversubscribes it: 316-362 vs
-        # 546-570 pages/min at --cpus 8 on the router (2026-10-31, docs-ssh#16).
+        # 546-570 pages/min at --cpus 8 on the router (2026-10-31).
         threads = int(os.environ["EMBED_THREADS"]) if os.environ.get("EMBED_THREADS") else None
         model = fastembed.TextEmbedding(
             "BAAI/bge-small-en-v1.5", cache_dir=os.environ.get("EMBED_MODEL_DIR"), threads=threads

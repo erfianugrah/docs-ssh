@@ -484,7 +484,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   libhmk: ["hardware", "pcb"],
   "libhmk-src": ["hardware", "pcb"],
 
-  // -- batch w23-auspex (2026-11-07; insert this batch's entries below) --
+  // -- batch w23-cad (2026-11-07; insert this batch's entries below) --
   build123d: ["hardware", "languages"],
   trimesh: ["hardware", "languages"],
   jlc3dp: ["hardware", "pcb"],
@@ -495,7 +495,7 @@ export const SOURCE_TAGS: Record<string, readonly string[]> = {
   "scikit-rf": ["hardware", "languages"],
   pyvista: ["hardware", "languages"],
   "kicad-druid-src": ["hardware", "pcb"],
-  // -- end batch w23-auspex --
+  // -- end batch w23-cad --
 
   // -- batch w24-batch1 (2026-11-07; insert this batch's entries below) --
   "claude-code": ["cli-tools"],

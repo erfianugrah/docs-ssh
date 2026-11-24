@@ -4,7 +4,7 @@ import path from "node:path";
 import ts from "typescript";
 
 // The templates are TS source held in template literals, so a quoting
-// slip only shows in the generated file (docs-ssh#29 shipped one that the
+// slip only shows in the generated file (an earlier release shipped one that the
 // string-level tests passed). Render each script and parse its output.
 const root = path.resolve(__dirname, "../../..");
 

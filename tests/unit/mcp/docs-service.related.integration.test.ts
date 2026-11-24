@@ -1,5 +1,5 @@
 /**
- * docs_related (docs-ssh#5 phase 2): embedding neighbours of a page, read
+ * docs_related (phase 2): embedding neighbours of a page, read
  * from /docs/_related.tsv and titled from /docs/_index.tsv.
  *
  * _related.tsv is written by embed/embed.py: one line per page,

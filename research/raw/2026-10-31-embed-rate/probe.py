@@ -1,4 +1,4 @@
-"""docs-ssh#16: why did backfill run 143 embed ~146 pages/min when rate.py
+"""Why did backfill run 143 embed ~146 pages/min when rate.py
 measured 667? Run on the router against the cache volume, read-only:
   docker run --rm --cpus 12 -v docs-ssh-cache:/cache:ro -v docs-ssh-embed-model:/model \
     -v $PWD:/w -v $REPO/embed:/embed python:3.12-slim \

@@ -98,7 +98,7 @@ function resolvePath(args: { path?: string; filePath?: string }): string {
 }
 
 // Common local-filesystem prefixes. Catching these before SSHing the docs
-// server prevents the confusing "bash: /docs/home/erfi/...: No such file"
+// server prevents the confusing "bash: /docs/home/user/...: No such file"
 // failure mode when the agent forgets these tools target docs.erfi.io and
 // not the local FS. Update this list when adding new common roots.
 const LOCAL_FS_PREFIXES = [
@@ -121,7 +121,7 @@ const LOCAL_FS_PREFIXES = [
 function looksLikeLocalPath(p: string): boolean {
   if (p.startsWith("~") || p.startsWith("./") || p.startsWith("../")) return true
   // bare /docs/<localprefix>/... - agent prepended /docs to a local absolute
-  // path (e.g. resolvePath(filePath=/home/erfi/foo.md) -> /docs/home/erfi/foo.md).
+  // path (e.g. resolvePath(filePath=/home/user/foo.md) -> /docs/home/user/foo.md).
   for (const prefix of LOCAL_FS_PREFIXES) {
     if (p.startsWith(prefix)) return true
     if (p.startsWith(\`/docs\${prefix}\`)) return true

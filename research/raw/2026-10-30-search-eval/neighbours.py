@@ -1,4 +1,4 @@
-"""Score docs_related against the eval set's `fixed` rows (docs-ssh#5 phase 2).
+"""Score docs_related against the eval set's `fixed` rows (phase 2).
 
 A fixed row is a search where the agent opened the wrong page. The question:
 from the page it opened, would docs_related have pointed at the right one?

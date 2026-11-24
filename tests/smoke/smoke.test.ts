@@ -422,7 +422,7 @@ describe("negotiated-markdown content shape", () => {
    * Files under /docs/<name> with a line matching `pattern` (an awk ERE)
    * outside code fences and inline code, capped at 5. Scans every .md file
    * so the result does not depend on find order: a one-file sample flapped
-   * with the directory order of each refetch (build run 140, docs-ssh#14).
+   * with the directory order of each refetch (build run 140).
    */
   function unfencedHits(name: string, pattern: string): string[] {
     const prog =

@@ -472,7 +472,7 @@ describe("UpdateDocSets", () => {
       await fs.rm(tmpDir, { recursive: true });
     });
 
-    // A deliberate config change (docs-ssh#37: at32f405 gained PDFs and
+    // A deliberate config change (at32f405 gained PDFs and
     // grew 68 -> 307) must not read as an upstream regression.
     it("skips the guard when the source config changed since the stamp", async () => {
       const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "uds-reg-"));

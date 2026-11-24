@@ -1,4 +1,4 @@
-"""Spec for embed/embed.py (docs-ssh#5 phase 2). Runs with numpy + pytest
+"""Spec for embed/embed.py (phase 2). Runs with numpy + pytest
 only: the real model (fastembed bge-small) is injected, a fake stands in.
 
 Contract

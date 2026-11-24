@@ -36,7 +36,7 @@ RUN find /docs -name '.stamp.json' -delete \
 
 # Split /docs into 32 stable buckets + a top-level-files layer, with all
 # times zeroed, so an unchanged bucket is byte-identical to the last build
-# and its layer is neither pushed nor pulled again (docs-ssh#38). The
+# and its layer is neither pushed nor pulled again. The
 # runtime stage copies each bucket as its own layer.
 RUN node --import tsx/esm src/commands/layer-buckets.ts /docs /layers
 
@@ -49,7 +49,7 @@ COPY mcp-builder.package.json ./package.json
 RUN bun install --no-save
 COPY tsconfig.json ./
 COPY src/mcp/ ./src/mcp/
-# docs-service imports the source-name matcher (docs-ssh#29).
+# docs-service imports the source-name matcher.
 COPY src/shared/source-suggest.ts ./src/shared/
 # No --target: compiles for the build platform's arch (musl on alpine),
 # which matches the runtime stage under a consistent buildx --platform.
@@ -71,7 +71,7 @@ RUN addgroup -S docs && adduser -S -G docs -s /bin/bash docs \
 
 # Copy docs (now including the pre-built /docs/_index.tsv produced in
 # stage 1 by build-index.ts) - owned by root, readable by all. One layer per
-# bucket from src/commands/layer-buckets.ts (docs-ssh#38): a rebuild ships
+# bucket from src/commands/layer-buckets.ts: a rebuild ships
 # only the buckets whose sources changed. `top` (_index.tsv and the other
 # top-level files, which change with any doc) goes last. The list must match
 # BUCKETS; tests/unit/commands/layer-buckets.test.ts enforces it.

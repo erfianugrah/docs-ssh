@@ -1,6 +1,6 @@
 /**
  * Splits the built docs tree into a fixed set of image-layer buckets so a
- * rebuild only ships the buckets whose sources changed (docs-ssh#38).
+ * rebuild only ships the buckets whose sources changed.
  *
  * Before this, `COPY --from=fetcher /docs /docs` produced ONE 1.17 GB layer
  * (520 MB compressed on ghcr, 2026-11-10), and every scheduled or release

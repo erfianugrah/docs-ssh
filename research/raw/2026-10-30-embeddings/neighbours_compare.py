@@ -1,4 +1,4 @@
-"""docs-ssh#13: old (per-row argpartition, embed.py at 5f1ffe7) vs new
+"""Old (per-row argpartition, embed.py at 5f1ffe7) vs new
 (chunk-max candidate cut) neighbours() on the real state, timed, with an
 equality check over every row. Copy both versions next to this file as
 embed_old.py / embed_new.py, plus pages.tsv + vectors.npy from

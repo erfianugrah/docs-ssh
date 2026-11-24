@@ -5,7 +5,7 @@ import path from "node:path";
  * Delete top-level source directories under `outDir` that no longer match a
  * SOURCES entry (a renamed or removed source). The docs cache persists
  * across builds, so without this a renamed source is served twice
- * (jellyseerr next to seerr, docs-ssh#36). Root files and `_`/`.` entries
+ * (jellyseerr next to seerr). Root files and `_`/`.` entries
  * are left alone. Returns the names removed.
  */
 export async function pruneRemovedSources(outDir: string, known: ReadonlySet<string>): Promise<string[]> {

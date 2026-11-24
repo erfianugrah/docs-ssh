@@ -72,7 +72,7 @@ describe("MCP query log", () => {
         method: "tools/call",
         params: { name: "docs_search", arguments: { query: "row level security", source: "postgres", junk: "x" } },
       },
-      { "X-Forwarded-For": "203.0.113.7, 10.0.71.1" },
+      { "X-Forwarded-For": "203.0.113.7, 192.0.2.1" },
     );
     const [l] = await logLines();
     expect(l).toMatchObject({ type: "mcp", client: "203.0.113.7", op: "search", q: "row level security", source: "postgres" });

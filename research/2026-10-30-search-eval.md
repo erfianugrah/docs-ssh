@@ -1,4 +1,4 @@
-# Search eval set from the query log (docs-ssh#5, phase 0 -> 2)
+# Search eval set from the query log (phase 0 -> 2)
 
 Date: 2026-10-30. Raw files and scripts: `research/raw/2026-10-30-search-eval/`.
 
@@ -34,8 +34,7 @@ One first-pass Y was wrong: "clickAction" -> `home-assistant/integrations/mobile
 Two expected paths had moved since they were logged and were remapped by
 hand: the pi docs moved under `pi/packages/coding-agent/docs/`, and
 Hyperdrive's limits page went from `cloudflare/limits-3600.md` (2026-10-23)
-to `cloudflare/limits-3603.md`. The second is a naming defect, carded as
-docs-ssh#12: duplicate-title pages in llms-full splits are suffixed with
+to `cloudflare/limits-3603.md`. The second is a naming defect, later fixed: duplicate-title pages in llms-full splits are suffixed with
 their position in the vendor file, so a page inserted earlier renames every
 later one. To survive that, `label.tsv` also stores each expected page's
 origin URL, and `baseline.py` accepts a URL match when no other result in
@@ -88,13 +87,13 @@ The wrongly opened page is usually off-topic ("pg_net" ->
 `platform/compute-and-disk.md`, "HX711 load cell" -> the LD2410 sensor
 page), so its neighbours sit in the wrong topic too. Neighbours serve
 adjacency from a right page; they do not repair a wrong search. The fixed
-group needs query-to-page ranking: phase 3, docs-ssh#19.
+group needs query-to-page ranking: phase 3.
 
 ## Next
 
 1. Re-run `extract.py` as the log grows (about two more weeks of traffic
    since this set); rows naming private hosts are dropped before commit
    (the repo is mirrored publicly).
-2. Phase 3 (semantic or hybrid `docs_search`, docs-ssh#19) is scored on
+2. Phase 3 (semantic or hybrid `docs_search`) is scored on
    this set, fixed group first, and ships only if it beats the keyword
    baseline there without losing Y rows.
