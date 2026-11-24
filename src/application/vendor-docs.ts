@@ -137,6 +137,111 @@ export const VENDOR_DOCS: readonly VendorDoc[] = [
       "https://web.archive.org/web/20231216150458id_/https://www.st.com/resource/en/user_manual/um2502-stlinkv3mods-and-stlinkv3mini-debuggerprogrammer-tiny-probes-for-stm32-microcontrollers-stmicroelectronics.pdf",
   },
 
+  // Keyboard controller rev 2 (2026-11-24): STM32H743ZI MCU + USB3320
+  // ULPI PHY + external SPI ADCs + DRV5056 Hall sensors. Provenance only,
+  // not mirrored; captures re-verified byte-identical to the private
+  // vendor-binaries repo's st/FILES.tsv (gunzipped sha256, 2026-11-24).
+  {
+    vendor: "st",
+    doc: "DS12110",
+    title: "STM32H742xI/G, STM32H743xI/G 32-bit Arm Cortex-M7 480MHz MCUs, up to 2MB flash, up to 1MB RAM, 46 com. and analog interfaces",
+    rev: "Rev 10",
+    url: "https://www.st.com/resource/en/datasheet/stm32h743zi.pdf",
+    fetch: "https://web.archive.org/web/20250530154524id_/https://www.st.com/resource/en/datasheet/stm32h743zi.pdf",
+    vendorRepo: "st/stm32h743/ds12110-stm32h743zi.pdf",
+  },
+  {
+    vendor: "st",
+    doc: "ES0392",
+    title: "STM32H742xI/G, STM32H743xI/G, STM32H750xB, STM32H753xI device errata",
+    rev: "Rev 15",
+    url: "https://www.st.com/resource/en/errata_sheet/es0392-stm32h742xig-stm32h743xig-and-stm32h753xi-device-errata-stmicroelectronics.pdf",
+    fetch:
+      "https://web.archive.org/web/20260526205148id_/https://www.st.com/resource/en/errata_sheet/es0392-stm32h742xig-stm32h743xig-and-stm32h753xi-device-errata-stmicroelectronics.pdf",
+    vendorRepo: "st/stm32h743/es0392-stm32h742xig-and-stm32h743xig-device-errata-stmicroelectronics.pdf",
+  },
+  {
+    vendor: "st",
+    doc: "RM0433",
+    title: "STM32H742, STM32H743/753 and STM32H750 Value line advanced Arm-based 32-bit MCUs",
+    rev: "Rev 8",
+    url: "https://www.st.com/resource/en/reference_manual/rm0433-stm32h742-stm32h743-753-and-stm32h750-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf",
+    fetch:
+      "https://web.archive.org/web/20260626122438id_/https://www.st.com/resource/en/reference_manual/rm0433-stm32h742-stm32h743-753-and-stm32h750-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf",
+    vendorRepo:
+      "st/stm32h743/rm0433-stm32h742-stm32h743-753-and-stm32h750-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf",
+  },
+
+  // ── Microchip (USB3320/USB3320C ULPI PHY) ──────────────────────
+  // www.microchip.com is not blocked, but only the aemDocuments path
+  // serves the PDF: the content/dam/mchp and downloads/en/DeviceDoc
+  // spellings serve a ~500-byte HTML page (checked 2026-11-24).
+  {
+    vendor: "microchip",
+    doc: "DS00001792E",
+    title: "USB3320 Highly Integrated Full Featured Hi-Speed USB 2.0 ULPI Transceiver",
+    rev: "E",
+    url: "https://ww1.microchip.com/downloads/en/DeviceDoc/00001792E.pdf",
+    vendorRepo: "microchip/usb3320/usb3320-ds00001792e.pdf",
+  },
+  {
+    vendor: "microchip",
+    doc: "DS00005796A",
+    title: "USB3320C Highly Integrated Full Featured Hi-Speed USB 2.0 ULPI Transceiver",
+    rev: "A",
+    url: "https://ww1.microchip.com/downloads/aemDocuments/documents/UNG/ProductDocuments/DataSheets/USB3320C-Data-Sheet-DS00005796.pdf",
+    vendorRepo: "microchip/usb3320/usb3320c-ds00005796.pdf",
+  },
+
+  // ── Texas Instruments (ADS7953 ADCs, DRV5055/DRV5056 Hall sensors,
+  //    REF50xx reference) ──────────────────────────────────────────
+  // lit/ds/symlink serves ADS/DRV PDFs to a browser UA, but served HTML
+  // error pages for ref5025 (2026-11-24), so REF50xx carries a pinned
+  // capture; waybackOriginal needs the same scheme as `url`.
+  {
+    vendor: "ti",
+    doc: "SLAS605",
+    title: "ADS79xx Pin Compatible, 12-, 10-, 8-Bit, 1-MSPS, 16-, 12-, 8-, 4-Channel, Single-Ended, Serial Interface ADCs",
+    rev: "C",
+    url: "https://www.ti.com/lit/ds/symlink/ads7953.pdf",
+    vendorRepo: "ti/ads7953.pdf",
+  },
+  {
+    vendor: "ti",
+    doc: "SBAS640",
+    title: "DRV5055 Ratiometric Linear Hall Effect Sensor",
+    rev: "C",
+    url: "https://www.ti.com/lit/ds/symlink/drv5055.pdf",
+    vendorRepo: "ti/drv5055.pdf",
+  },
+  {
+    vendor: "ti",
+    doc: "SBAS644",
+    title: "DRV5056 Unipolar Ratiometric Linear Hall-Effect Sensor",
+    rev: "C",
+    url: "https://www.ti.com/lit/ds/symlink/drv5056.pdf",
+    vendorRepo: "ti/drv5056.pdf",
+  },
+  {
+    vendor: "ti",
+    doc: "SBOS410",
+    title: "REF50xx Low-Noise, Very Low Drift, Wide VIN Precision Voltage Reference",
+    rev: "M",
+    url: "https://www.ti.com/lit/ds/symlink/ref5025.pdf",
+    fetch: "https://web.archive.org/web/20250211025050id_/https://www.ti.com/lit/ds/symlink/ref5025.pdf",
+    vendorRepo: "ti/ref5025.pdf",
+  },
+
+  // ── 3PEAK (TPC512x SPI ADC) ─────────────────────────────────────
+  {
+    vendor: "3peak",
+    doc: "BA20241107A1",
+    title: "TPC512x 12-Bit 1-MHz SAR ADC",
+    rev: "A1",
+    url: "https://static.3peak.com/res/doc/ds/Datasheet_TPC512x.pdf",
+    vendorRepo: "3peak/tpc512x-ds-ba20241107a1.pdf",
+  },
+
   // ── USB-IF ─────────────────────────────────────────────────────
   {
     vendor: "usb-if",
