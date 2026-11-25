@@ -210,7 +210,12 @@ export const API_OVERVIEW_SOURCES: readonly string[] = [
  * once unblocked; remove the entry then. Each entry needs a reason + date.
  */
 export const TOLERATED_MISSING: Readonly<Record<string, string>> = {
-  // (empty) akamai was here until 2026-10-19; its Bot Manager 403s came and
+  // github.com/MicrosoftDocs/azure-aks-docs answers 404 (web + API) since
+  // 2026-11-25; it was the public sync of a private repo, last seen active
+  // 2026-10. Kept as a source so it returns if the repo comes back; drop
+  // the source if it is still gone in a month (docs-ssh#61).
+  "azure-aks": "upstream repo 404 since 2026-11-25 (docs-ssh#61)",
+  // akamai was here until 2026-10-19; its Bot Manager 403s came and
   // went and its 9.7k pages never fit a deadline, so the source was removed.
   // archwiki was here 2026-11-05 (wiki IP block) until it moved to the
   // arch-wiki-docs package the same day.
