@@ -27,6 +27,19 @@ describe("discoverFromLlmsTxt", () => {
     expect(urls).toContain("https://docs.example.com/api.md");
   });
 
+  // GitBook's llms.txt intro links the site's MCP server (/~gitbook/mcp,
+  // HTTP 405 to a GET); it is an endpoint, not a page (yq, 2026-11-25).
+  it("drops GitBook's /~gitbook/ endpoints", async () => {
+    mockLlmsTxt(
+      [
+        "> Agents can also search and read this documentation through its [MCP server](https://mikefarah.gitbook.io/yq/~gitbook/mcp).",
+        "- [Usage](https://mikefarah.gitbook.io/yq/usage.md)",
+      ].join("\n"),
+    );
+    const urls = await discoverFromLlmsTxt("https://mikefarah.gitbook.io/yq/llms.txt");
+    expect(urls).toEqual(["https://mikefarah.gitbook.io/yq/usage.md"]);
+  });
+
   it("strips URL fragments so anchor links do not become duplicate pages", async () => {
     mockLlmsTxt(
       [

@@ -107,6 +107,10 @@ export async function discoverFromLlmsTxt(llmsTxtUrl: string): Promise<string[]>
     } catch { /* skip malformed */ }
   }
 
-  // Drop self-references and other llms*.txt sibling files
-  return [...urls].filter((u) => !u.endsWith("/llms.txt") && !u.endsWith("/llms-full.txt") && u !== llmsTxtUrl);
+  // Drop self-references, other llms*.txt sibling files, and GitBook's
+  // /~gitbook/ endpoints (the MCP server its llms.txt intro links; 405).
+  return [...urls].filter(
+    (u) =>
+      !u.endsWith("/llms.txt") && !u.endsWith("/llms-full.txt") && u !== llmsTxtUrl && !u.includes("/~gitbook/"),
+  );
 }
