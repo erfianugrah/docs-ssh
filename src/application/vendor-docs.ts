@@ -171,6 +171,40 @@ export const VENDOR_DOCS: readonly VendorDoc[] = [
     vendorRepo:
       "st/stm32h743/rm0433-stm32h742-stm32h743-753-and-stm32h750-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf",
   },
+  // Keyboard controller rev 2 follow-up (2026-11-25): boot-mode and USB-C
+  // application notes plus the H7 SVD package (a zip, not a PDF; provenance
+  // only). Captures are the newest of each st.com URL, gunzipped sha256
+  // recorded in the private vendor-binaries repo's st/FILES.tsv.
+  {
+    vendor: "st",
+    doc: "AN2606",
+    title: "Introduction to system memory boot mode on STM32 MCUs",
+    rev: "Rev 71",
+    url: "https://www.st.com/resource/en/application_note/an2606-introduction-to-system-memory-boot-mode-on-stm32-mcus-stmicroelectronics.pdf",
+    fetch:
+      "https://web.archive.org/web/20261103193843id_/https://www.st.com/resource/en/application_note/an2606-introduction-to-system-memory-boot-mode-on-stm32-mcus-stmicroelectronics.pdf",
+    vendorRepo: "st/stm32h743/an2606-introduction-to-system-memory-boot-mode-on-stm32-mcus-stmicroelectronics.pdf",
+  },
+  {
+    vendor: "st",
+    doc: "AN5225",
+    title: "Introduction to USB Type-C Power Delivery for STM32 MCUs and MPUs",
+    rev: "Rev 7",
+    url: "https://www.st.com/resource/en/application_note/an5225-introduction-to-usb-type-c-power-delivery-for-stm32-mcus-and-mpus-stmicroelectronics.pdf",
+    fetch:
+      "https://web.archive.org/web/20261030110052id_/https://www.st.com/resource/en/application_note/an5225-introduction-to-usb-type-c-power-delivery-for-stm32-mcus-and-mpus-stmicroelectronics.pdf",
+    vendorRepo:
+      "st/stm32h743/an5225-introduction-to-usb-type-c-power-delivery-for-stm32-mcus-and-mpus-stmicroelectronics.pdf",
+  },
+  {
+    vendor: "st",
+    doc: "STM32H7_svd",
+    title: "STM32H7 SVD package (STM32H743.svd and the other STM32H7 system view descriptions)",
+    rev: "V2.8",
+    url: "https://www.st.com/resource/en/svd/stm32h7-svd.zip",
+    fetch: "https://web.archive.org/web/20261006213403id_/https://www.st.com/resource/en/svd/stm32h7-svd.zip",
+    vendorRepo: "st/stm32h743/stm32h7-svd.zip",
+  },
 
   // ── Microchip (USB3320/USB3320C ULPI PHY) ──────────────────────
   // www.microchip.com is not blocked, but only the aemDocuments path
